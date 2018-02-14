@@ -1,0 +1,53 @@
+---
+title: "Fire data from Canadian National Fire Database"
+author: "Ceres Barros"
+date: "November 15, 2017"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "../")   ## THIS IS NOT WORKING - ANNOYING! changed to normal R script
+library(raster)
+library(maptools)
+```
+
+
+```{r load_data, include = FALSE, echo = FALSE}
+## LOAD DATA ----------------------------------------
+## Fire data from the Canadian National Fire Database
+fires.shp <- shapefile("Fires_CNFD.Rmd
+                       Data/Maps/NFDB_poly_20141212.shp")
+
+## get Canadian provinces
+load("Data/Maps/CNFD.RmdCAN_adm1.Rdata")
+## subset to Alberta
+alberta <- CAN_adm1[CAN_adm1$NAME_1 == "Alberta",]
+
+## get Alberta foothills study area
+ALfoothills <- shapefile("Data/Maps/Alberta_study_area_shp/Alberta_study_area.shp")
+
+## reproject
+alberta <- sp::spTransform(alberta, CRSobj = crs(fires.shp))
+ALfoothills <- sp::spTransform(ALfoothills, CRSobj = crs(fires.shp))
+```
+
+## Study area
+```{r study_area_plots, echo=FALSE}
+plot(alberta); plot(ALfoothills, add = TRUE, col ="grey")
+```
+
+## Fires in Study area
+All fires shown in yellow and lightning-caused fires in red
+```{r study_area_plots2, echo=FALSE}
+## subset to study area
+fires_foothills.shp <- intersect(fires.shp, ALfoothills)
+plot(ALfoothills, col ="grey"); plot(fires_foothills.shp, add = TRUE, col = "yellow")
+
+## subset lightning-caused fires
+fires_foothillsL.shp <- fires_foothills.shp[fires_foothills.shp$CAUSE == "L",]
+plot(fires_foothillsL.shp, add = TRUE, col = "red")
+
+knitr::kable(table(fires_foothills.shp), caption = "Fire ignition causes and number of fires")
+```
+
+

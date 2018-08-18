@@ -6,8 +6,6 @@ library(raster)
 library(data.table)
 library(ggplot2)
 
-setwd("E:/GitHub/LandscapesInMotion")
-
 outputsPath = "R/SpaDES/outputs/"
 
 scens <- dir(outputsPath, pattern = "veg")
@@ -29,7 +27,7 @@ severities <- rbindlist(lapply(scens, FUN = function(scen) {
 ## density plot of changes in severity (aka biomass)
 severities[, sev :=-sev]   ## invert values so that biomass gains become positive
 
-dev(width = 5, height = 4)
+dev(width = 6, height = 5)
 ggplot(data = na.omit(severities)) + 
   geom_density(aes(x = log(sev+abs(min(sev))), fill = scen), alpha = 0.5) +
   geom_vline(aes(xintercept = log(abs(min(sev))))) +
@@ -58,7 +56,7 @@ fireSizes <- rbindlist(lapply(scens, FUN = function(scen) {
 
 fireSizes
 
-dev(width = 5, height = 4)
+dev(width = 6, height = 5)
 ggplot(data = fireSizes) +
   geom_density(aes(x = log(N), fill = scen), alpha = 0.5) +
   scale_fill_discrete(labels = c("vegFB_0" = "No veg. feedback",

@@ -4,24 +4,27 @@
 ## Dataprep for Exploratory analysis
 ## ---------------------------------
 
-## this script should be sourced
-
-rm(list = ls()); amc::.gc()
-
-## using - as of April 19th, 2018
-# loading reproducible     0.1.4.9015
-# loading quickPlot        0.1.3.9002
-# loading SpaDES.core      0.1.1.9009
-# loading SpaDES.tools     0.1.1.9005
-# loading SpaDES.addins    0.1.1
+## using - as of January 14th, 2019
+# loading reproducible     0.2.5.9009
 # devtools::install_github("PredictiveEcology/reproducible@development")
-# devtools::install_github("PredictiveEcology/quickPlot@development")
-# devtools::install_github("PredictiveEcology/SpaDES.core@development")
-# devtools::install_github("PredictiveEcology/SpaDES.tools@development")
 
 ## requires
-library(SpaDES); library(sf); library(ggplot2); library(data.table); library(dplyr)
+# library(factoextra)
+# library(reshape2)
+# library(vegan)
+# library(SpaDES)
+# library(sf)
+# library(ggplot2)
+# library(data.table)
+# library(dplyr)
+# library(xlsx)
+# library(foreign)
+# library(fasterize)
+# library(velox)
 source("R/R_tools/Useful_functions.R")
+source("R/R_tools/CASFRIrelated_functions.R")
+source("R/R_tools/prepFireWeather.R")
+source("R/R_tools/joinSevVegTopoWeatherData.R")
 
 ## define paths
 # setPaths(cachePath = file.path("R/SpaDES/cache"),
@@ -29,75 +32,55 @@ source("R/R_tools/Useful_functions.R")
 #          inputPath = file.path("R/SpaDES/inputs"),
 #          outputPath = file.path("R/SpaDES/outputs"))
 
-
+## -------------------------------------------------
 ## LOAD DATA ---------------------------------------
 
-## POST-FIRE DATA 
-
+## POST-FIRE DATA ----
 files = c("albertafires1_postfire", "albertafires2_postfire", "saskatchewanfires_postfire")
 # folder = "~/../OneDrive/Documents/LandscapesInMotion/data/fires_Dave/Projected_renamed"
-folder = "data/fires_Dave/"
+folder = "data/fires_Dave/fireSev"
 
 for(x in files) {
   eval(parse(text = paste0(
     x, " <- st_read(file.path(folder", ", paste0('", x,"', '.shp')))"
-    )))
+  )))
 }
 
-head(albertafires1_postfire)
-head(albertafires2_postfire)
-head(saskatchewanfires_postfire)
+## water polygons in AB2 (have FIRE_CODE == 9)
+albertafires2_postfire <- albertafires2_postfire[albertafires2_postfire$FIRE_CODE != "9",]
 
-## CLEAN-UP
-## Saskatchewan attributes table has some repeated columns, check if they are duplicated before deleting
-if(all(saskatchewanfires_postfire$FIRE_NAME_ == saskatchewanfires_postfire$FIRE_NAME)) {
-  saskatchewanfires_postfire$FIRE_NAME_ <- NULL
-}
-if(all(saskatchewanfires_postfire$AREA_ == saskatchewanfires_postfire$AREA)) {
-  saskatchewanfires_postfire$AREA_ <- NULL
-}
-if(all(saskatchewanfires_postfire$PERIMETER_ == saskatchewanfires_postfire$PERIMETER)) {
-  saskatchewanfires_postfire$PERIMETER_ <- NULL
-}
-
-## remove unwanted variables
-albertafires1_postfire$FIRE_NUM = albertafires2_postfire$ELEMENT = saskatchewanfires_postfire$ID =
-  saskatchewanfires_postfire$AREA_ = saskatchewanfires_postfire$PERIMETER_ = saskatchewanfires_postfire$FIRE_ID =
-  saskatchewanfires_postfire$ZEROBURNT = saskatchewanfires_postfire$AREA = saskatchewanfires_postfire$PERIMETER = NULL
-
-## Uniformize column names - follow alberta1 format, except for severity
-## Fire year
-names(albertafires2_postfire)[grep("YEAR", names(albertafires2_postfire))] = 
-  names(saskatchewanfires_postfire)[grep("YEAR", names(saskatchewanfires_postfire))] = 
-  grep("YEAR", names(albertafires1_postfire), value = TRUE)
-
-albertafires1_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires1_postfire$FIRE_YEAR))
-albertafires2_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires2_postfire$FIRE_YEAR))
-saskatchewanfires_postfire$FIRE_YEAR <- as.numeric(as.character(saskatchewanfires_postfire$FIRE_YEAR))
-
-## Fire name
-names(albertafires2_postfire)[grep("NAME", names(albertafires2_postfire))] = 
-  names(saskatchewanfires_postfire)[grep("NAME", names(saskatchewanfires_postfire))] = 
-  grep("NAME", names(albertafires1_postfire), value = TRUE)
-
-albertafires1_postfire$FIRE_NAME <- as.character(albertafires1_postfire$FIRE_NAME)
-albertafires2_postfire$FIRE_NAME <- as.character(albertafires2_postfire$FIRE_NAME)
-saskatchewanfires_postfire$FIRE_NAME <- as.character(saskatchewanfires_postfire$FIRE_NAME)
-
-## Severity
-names(albertafires2_postfire)[grep("FIRE_CODE", names(albertafires2_postfire))] = 
-  names(albertafires1_postfire)[grep("SURVIVAL", names(albertafires1_postfire))] = 
-  names(saskatchewanfires_postfire)[grep("CLASS", names(saskatchewanfires_postfire))] = "SEV_CLASS"
+## CHANGE NAMES AND REMOVE UNWANTED VARIABLES
+albertafires1_postfire <- renameCleanSfFields(sfObj = albertafires1_postfire, 
+                                              namesTable = read.table(file.path(folder, "alberta1Postfire_varCorresp.txt"), header = TRUE))
+albertafires2_postfire <- renameCleanSfFields(sfObj = albertafires2_postfire, 
+                                              namesTable = read.table(file.path(folder, "alberta2Postfire_varCorresp.txt"), header = TRUE))
+saskatchewanfires_postfire <- renameCleanSfFields(sfObj = saskatchewanfires_postfire, 
+                                                  namesTable = read.table(file.path(folder, "saskatchewanPostfire_varCorresp.txt"), header = TRUE))
 
 ## reorder columns
 if (all(setequal(names(albertafires1_postfire), names(albertafires2_postfire)), 
-setequal(names(albertafires1_postfire), names(saskatchewanfires_postfire)))) {
+        setequal(names(albertafires1_postfire), names(saskatchewanfires_postfire)))) {
   albertafires2_postfire <- albertafires2_postfire[, names(albertafires1_postfire)]
   saskatchewanfires_postfire <- saskatchewanfires_postfire[, names(albertafires1_postfire)]
 } else stop("column names differ")
 
-## create a continuos severity variable in % mortality
-## note that alberta1 is percent survival, alberta2 is 0-5 in increasing severity
+## uniformize column classes between sf objs
+varInfo <- data.frame(name = names(st_set_geometry(albertafires1_postfire, NULL)), 
+                      class = sapply(st_set_geometry(albertafires1_postfire, NULL), class),
+                      stringsAsFactors = FALSE)
+funs <- paste0("as.", varInfo$class)
+
+## didn't manage to do all vars at the same time..
+for(j in 1:nrow(varInfo)) {
+  albertafires2_postfire[, varInfo$name[j]] <- sapply(albertafires2_postfire[, varInfo$name[j], drop = TRUE],
+                                                      funs[[j]])
+  saskatchewanfires_postfire[, varInfo$name[j]] <- sapply(saskatchewanfires_postfire[, varInfo$name[j], drop = TRUE],
+                                                          funs[[j]])
+}
+
+
+## convert alberta1 classes (% survival) to match alberta2 and saskatchewan (mortality classes)
+## and create a continuous severity variable in % mortality
 albertafires1_postfire$SEV_CLASS <- as.character(albertafires1_postfire$SEV_CLASS)
 albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "100%"] <- "0"
 albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "75-99%"] <- "1"
@@ -113,53 +96,57 @@ albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 3] <- median
 albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 4] <- median(c(76,94))
 albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 5] <- median(c(95,100))
 
+
+albertafires2_postfire$SEV_CLASS <- as.numeric(as.character(albertafires2_postfire$SEV_CLASS))
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 0] <- 0
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 1] <- median(c(1,25))
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 2] <- median(c(26,50))
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 3] <- median(c(51,75))
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 4] <- median(c(76,94))
 albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 5] <- median(c(95,100))
-albertafires2_postfire$SEV_CLASS <- as.numeric(albertafires2_postfire$SEV_CLASS)
 
+saskatchewanfires_postfire$SEV_CLASS <- as.numeric(as.character(saskatchewanfires_postfire$SEV_CLASS))
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 0] <- 0
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 1] <- median(c(1,25))
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 2] <- median(c(26,50))
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 3] <- median(c(51,75))
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 4] <- median(c(76,94))
 saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 5] <- median(c(95,100))
-saskatchewanfires_postfire$SEV_CLASS <- as.numeric(saskatchewanfires_postfire$SEV_CLASS)
 
+albertafires1_postfire$Province <- "AB"
+albertafires2_postfire$Province <- "AB"
+saskatchewanfires_postfire$Province <- "SK"
 
-## DEFINE FIRE EVENTS ----------------------------------------
+## DEFINE FIRE EVENTS ----
 firesABSK <- rbind(albertafires1_postfire, albertafires2_postfire, saskatchewanfires_postfire)
 
 ## Use Alberta 1 post fire data only for now, as severity classes on other datasets and not yet comparable.
-amc::.gc()
-ABSK_fireEvents <- Cache(defineFireEvents, 
-                         sf.obj = firesABSK, fireNAMES = "FIRE_NAME",
-                         # fireVARS = c("FIRE_ID", "FIRE_YEAR", "SEV_CLASS"),   ## this makes the output object huge
-                         buff.dist = 200L, 
-                         PLOT = FALSE, SAVE = FALSE, outputDIR = "analyses/FireEvents", 
-                         fileNAME = "Andison_ABSK_fireEvents", overwrite = TRUE,
-                         cacheRepo = "analyses/cache", userTags = "dataTreat_fireEvents",
-                         omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"))
+ABSK_fireEvents <- reproducible::Cache(defineFireEvents, 
+                                       sfObj = firesABSK, fireNAMES = "FIRE_NAME",
+                                       # fireVARS = c("FIRE_ID", "FIRE_YEAR", "SEV_CLASS"),   ## this makes the output object huge
+                                       buff.dist = 200L, 
+                                       PLOT = FALSE, SAVE = FALSE, outputDIR = "analyses/FireEvents", 
+                                       fileNAME = "Andison_ABSK_fireEvents", overwrite = TRUE,
+                                       cacheRepo = "analyses/cache", userTags = "dataTreat_fireEvents",
+                                       omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
+                                       useCache = doCache)
 
-## ADD SEVERITY
+
+## ADD SEVERITY IN DISTURBED PATCHES
+## using a left join that will add severity polys within the disturbed patch (all should be added)
 ## (doing it in defineFireEvents seems to produce an overly large polygon)
-ABSK_distPatchSev <- Cache(st_intersection, 
-                          x = ABSK_fireEvents[ABSK_fireEvents$PatchType == "disturbedPatch",], 
-                          y = firesABSK[, c("SEV_CLASS", "SEV_CONT")], userTags = "dataTreat_fireEvents",
-                          cacheRepo = "analyses/cache")
+ABSK_fireEvents.dt <- data.table(st_set_geometry(ABSK_fireEvents, NULL))
+firesABSK.dt <- data.table(st_set_geometry(firesABSK, NULL))
+firesABSK.dt$P_ID <- 1:nrow(firesABSK.dt)  ## keep track of row order to add geometries later
 
-## make NA columns for binding
-ABSK_fireEvents[, setdiff(names(ABSK_distPatchSev), names(ABSK_fireEvents))] <- NA
-ABSK_fireEventsSev <- rbind(ABSK_fireEvents[ABSK_fireEvents$PatchType != "disturbedPatch",], ABSK_distPatchSev)
-rm(ABSK_distPatchSev); amc::.gc()
+ABSK_distPatchSev.dt <- firesABSK.dt[ABSK_fireEvents.dt[PatchType == "disturbedPatch",], on = "FIRE_NAME"]
+ABSK_distPatchSev.dt <- ABSK_distPatchSev.dt[order(P_ID)]
 
+ABSK_fireEventsSev <- st_set_geometry(ABSK_distPatchSev.dt, st_geometry(firesABSK))
 
-## PRE-FIRE VEGETATION DATA ----------------------------------
+## PRE-FIRE VEGETATION DATA ----
 files = c("albertafires1_prefire", "albertafires2_prefire", "saskatchewanfires_prefire")
-folder = "data/fires_Dave"
+folder = "data/fires_Dave/prefireVeg"
 
 for(x in files) {
   eval(parse(text = paste0(
@@ -167,36 +154,96 @@ for(x in files) {
   )))
 }
 
-## CLEAN-UP
-## remove empty variables
-for(var in names(albertafires1_prefire)) {
-  if (sum(is.na(albertafires1_prefire[, var])) == length(albertafires1_prefire[, var]))
-    albertafires1_prefire[, var] <- NULL
-}
-for(var in names(albertafires2_prefire)) {
-  if (sum(is.na(albertafires2_prefire[, var])) == length(albertafires2_prefire[, var]))
-    albertafires2_prefire[, var] <- NULL
-}
-for(var in names(saskatchewanfires_prefire)) {
-  if (sum(is.na(saskatchewanfires_prefire[, var])) == length(saskatchewanfires_prefire[, var]))
-    saskatchewanfires_prefire[, var] <- NULL
-}
+## add a polygon ID column for each dataset
+## IDs in the data cannot be trusted as they are repeated/missing across polygons with different data.
+albertafires1_prefire$P_ID <- 1:nrow(albertafires1_prefire[,, drop = TRUE])
+albertafires2_prefire$P_ID <- 1:nrow(albertafires2_prefire[,, drop = TRUE])
+saskatchewanfires_prefire$P_ID <- 1:nrow(saskatchewanfires_prefire[,, drop = TRUE])
 
-# HERE
-## remove variables that are repeated from joins
-repNames <- names(albertafires1_prefire)[grepl("_$", names(albertafires1_prefire))]
-lapply(repNames, function(repVar) {
-  
-})
+## MELT CHANGE NAMES AND REMOVE UNWANTED VARIABLES
+## Alberta - melting comes after renaming
+albertafires1_prefire <- renameCleanSfFields(sfObj = albertafires1_prefire, 
+                                             namesTable = read.table("data/VegInventories/alberta1Prefire_AVI_varCorresp.txt", header = TRUE))
+albertafires2_prefire <- renameCleanSfFields(sfObj = albertafires2_prefire, 
+                                             namesTable = read.table("data/VegInventories/alberta2Prefire_AVI_varCorresp.txt", header = TRUE))
 
-summary(albertafires1_prefire[, repNames])
-origNames <- intersect(names(albertafires1_prefire), sub("_$", "", repNames))
-summary(albertafires1_prefire[, origNames])
+ABinvs <- grep("alberta.*_prefire$", ls(), value = TRUE)
 
-names(albertafires2_prefire)
-names(saskatchewanfires_prefire)
+allVars <- c("ANTH_NON", "ANTH_VEG", "DATA", "DATA_YR", 
+             "DENSITY", "HEIGHT", "INITIALS", "MOD1", 
+             "MOD1_EXT", "MOD1_YR", "MOD2", "MOD2_EXT", 
+             "MOD2_YR", "MOIST_REG", "NAT_NON", "NFL_PER",
+             "NFL", "ORIGIN", "SP1_PER", "SP1", "SP2_PER",
+             "SP2", "SP3_PER", "SP3", "SP4_PER", "SP4", 
+             "SP5_PER", "SP5", "STRUC", "STRUC_VAL", "TPR")
+allVars <- c(allVars, paste0("U", allVars))
 
-## WATER DATA
+albertafires1_prefireMelt <- reproducible::Cache(meltPreFireABInv,
+                                                 inv = "albertafires1_prefire",
+                                                 allVars = allVars,
+                                                 folder = folder,
+                                                 cacheRepo = "analyses/cache",
+                                                 userTags = "meltABprefire_1",
+                                                 useCache = doCache)
+
+albertafires2_prefireMelt <- reproducible::Cache(meltPreFireABInv,
+                                                 inv = "albertafires2_prefire",
+                                                 allVars = allVars,
+                                                 folder = folder,
+                                                 cacheRepo = "analyses/cache",
+                                                 userTags = "meltABprefire_2",
+                                                 useCache = doCache)
+
+## Saskatchewan - melting has to come before renaming
+## note: for SK these names are not the same as the names accepted by CASFRI, 
+##    because CASFRI is not using the "official" field names
+saskatchewanfires_prefireMelt <- reproducible::Cache(meltPreFireSKInv,
+                                                     inv = "saskatchewanfires_prefire",
+                                                     folder = folder,
+                                                     cacheRepo = "analyses/cache",
+                                                     userTags = "meltSKprefire",
+                                                     useCache = doCache)
+
+saskatchewanfires_prefireMelt <- renameCleanSfFields(sfObj = saskatchewanfires_prefireMelt, 
+                                                     namesTable = read.table("data/VegInventories/saskatchewanPrefire_SFVI_varCorresp.txt", header = TRUE))
+
+## AVI AND SFVI TO CASFRI
+tablesDir <- "data/VegInventories/CASFRIConvTables.xlsx"
+albertafires1_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI, 
+                                                       inv = "albertafires1_prefireMelt",
+                                                       tablesDir = tablesDir,
+                                                       folder = folder,
+                                                       cacheRepo = "analyses/cache",
+                                                       userTags = "AB2CASFRI_1",
+                                                       useCache = doCache)
+
+albertafires2_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI, 
+                                                       inv = "albertafires2_prefireMelt",
+                                                       tablesDir = tablesDir,
+                                                       folder = folder,
+                                                       cacheRepo = "analyses/cache",
+                                                       userTags = "AB2CASFRI_2",
+                                                       useCache = doCache)
+
+saskatchewanfires_prefireMeltCASFRI <- reproducible::Cache(SKToCASFRI, 
+                                                           inv = "saskatchewanfires_prefireMelt",
+                                                           tablesDir = tablesDir,
+                                                           folder = folder,
+                                                           cacheRepo = "analyses/cache",
+                                                           userTags = "SK2CASFRI_1",
+                                                           useCache = doCache)
+
+
+
+## rbind pre-fire data
+setcolorder(albertafires2_prefireMeltCASFRI, names(albertafires1_prefireMeltCASFRI))
+setcolorder(saskatchewanfires_prefireMeltCASFRI, names(albertafires1_prefireMeltCASFRI))
+
+allPrefireCASFRI <- rbind(albertafires1_prefireMeltCASFRI, albertafires2_prefireMeltCASFRI,
+                          saskatchewanfires_prefireMeltCASFRI)
+allPrefireCASFRI$P_ID <- NULL
+
+## WATER DATA ----
 # files = c("water-abta", "water-sask")
 # folder = "data/fires_Dave/Projected_renamed"
 # 
@@ -207,129 +254,82 @@ names(saskatchewanfires_prefire)
 # }
 
 
+## TOPO DATA ----
+## data used in Ferster et al 2016, see ~/Colin_forestsMDPI/DEM/topo_names.R
+## using .shp instead of dbf, so that an intersection can be made with pre and post fire data
+files = c("alta24.shp", "alta77_revise.shp", "sask29.shp")
+folder = "data/fires_Dave/DEM/Grid30Intersect"   
 
-## JOIN WATER, VEGETATION AND FIRE EVENTS --------------------
-AB1_vegFireEvents <- Cache(st_intersection, 
-                           x = albertafires1_prefire, y = ABSK_fireEventsSev,
-                           userTags = "dataTreat_fireEvents_wVeg",
-                           cacheRepo = "analyses/cache")
+DEMList <- lapply(file.path(folder, files), st_read)
+names(DEMList) <- sub(".shp", "", files)
 
-## save - not working, R thinks this is sfc instead of sf.
-# st_write(st_as_sf(AB1_vegFireEvents), 
-#          dsn = "analyses/FireEvents/Andison_ABSK_fireEventsVegetation.shp",
-#          delete_layer = TRUE)  ##  not working
-# raster::shapefile(as_Spatial(st_as_sf(AB1_vegFireEvents)),
-#                   filename = "analyses/FireEvents/Andison_ABSK_fireEventsVegetation.shp",
-#                   overwrite = TRUE)
+## change column names (see ~/Colin_forestsMDPI/DEM/topo_names.R)
+colNames <- c("gridID", "Aspect",
+              "CTI", "Curv", "PctSlope",
+              "SCOS", "DegSlope", "SlopePosition",
+              "Elevation", "SSIN", "SurfAspectRatio",
+              "SurfReliefRatio", "TRASP")
 
-## not sure what to do about water yet... 
-## perhaps just remove these areas with st difference before intersecting with veg?
-# AB1_watVegFireInters <- Cache(st_intersection,
-#                               x = AB1_vegFireEvents, y = water_abta[, "FEATURE_TY"],
-#                               userTags = "dataTreat_fireEvents_wVeg_water", cacheRepo = "analyses/cache")
-# names(AB1_watVegFireEvents)[which(names(AB1_watVegFireEvents) == "FEATURE_TY")] <- "WATER_TY"
-
-## MAKE DATATABLE ----
-## extract DATATABLE only
-AB1_vegFireEvents.dt <- as.data.table(st_set_geometry(AB1_vegFireEvents, NULL))
-
-## remove columns with NAs only
-NAcols <- sapply(AB1_vegFireEvents.dt, FUN = function(x) {
-  return(any(sum(is.na(x)) == length(x)))
-})
-
-## remove duplicates
-AB1_vegFireEvents.dt <- AB1_vegFireEvents.dt[!duplicated(AB1_vegFireEvents.dt),]
-
-## MAKE SEVERITY CONTINUOUS --------------
-
-## alberta 1 classes are in survival %, invert scale
-AB1_vegFireEvents.dt[SEV_CLASS == "100%", SEV_CONT:= 0]
-AB1_vegFireEvents.dt[SEV_CLASS == "75-99%", SEV_CONT:= median(c(1,25))]
-AB1_vegFireEvents.dt[SEV_CLASS == "50-74%", SEV_CONT:= median(c(26,50))]
-AB1_vegFireEvents.dt[SEV_CLASS == "25-49%", SEV_CONT:= median(c(51,75))]
-AB1_vegFireEvents.dt[SEV_CLASS == "6-24%", SEV_CONT:= median(c(76,94))]
-AB1_vegFireEvents.dt[SEV_CLASS == "0-5%", SEV_CONT:= median(c(95,100))]
-
-## attribute 0 severity to remnants
-AB1_vegFireEvents.dt[PatchType %in% c("outMatrixRemn", "inMatrixRemn"), SEV_CONT:= 0]
-
-## MELT DATA -------
-id.vars <- grep("SP", names(AB1_vegFireEvents.dt), value = TRUE, invert = TRUE)
-
-dt.ls <- lapply(grep("SP.$", names(AB1_vegFireEvents.dt), value = TRUE), FUN = function(x) {
-  measure.vars <- grep(paste0("^", x), names(AB1_vegFireEvents.dt), value = TRUE)
-  temp <- cbind(AB1_vegFireEvents.dt[, id.vars, with = FALSE], AB1_vegFireEvents.dt[, measure.vars, with = FALSE])
-  temp <- temp[!duplicated(temp),]
-  temp <- temp[!is.na(get(x))]
+DEMList <- lapply(DEMList, FUN = function(shp, colNames) {
+  ## one of the datasets contains fire names
+  if (any(grepl("alta77", names(shp))))
+    colNames <- c("fireName", colNames)
   
-  if(dim(temp)[1] != 0) {
-    form <- paste("... ~", measure.vars[1])
-    temp2 <- dcast(temp, formula = as.formula(form), value.var = measure.vars[2], fill = 0)
-    old.names =  setdiff(names(temp2), names(temp))
-    new.names = paste0(measure.vars[1], "_", setdiff(names(temp2), names(temp)))
-    names(temp2)[names(temp2) %in% old.names] <- new.names
-    return(temp2)
-  }
-})
+  names(shp) <- c(colNames, "geometry")
+  
+  ## remove fireName column, should it exist
+  if (any(names(shp) == "fireName"))
+    shp$fireName <- NULL
+  
+  shp
+}, colNames = colNames)
 
-## remove null elements
-dt.ls <- dt.ls[!sapply(dt.ls, is.null)]
-## merge data.tables with Reduce 
-AB1_vegFireEvents.mdt <- as.data.table(Reduce(f = function(x,y) merge(x, y, by = id.vars, all = TRUE), dt.ls))
+## bind
+DEM <- do.call(rbind, DEMList)  ## need do.call to deal with
+DEM <- st_transform(DEM, st_crs(ABSK_fireEventsSev))
 
-## Replace NAs in spp percentages by 0s (true NAs are not present anymore form subsetting above)
-SP.vars <- grep("SP", names(AB1_vegFireEvents.mdt), value = TRUE)
-for (j in SP.vars) {
-  AB1_vegFireEvents.mdt[is.na(get(j)), (j):=0]
-}
+## WEATHER DATA ----------
+fireWeatherLs <- reproducible::Cache(prepFireWeather,
+                                     folder = "data/fires_Dave/fireWeather",
+                                     userTags = "fireWeatherLs",
+                                     cacheRepo = "analyses/cache",
+                                     useCache = doCache)
 
+## -------------------------------------------------
+## JOIN DATA ---------------------------------------
+## clean-up before joining
+rm(list = c("ABinvs", "allVars", "files", "folder", "funs", 
+            "varInfo", "j", "tablesDir", "x", "colNames", "ABSK_fireEvents", 
+            "ABSK_fireEvents.dt",
+            grep("firesABSK|DEMList|ABSK_distPatchSev|postfire|prefire|alberta|saskatchewan", 
+                 ls(), value = TRUE)))
+amc::.gc()
 
-## SUM SPP COVER ACROSS DOMINANCE STATUS -------
-## cover classes were divieded by 10 so that 100% is = 1 (not 10)
+ABSK_AllData <- Cache(joinSevVegTopoWeatherData,
+                                    sevDataSf = ABSK_fireEventsSev, 
+                                    vegDataSf = allPrefireCASFRI, 
+                                    topoDataSf = DEM, 
+                                    weatherDataDt = copy(fireWeatherLs$fireWeather),
+                                    saveDir = "analyses/fireDataJoins",
+                                    doAll = bindAllFires,
+                                    userTags = "ABSK_AllData",
+                                    cacheRepo = "analyses/cache",
+                                    useCache = doCache)
 
-## Canopy
-SP.vars <- grep("^SP", names(AB1_vegFireEvents.mdt), value = TRUE)
-SP.names <- unique(sub(".*_", "", SP.vars))
+## clean-up
+rm(list = c("fireWeatherLs", "allPrefireCASFRI", grep("DEM|ABSK_fireEvents", 
+                 ls(), value = TRUE)))
+amc::.gc()
 
-SP.cover <- do.call(cbind, lapply(SP.names, FUN = function(x) {
-  cols <-  grep(x, SP.vars, value = TRUE)
-  temp <- data.table(x = rowSums(AB1_vegFireEvents.mdt[, cols, with = FALSE])/10)
-  names(temp) = paste0("SP_", x)
-  return(temp)
-}))
+## make sure some Veg. data classes are correct
+cols <- c("CROWN_CLOSURE_LOWER", "CROWN_CLOSURE_UPPER",
+          "DIST1_EXTENT_LOWER", "DIST1_EXTENT_UPPER",
+          "DIST2_EXTENT_LOWER", "DIST2_EXTENT_UPPER",
+          "LAYER", "LAYER_RANK", "STAND_STRUCTURE_PER",
+          "HEIGHT", "HEIGHT",
+          "SPEC._PER", "ORIGIN")
+cols <- grep(paste(cols, collapse = "|"), names(ABSK_AllData),
+             value = TRUE)
 
-#Understory
-USP.vars <- grep("USP", names(AB1_vegFireEvents.mdt), value = TRUE)
-USP.names <- unique(sub(".*_", "", USP.vars))
-
-USP.cover <- do.call(cbind, lapply(USP.names, FUN = function(x) {
-  cols <-  grep(x, USP.vars, value = TRUE)
-  temp <- data.table(x = rowSums(AB1_vegFireEvents.mdt[, cols, with = FALSE])/10)
-  names(temp) = paste0("USP_", x)
-  return(temp)
-}))
-
-## Merge and add remaining variables
-AB1_vegFireEvents.mdt <- cbind(AB1_vegFireEvents.mdt[, id.vars, with = FALSE], cbind(SP.cover, USP.cover))
-
-## CLEAN WS 
-rm(dt.ls, id.vars, j, NAcols, SP.vars, SP.names,
-   USP.vars, USP.names, SP.cover, USP.cover)
-
-## CALCULATE RELATIVE OCCURRENCES OF VEGETATION ATTRIBUTES PER PATCH/FIRE EVENT -----------
-# lapply(grep("SP", names(AB1_vegFireEvents.dt), value = TRUE), FUN = function(x) {
-#   browser()
-#   temp.dt <- AB1_vegFireEvents.dt %>%
-#     group_by_at(c("FIRE_NAME", "PatchType", x)) %>% 
-#     summarise(Count = n()) %>%
-#     group_by(., FIRE_NAME, PatchType) %>%
-#     mutate(.data = ., totalCount = sum(Count)) %>%
-#     mutate(.data = ., Freq = Count/totalCount)
-#   
-#   temp.dt <- melt(temp.dt, id.vars = setdiff(names(temp.dt), c(x)), 
-#                   variable.name = "Attribute")
-#   temp.dt
-#   
-# })
-
+myAsNumeric <- function(x) as.numeric(as.character(x))
+ABSK_AllData[, (cols) := lapply(.SD, myAsNumeric), .SDcols = cols]

@@ -22,7 +22,7 @@ editor_options:
 # devtools::install_github("PredictiveEcology/SpaDES.tools@development")
 
 
-knitr::opts_knit$set(root.dir = "E:/GitHub/LandscapesInMotion/")
+knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
 library(factoextra)
 library(reshape2)
 library(vegan)
@@ -37,7 +37,7 @@ library(velox)
 library(reproducible)
 library(quickPlot)
 
-options('reproducible.useNewDigestAlgorithm' = FALSE) 
+options('reproducible.useNewDigestAlgorithm' = TRUE) 
 ```
 
 
@@ -50,7 +50,7 @@ source("analyses/DAfires_expAnalyses_dataPrep.R", echo = FALSE)
 ## exclude event perimeter patch type
 memory.limit(size = 64000)
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
-amc::.gc
+amc::.gc()
 
 ## remove columns with no data
 NAcols <- sapply(ABSK_AllData, FUN = function(x) !any(!is.na(x))) 
@@ -68,7 +68,7 @@ Blue arrow is severity in a continuous scale, fitted to the ordination *a poster
 Severity is higher in "plots" dominated by White spruce (*Picea glauca*), Engelman's spruce (*P. engelmannii*), Aspen (*Populus tremuloides*) and where trees are taller.
 It seems that canopy and understory levels usually highly correlated within species.
 
-```{r PCA, echo = FALSE, cache = TRUE}
+```{r PCA, echo = FALSE, }
 ## extend dominant species data
 cols <- grep("SEV|Patch|FIRE|pixID|SPEC1$|SPEC1_PER|HEIGHT|CROWN_CLOSURE|SMR|LAYER$|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
              names(ABSK_AllData), value = TRUE)
@@ -81,10 +81,10 @@ commCompStruc <- dcast(commCompStruc, ... ~ SPEC1+LAYER, value.var = "SPEC1_PER"
 cols <- grep("FIRE_NAME|SMR|Patch", names(commCompStruc), invert = TRUE, value = TRUE)
 commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
 
-## check if any spp has >100 cover
-cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
-summary(commCompStruc[, ..cols])
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+#              names(commCompStruc), invert = TRUE, value = TRUE)
+# summary(commCompStruc[, ..cols])
 
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
              names(commCompStruc), invert = TRUE, value = TRUE)
@@ -100,7 +100,7 @@ plot(env.fit, labels = "SEVERITY")
 
 PCA with canopy and understory levels collapsed for tree species (summed and rescaled to 0-1 - maybe not the best way)
 Results are similar, but clearer
-```{r PCA2, echo = FALSE, cache = TRUE}
+```{r PCA2, echo = FALSE, }
 ## extend dominant species data
 cols <- grep("SEV|Patch|FIRE|pixID|SPEC1$|SPEC1_PER|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
              names(ABSK_AllData), value = TRUE)
@@ -113,10 +113,10 @@ commCompStruc <- dcast(commCompStruc, ... ~ SPEC1, value.var = "SPEC1_PER",
 cols <- grep("FIRE_NAME|SMR|Patch", names(commCompStruc), invert = TRUE, value = TRUE)
 commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
 
-## check if any spp has >100 cover
-cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
-summary(commCompStruc[, ..cols])
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+#              names(commCompStruc), invert = TRUE, value = TRUE)
+# summary(commCompStruc[, ..cols])
 
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
              names(commCompStruc), invert = TRUE, value = TRUE)
@@ -131,7 +131,7 @@ plot(env.fit, labels = "SEVERITY")
 
 PCA with canopy and understory levels collapsed for tree species, but keeping dominant and subdominant spp separate (summed and rescaled to 0-1 - maybe not the best way)
 Results are similar, but we now see some vegetation associations. Unlike before, crown closure now appears more correlated with severity. It seems higher severity levels coincide with forests where Aspen is the dominant species and White spruce is the subdominant. 
-```{r PCA3, echo = FALSE, cache = TRUE}
+```{r PCA3, echo = FALSE, }
 cols <- grep("SEV|Patch|FIRE|pixID|SPEC(1|2|3)$|SPEC(1|2|3)_PER|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", names(ABSK_AllData))
 commCompStruc <- ABSK_AllData[!SPEC1 %in% c("XXXX MISS", "NA", NA),
                               ..cols]
@@ -157,9 +157,9 @@ rm(spec1, spec2, spec3); amc::.gc()
 
 commCompStruc$`NA` <- NULL
 
-## check if any spp has >100 cover
-cols <- grep("_[[:digit:]]$", names(commCompStruc))
-summary(commCompStruc[, ..cols])
+## check if any spp has >100 cover - good
+# cols <- grep("_[[:digit:]]$", names(commCompStruc))
+# summary(commCompStruc[, ..cols])
 
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
              names(commCompStruc), invert = TRUE, value = TRUE)
@@ -243,11 +243,11 @@ plot(env.fit, labels = "SEVERITY")
 - Collapse climate data using summary statistics
 - Convert species data to long format
 
-```{r summaryData, echo = FALSE, cache = TRUE}
+```{r summaryData, echo = FALSE, }
 ## clean-up and free memory
 rm(vegCompPCA, env.fit, commCompStruc); amc::.gc()
 
-## sumamrise weather data
+## summarise weather data
 summaryABSK_AllData <- ABSK_AllData %>%
   group_by(pixID) %>%
   summarise(startJulDay = min(julDay),
@@ -345,16 +345,18 @@ summaryABSK_AllData <- unique(summaryABSK_AllData)
 ```
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data
-```{r summarizedData_PCA, echo = FALSE, cache = TRUE}
-## HERE
-## check if any spp has >100 cover
-cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS", 
-             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-summary(commCompStruc[, ..cols])
+```{r summarizedData_PCA, echo = FALSE, }
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
 
-cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
-vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..cols]))[,-grep("SEV_CONT", cols), with = FALSE], scale = TRUE)
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+
+summDataPCA <- dudi.mix(unique(na.omit(summaryABSK_AllData[, ..cols]))[,-grep("SEV_CONT|mean|cv|", cols), with = FALSE], scale = TRUE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..cols]))$SEV_CONT)
 
 ## CHECK CROWN CLOSURE, lower and upper inversely correlated?! 

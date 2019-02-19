@@ -1,10 +1,10 @@
 ---
-title: "Dave Andison's fire data preliminary analyses"
+  title: "Dave Andison's fire data preliminary analyses"
 author: "Ceres Barros"
 date: "March 28, 2018"
 output:
   pdf_document: default
-  html_document: default
+html_document: default
 editor_options: 
   chunk_output_type: console
 ---
@@ -93,7 +93,7 @@ commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = co
 ## PCA COLOURED BY FIRE_NAME
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE_YEAR|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -109,7 +109,7 @@ plot(env.fit, labels = "SEVERITY")
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE_YEAR|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -148,7 +148,7 @@ commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = co
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -199,7 +199,7 @@ commCompStruc$`NA` <- NULL
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -243,7 +243,7 @@ commCompStruc$`NA` <- NULL
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -283,7 +283,7 @@ commCompStruc$`NA` <- NULL
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
@@ -315,7 +315,7 @@ commCompStruc <- commCompStruc[, SPEC1 := as.factor(SPEC1)]
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
 colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
+              names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
 vegCompDudi <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB],
@@ -335,129 +335,46 @@ plot(env.fit, labels = "SEVERITY")
 - Collapse climate data using summary statistics
 - Convert species data to long format
 
-```{r summaryData, eval=FALSE, include=FALSE}
+```{r summaryData, echo = FALSE, }
 ## clean-up and free memory
 rm(vegCompPCA, env.fit, commCompStruc); amc::.gc()
 
-## sumamrise weather data
-summaryABSK_AllData <- ABSK_AllData %>%
-  group_by(pixID) %>%
-  summarise(startJulDay = min(julDay),
-            meanTemp = mean(temp),
-            minTemp = min(temp),
-            maxTemp = max(temp),
-            cvTemp = sd(temp)/mean(temp),
-            rangeRH = max(rh) - min(rh),
-            meanRH = mean(rh),
-            minRH = min(rh),
-            maxRH = max(rh),
-            cvRH = sd(rh)/mean(rh),
-            rangeRH = max(rh) - min(rh),
-            meanWS = mean(ws),
-            minWS = min(ws),
-            maxWS = max(ws),
-            cvWS = sd(ws)/mean(ws),
-            rangeWS = max(ws) - min(ws),
-            meanRain = mean(rain),
-            minRain = min(rain),
-            maxRain = max(rain),
-            cvRain = sd(rain)/mean(rain),
-            rangeRain = max(rain) - min(rain),
-            meanFFMC = mean(ffmc),
-            minFFMC = min(ffmc),
-            maxFFMC = max(ffmc),
-            cvFFMC = sd(ffmc)/mean(ffmc),
-            rangeFFMC = max(ffmc) - min(ffmc),
-            meanDMC = mean(dmc),
-            minDMC = min(dmc),
-            maxDMC = max(dmc),
-            cvDMC = sd(dmc)/mean(dmc),
-            rangeDMC = max(dmc) - min(dmc),
-            meanDC = mean(dc),
-            minDC = min(dc),
-            maxDC = max(dc),
-            cvDC = sd(dc)/mean(dc),
-            rangeDC = max(dc) - min(dc),
-            meanISI = mean(isi),
-            minISI = min(isi),
-            maxISI = max(isi),
-            cvISI = sd(isi)/mean(isi),
-            rangeISI = max(isi) - min(isi),
-            meanBUI = mean(bui),
-            minBUI = min(bui),
-            maxBUI = max(bui),
-            cvBUI = sd(bui)/mean(bui),
-            rangeBUI = max(bui) - min(bui),
-            meanFWI = mean(fwi),
-            minFWI = min(fwi),
-            maxFWI = max(fwi),
-            cvFWI = sd(fwi)/mean(fwi),
-            rangeFWI = max(fwi) - min(fwi)) %>%
-  data.table(.)
-
-## merge with remaining data
-setkey(summaryABSK_AllData, pixID)
-setkey(ABSK_AllData, pixID)
-cols <- grep("julDay|temp|rh|ws|rain|ffmc|dmc|dc|isi|bui|fwi", names(ABSK_AllData),
-             invert = TRUE, value = TRUE)
-summaryABSK_AllData <- summaryABSK_AllData[unique(ABSK_AllData[, ..cols])]
-
-## make column with presence/absence of understory and remove the understorey layer
-## as it can't really be trusted (Andison pers. comm. January 29th 2019)
-## even considering its presence might be risky as some times aerial photos do not detect the presence of the understorey, even if it is present.
-cols <- grep("SPEC._PER", names(summaryABSK_AllData), value = TRUE)
-summaryABSK_AllData[LAYER == 2, UNDERSTOREY := rowSums(.SD, na.rm = TRUE) > 0, .SDcols = cols]
-summaryABSK_AllData[, UNDERSTOREY2 := any(UNDERSTOREY), by = "pixID"]
-summaryABSK_AllData[, UNDERSTOREY := UNDERSTOREY2]
-summaryABSK_AllData[, UNDERSTOREY2 := NULL]
-summaryABSK_AllData[is.na(UNDERSTOREY), UNDERSTOREY := FALSE]
-summaryABSK_AllData <- summaryABSK_AllData[LAYER == 1]
-
-## change NA cover to 0 and melt species and cover
-## don't exclude pixels without vegetation
-colA = grep("SPEC.$", names(summaryABSK_AllData), value = TRUE)
-colB = grep("SPEC._PER", names(summaryABSK_AllData), value = TRUE)
-
-for (j in which(names(summaryABSK_AllData) %in% colB))
-  set(summaryABSK_AllData, which(is.na(summaryABSK_AllData[[j]])), j, 0)
-
-summaryABSK_AllData <- melt(summaryABSK_AllData, measure = list(colA, colB), 
-                           value.name = c("SPEC", "SPEC_PER"), variable.name = "SPEC_dominance")
-rm(colA, colB); amc::.gc()
-
-## and now re-cast to have a column per species
-summaryABSK_AllData <- dcast(summaryABSK_AllData, ... ~ SPEC, value.var = "SPEC_PER", fill = 0)
-
-## remove "NA" columns
-cols <- grep("^NA$", names(summaryABSK_AllData))
-summaryABSK_AllData[, (cols) := NULL]
-
-## check for duplicates
-summaryABSK_AllData <- unique(summaryABSK_AllData)
+## summarise weather data
+summaryABSK_AllData <- Cache(summarizeABSK_AllData,
+                             DT = ABSK_AllData,
+                             useCache = doCache,
+                             userTags = "summarizeABSK_AllData",
+                             cacheRepo = "analyses/cache")
 ```
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data
-TODO
+```{r summarizedData_PCA, echo = FALSE, }
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
 
-```{r summarizedData_PCA, eval=FALSE, include=FALSE}
-## HERE DO pca
-## check if any spp has >100 cover
-cols <- grep("SEV|Patch|FIRE|pixID|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS", 
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-summary(commCompStruc[, ..cols])
 
-cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS", 
-             names(commCompStruc), invert = TRUE, value = TRUE)
-vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..cols]))[,-grep("SEV_CONT", cols), with = FALSE], scale = TRUE)
-env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..cols]))$SEV_CONT)
+summaryABSK_AllData <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+
+## exclude also P. banksiana, because it has no data
+cols2 <- grep("SEV_CONT|mean|cv|Pinu bank", cols, value = TRUE, invert = TRUE)
+summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData[, ..cols2])
+                              , nf = 3
+                              , scannf = FALSE)
+
+cols2 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
+env.fit <- envfit(vegCompPCA, env = as.data.frame(summaryABSK_AllData[, ..cols2]))
 
 ## CHECK CROWN CLOSURE, lower and upper inversely correlated?! 
 dev()
 biplot(vegCompPCA, scaling = 2, type = c("text","points"))
 plot(env.fit, labels = "SEVERITY")
 ```
-
-
 
 
 

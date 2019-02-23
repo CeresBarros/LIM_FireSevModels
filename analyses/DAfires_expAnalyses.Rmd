@@ -328,6 +328,41 @@ text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = "SEVERITY")
 ```
 
+Consider stands in the Foothills of Alberta
+
+```{r PCA7, echo = FALSE, fig.height=8, warning=FALSE}
+## HERE
+## extend dominant species data
+cols <- grep("SEV|Patch|FIRE|pixID|SPEC1$|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+             names(ABSK_AllData), value = TRUE)
+commCompStruc <- ABSK_AllData[SPEC1_PER == 100, ..cols]
+
+## some columns should be numeric
+cols <- grep("FIRE_NAME|SMR|Patch|SPEC1", names(commCompStruc), invert = TRUE, value = TRUE)
+commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+## SPEC1 needs to be a factor for dudi
+commCompStruc <- commCompStruc[, SPEC1 := as.factor(SPEC1)]
+
+## COLOURED BY CROWN CLOSURE
+## columns to keep in table
+colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+              names(commCompStruc), invert = TRUE, value = TRUE)
+## columns to use for PCA
+colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
+vegCompDudi <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB],
+                              scannf = FALSE, nf = 4)
+env.fit <- envfit(vegCompDudi, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
+
+dev()
+PCAplot <- ordiplot(vegCompDudi, type = "none", main = "Coloured by crown closure")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(unique(na.omit(commCompStruc[, ..colsA]))$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", arrows = TRUE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+
 ## SIMPLIFY ANALYSIS/DATA 
 - Collapse climate data using summary statistics
 - Convert species data to long format
@@ -339,7 +374,8 @@ rm(vegCompPCA, env.fit, commCompStruc); amc::.gc()
 ## summarise weather data
 summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
-                             doCache = doCache,
+                             saveDir = "analyses/fireDataSummary",
+                             overwrite = FALSE, ## ovewrite saved weather summary table?
                              useCache = doCache,
                              userTags = "summarizeABSK_AllData",
                              cacheRepo = "analyses/cache")

@@ -117,6 +117,55 @@ albertafires1_postfire$Province <- "AB"
 albertafires2_postfire$Province <- "AB"
 saskatchewanfires_postfire$Province <- "SK"
 
+## correction of fire years and convert to numeric
+## see data/fires_Dave/all129-overview.xls
+
+albertafires2_postfire$FIRE_YEAR <- as.character(albertafires2_postfire$FIRE_YEAR)
+saskatchewanfires_postfire$FIRE_YEAR <- as.character(saskatchewanfires_postfire$FIRE_YEAR)
+
+## LETTER Y fire
+albertafires2_postfire$FIRE_YEAR <- sub("<1953", "1953", albertafires2_postfire$FIRE_YEAR)
+
+## MEIKLE fire
+albertafires2_postfire$FIRE_YEAR <- sub("195X", "1952", albertafires2_postfire$FIRE_YEAR)
+
+## HALVERSON fire
+albertafires2_postfire$FIRE_YEAR <- sub("194X", "1945", albertafires2_postfire$FIRE_YEAR)
+
+## Alfred fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Alfred"] <- "1981"
+
+## Brett fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Brett"] <- "1977"
+
+## Carlton fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Carlton"] <- "1980"
+
+## Dillon Lake fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Dillon Lake"] <- "1977"
+
+## Elk fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Elk"] <- "1983"
+
+## Harry Lake fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Harry Lake"] <- "1980"
+
+## McArther fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "McArther"] <- "1984"
+
+## Rail fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rail"] <- "1984"
+
+## Rainbow fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rainbow"] <- "1986"
+
+## Sixty fire
+saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Sixty"] <- "1981"
+
+albertafires1_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires1_postfire$FIRE_YEAR))
+albertafires2_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires2_postfire$FIRE_YEAR))
+saskatchewanfires_postfire$FIRE_YEAR <- as.numeric(as.character(saskatchewanfires_postfire$FIRE_YEAR))
+
 ## DEFINE FIRE EVENTS ----
 firesABSK <- rbind(albertafires1_postfire, albertafires2_postfire, saskatchewanfires_postfire)
 
@@ -295,6 +344,25 @@ fireWeatherLs <- reproducible::Cache(prepFireWeather,
                                      cacheRepo = "analyses/cache",
                                      useCache = doCache)
 
+## ECOREGIONS TABLE -------
+fireEcoregions <- read.xlsx("data/fires_Dave/all129-overview.xls", sheetName = "all") %>%
+  data.table(.)
+
+## remove unnecesary columns
+cols <- grep("Unma|zone|NR", names(fireEcoregions), value = TRUE)
+fireEcoregions <- fireEcoregions[, ..cols]
+
+setnames(fireEcoregions, "Unmae", "FIRE_NAME")
+
+## remove repeated fires
+fireEcoregions[, FIRE_NAME := toupper(FIRE_NAME)]
+fireEcoregions[FIRE_NAME != "CONTEST #2", FIRE_NAME := gsub("[[:digit::]]", "", FIRE_NAME)]
+
+fireEcoregions <- unique(fireEcoregions)
+
+## Change Alfred to Alfred Lake
+fireEcoregions[FIRE_NAME == "ALFRED", FIRE_NAME := "ALFRED LAKE"]
+
 ## -------------------------------------------------
 ## JOIN DATA ---------------------------------------
 ## clean-up before joining
@@ -333,3 +401,9 @@ cols <- grep(paste(cols, collapse = "|"), names(ABSK_AllData),
 
 myAsNumeric <- function(x) as.numeric(as.character(x))
 ABSK_AllData[, (cols) := lapply(.SD, myAsNumeric), .SDcols = cols]
+
+
+## join ecoregions
+fireEcoregions[, FIRE_NAME := toupper(FIRE_NAME)]
+
+setdiff(unique(ABSK_AllData$FIRE_NAME), fireEcoregions$FIRE_NAME)

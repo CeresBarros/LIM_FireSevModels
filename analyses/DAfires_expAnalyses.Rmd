@@ -448,8 +448,3 @@ text(PCAplot, "species", labels = rep("", length(cols2)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
 ```
-
-
-
-
-

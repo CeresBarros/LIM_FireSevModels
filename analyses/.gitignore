@@ -7,11 +7,8 @@ fireDataJoins
 FireEvents
 firesInFMAs
 
-## ignore the follwoing files
+## ignore the following files
 *.png
 *.tex
+*.pdf
 
-## don't ignore:
-!*.R
-!*.Rmd
-!*.pdf

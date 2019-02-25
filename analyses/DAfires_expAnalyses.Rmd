@@ -1,10 +1,10 @@
 ---
-  title: "Dave Andison's fire data preliminary analyses"
+title: "Dave Andison's fire data preliminary analyses"
 author: "Ceres Barros"
 date: "March 28, 2018"
 output:
   pdf_document: default
-html_document: default
+  html_document: default
 editor_options: 
   chunk_output_type: console
 ---
@@ -22,7 +22,7 @@ editor_options:
 # devtools::install_github("PredictiveEcology/SpaDES.tools@development")
 
 
-knitr::opts_knit$set(root.dir = "E:/GitHub/LandscapesInMotion/")
+knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
 library(factoextra)
 library(reshape2)
 library(vegan)
@@ -37,11 +37,13 @@ library(velox)
 library(reproducible)
 library(quickPlot)
 
-options('reproducible.useNewDigestAlgorithm' = FALSE) 
+options("reproducible.useNewDigestAlgorithm" = TRUE,
+        "reproducible.useMemoise" = FALSE) 
+source("analyses/R_tools/summarizeABSK_AllData.R")
 ```
 
 
-```{r dataprep, include = FALSE}
+```{r dataprep, echo = FALSE}
 ## source dataprep:
 doCache <- TRUE ## control all caching
 bindAllFires <- FALSE ##control whether all fire data binding should be repeated
@@ -50,13 +52,12 @@ source("analyses/DAfires_expAnalyses_dataPrep.R", echo = FALSE)
 ## exclude event perimeter patch type
 memory.limit(size = 64000)
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
+amc::.gc()
 
 ## remove columns with no data
 NAcols <- sapply(ABSK_AllData, FUN = function(x) !any(!is.na(x))) 
 ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
-
 rm(NAcols)
-amc::.gc()
 ```
 
 ## NOTES - meeting with Dave Dec 6th
@@ -64,13 +65,10 @@ Carefull with no. of variables and sample size
 Weather variables: how to look at it? Weather at the begining, middle, end? Only averages like Colin did? Averages, variation?
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs
-
-### PCA of dominant species percentage cover and height across all fire event patch types. 
+PCA of dominant species percentage cover and height across all fire event patch types. 
 Blue arrow is severity in a continuous scale, fitted to the ordination *a posteriori*, using `env.fit`.
 Severity is higher in "plots" dominated by White spruce (*Picea glauca*), Engelman's spruce (*P. engelmannii*), Aspen (*Populus tremuloides*) and where trees are taller.
 It seems that canopy and understory levels usually highly correlated within species.
-
-Also the points pattern doesn't seem related to fire identity, but to levels of crown closure.
 
 ```{r PCA, echo = FALSE, fig.height=8, warning=FALSE}
 ## extend dominant species data
@@ -330,6 +328,40 @@ text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = "SEVERITY")
 ```
 
+Consider stands in the Foothills of Alberta
+
+```{r PCA7, echo = FALSE, fig.height=8, warning=FALSE}
+## HERE
+## extend dominant species data
+cols <- grep("SEV|Patch|FIRE|pixID|SPEC1$|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+             names(ABSK_AllData), value = TRUE)
+commCompStruc <- ABSK_AllData[SPEC1_PER == 100, ..cols]
+
+## some columns should be numeric
+cols <- grep("FIRE_NAME|SMR|Patch|SPEC1", names(commCompStruc), invert = TRUE, value = TRUE)
+commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+## SPEC1 needs to be a factor for dudi
+commCompStruc <- commCompStruc[, SPEC1 := as.factor(SPEC1)]
+
+## COLOURED BY CROWN CLOSURE
+## columns to keep in table
+colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
+              names(commCompStruc), invert = TRUE, value = TRUE)
+## columns to use for PCA
+colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
+vegCompDudi <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB],
+                              scannf = FALSE, nf = 4)
+env.fit <- envfit(vegCompDudi, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
+
+dev()
+PCAplot <- ordiplot(vegCompDudi, type = "none", main = "Coloured by crown closure")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(unique(na.omit(commCompStruc[, ..colsA]))$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", arrows = TRUE)
+plot(env.fit, labels = "SEVERITY")
+```
+
 
 ## SIMPLIFY ANALYSIS/DATA 
 - Collapse climate data using summary statistics
@@ -342,39 +374,82 @@ rm(vegCompPCA, env.fit, commCompStruc); amc::.gc()
 ## summarise weather data
 summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
+                             saveDir = "analyses/fireDataSummary",
+                             overwrite = FALSE, ## ovewrite saved weather summary table?
                              useCache = doCache,
                              userTags = "summarizeABSK_AllData",
                              cacheRepo = "analyses/cache")
+amc::.gc()
 ```
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data
-```{r summarizedData_PCA, echo = FALSE, }
+## including elevation, slope, presence/absence of understory in PCA
+## then fitting environmental vectors (mean and cv of temp, rain, rh, ffmc, fwi) and severity
+
+```{r summarizedData_PCA, echo = FALSE}
 ## check if any spp has >100 cover - good
 # cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
 #              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 # summary(summaryABSK_AllData[, ..cols])
 
 ## select community structure/composition variables for PCA + severity + topo + some climate variables
-cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
+cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 summaryABSK_AllData <- unique(na.omit(summaryABSK_AllData[, ..cols]))
 summaryABSK_AllData[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 
 ## exclude also P. banksiana, because it has no data
-cols2 <- grep("SEV_CONT|mean|cv|Pinu bank", cols, value = TRUE, invert = TRUE)
+cols2 <- grep("SEV_CONT", cols, value = TRUE, invert = TRUE)
 summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData[, ..cols2])
                               , nf = 3
                               , scannf = FALSE)
 
 cols2 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
-env.fit <- envfit(vegCompPCA, env = as.data.frame(summaryABSK_AllData[, ..cols2]))
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData[, ..cols2]))
 
-## CHECK CROWN CLOSURE, lower and upper inversely correlated?! 
 dev()
-biplot(vegCompPCA, scaling = 2, type = c("text","points"))
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData[["CROWN_CLOSURE_LOWER"]]))
+text(PCAplot, "species", arrows = TRUE)
+plot(env.fit, labels = cols2)
+```
+
+
+## FIRE WEATHER PCA - simplified data
+Average and covariance of temp, rain, rh, ffmc, fwi
+Also including elevation, slope, and then fitting everity
+
+```{r summarizedData_PCA2, echo = FALSE}
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
+
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+summaryABSK_AllData <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+
+## exclude also P. banksiana, because it has no data
+cols2 <- grep("mean|cv|Elev|Slope", cols, value = TRUE)
+summDataPCA <- rda(as.data.frame(summaryABSK_AllData[, ..cols2]),
+                   scale = TRUE)
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData$SEV_CONT))
+
+dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by mean FFMC")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData$meanFFMC))
+text(PCAplot, "species", labels = rep("", length(cols2)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
 ```
+
+
 
 
 

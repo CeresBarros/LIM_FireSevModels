@@ -1,0 +1,14 @@
+## ignore the following folders/folder contents
+cache/*
+CASFRI/*
+*_files/
+*_cache/
+fireDataJoins
+FireEvents
+firesInFMAs
+
+## ignore the following files
+*.png
+*.tex
+*.pdf
+

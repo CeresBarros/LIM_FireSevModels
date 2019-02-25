@@ -374,19 +374,19 @@ rm(list = c("ABinvs", "allVars", "files", "folder", "funs",
 amc::.gc()
 
 ABSK_AllData <- Cache(joinSevVegTopoWeatherData,
-                                    sevDataSf = ABSK_fireEventsSev, 
-                                    vegDataSf = allPrefireCASFRI, 
-                                    topoDataSf = DEM, 
-                                    weatherDataDt = copy(fireWeatherLs$fireWeather),
-                                    saveDir = "analyses/fireDataJoins",
-                                    doAll = bindAllFires,
-                                    userTags = "ABSK_AllData",
-                                    cacheRepo = "analyses/cache",
-                                    useCache = doCache)
+                      sevDataSf = ABSK_fireEventsSev, 
+                      vegDataSf = allPrefireCASFRI, 
+                      topoDataSf = DEM, 
+                      weatherDataDt = copy(fireWeatherLs$fireWeather),
+                      saveDir = "analyses/fireDataJoins",
+                      doAll = bindAllFires,
+                      userTags = "ABSK_AllData",
+                      cacheRepo = "analyses/cache",
+                      useCache = doCache)
 
 ## clean-up
 rm(list = c("fireWeatherLs", "allPrefireCASFRI", grep("DEM|ABSK_fireEvents", 
-                 ls(), value = TRUE)))
+                                                      ls(), value = TRUE)))
 amc::.gc()
 
 ## make sure some Veg. data classes are correct

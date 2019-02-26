@@ -4,14 +4,14 @@
 
 summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
   summaryDT <- summarizeClimateVars(DT = DT, saveDir = saveDir, overwrite = overwrite)
-  
+
   ## merge with remaining data
   setkey(summaryDT, pixID)
   setkey(DT, pixID)
   cols <- grep("julDay|temp|rh|ws|rain|ffmc|dmc|dc|isi|bui|fwi", names(DT),
                invert = TRUE, value = TRUE)
   summaryDT <- summaryDT[unique(DT[, ..cols])]
-  
+
   ## make column with presence/absence of understory and remove the understorey layer
   ## as it can't really be trusted (Andison pers. comm. January 29th 2019)
   ## even considering its presence might be risky as some times aerial photos do not detect the presence of the understorey, even if it is present.
@@ -22,49 +22,49 @@ summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
   summaryDT[, UNDERSTOREY2 := NULL]
   summaryDT[is.na(UNDERSTOREY), UNDERSTOREY := FALSE]
   summaryDT <- summaryDT[LAYER == 1]
-  
+
   ## change NA cover to 0 and melt species and cover
   ## don't exclude pixels without vegetation
   colA = grep("SPEC.$", names(summaryDT), value = TRUE)
   colB = grep("SPEC._PER", names(summaryDT), value = TRUE)
-  
+
   for (j in which(names(summaryDT) %in% colB))
     set(summaryDT, which(is.na(summaryDT[[j]])), j, 0)
-  
-  summaryDT <- melt(summaryDT, measure = list(colA, colB), 
+
+  summaryDT <- melt(summaryDT, measure = list(colA, colB),
                     value.name = c("SPEC", "SPEC_PER"), variable.name = "SPEC_dominance")
   rm(colA, colB)
   amc::.gc()
-  
+
   ## and now re-cast to have a column per species
   summaryDT <- dcast(summaryDT, ... ~ SPEC, value.var = "SPEC_PER", fill = 0)
-  
+
   ## remove "NA" columns
   cols <- grep("^NA$", names(summaryDT))
   summaryDT[, (cols) := NULL]
-  
+
   ## remove potential duplicates
-  summaryDT <- unique(summaryDT)  
-  
+  summaryDT <- unique(summaryDT)
+
   ## ignore species dominance variable - not needed as dominance is defined by cover
   cols <- grep("SPEC.$", names(DT), value = TRUE)
   species <- unique(unlist(unique(DT[, ..cols])))
   species <- species[!is.na(species) & species != "NA"]
   summaryDTsp <- summaryDT[, lapply(.SD, sum), by = "pixID", .SDcols = species]
-  
+
   ## check if any has >100 cover - good
   # summary(summaryDT[, ..species])
-  
+
   ### clear memory
   amc::.gc()
-  
+
   ## merge summarised species table with remaining variables
   setkey(summaryDT, pixID)
   setkey(summaryDTsp, pixID)
   cols <- grep(paste0(paste(species, collapse = "|"), "|SPEC_dominance"), names(summaryDT),
                invert = TRUE, value = TRUE)
   summaryDT <- summaryDTsp[unique(summaryDT[, ..cols])]
-  
+
   summaryDT
 }
 
@@ -127,7 +127,9 @@ summarizeClimateVars <- function(DT, saveDir, overwrite = FALSE) {
                 cvFWI = sd(fwi)/mean(fwi),
                 rangeFWI = max(fwi) - min(fwi)) %>%
       data.table(.)
-    
+
+    if (!dir.exists(saveDir))
+      dir.create(saveDir, recursive = TRUE)
     saveRDS(summaryDT, file = fileName)
     return(summaryDT)
   } else {

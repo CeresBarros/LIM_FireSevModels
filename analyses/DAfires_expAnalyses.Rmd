@@ -40,6 +40,7 @@ library(quickPlot)
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE) 
 source("analyses/R_tools/summarizeABSK_AllData.R")
+source("R/R_tools/prepCorrTable.R")
 ```
 
 
@@ -396,22 +397,22 @@ amc::.gc()
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
-summaryABSK_AllData <- unique(na.omit(summaryABSK_AllData[, ..cols]))
-summaryABSK_AllData[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 
 ## exclude also P. banksiana, because it has no data
 cols2 <- grep("SEV_CONT", cols, value = TRUE, invert = TRUE)
-summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData[, ..cols2])
+summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
                               , nf = 3
                               , scannf = FALSE)
 
 cols2 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
-env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData[, ..cols2]))
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, ..cols2]))
 
 dev()
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData[["CROWN_CLOSURE_LOWER"]]))
+       col = as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]]))
 text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = cols2)
 ```
@@ -422,6 +423,8 @@ Average and covariance of temp, rain, rh, ffmc, fwi
 Also including elevation, slope, and then fitting everity
 
 ```{r summarizedData_PCA2, echo = FALSE}
+rm(summaryABSK_AllData2); amc::.gc()
+
 ## check if any spp has >100 cover - good
 # cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
 #              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
@@ -431,20 +434,70 @@ Also including elevation, slope, and then fitting everity
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range", 
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
-summaryABSK_AllData <- unique(na.omit(summaryABSK_AllData[, ..cols]))
-summaryABSK_AllData[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 
 ## exclude also P. banksiana, because it has no data
 cols2 <- grep("mean|cv|Elev|Slope", cols, value = TRUE)
-summDataPCA <- rda(as.data.frame(summaryABSK_AllData[, ..cols2]),
+summDataPCA <- rda(as.data.frame(summaryABSK_AllData2[, ..cols2]),
                    scale = TRUE)
-env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData$SEV_CONT))
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2$SEV_CONT))
 
 dev()
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by mean FFMC")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData$meanFFMC))
+       col = as.factor(summaryABSK_AllData2$meanFFMC))
 text(PCAplot, "species", labels = rep("", length(cols2)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
+```
+
+## CORRELATIONS
+Pearson and spearman correlations between all covariates and each covariate and severity
+
+## Pearson correlations between covariates
+```{r covariatesPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "pearson")
+print(xtable::xtable(tabl), type = "html")
+```
+
+## Spearman correlations between covariates
+```{r covariatesPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+print(xtable::xtable(tabl), type = "html")
+```
+
+## Pearson correlations between SEV and covariates
+Correlations are significant but very low
+
+```{r covariatesPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CLASS|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "pearson")
+tabl <- tabl[rownames(tabl) == "SEV_CONT",]
+tabl <- t(tabl)
+print(xtable::xtable(tabl), type = "html")
+```
+
+## Spearman correlations between SEV and covariates
+
+```{r covariatesPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CLASS|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+tabl <- tabl[rownames(tabl) == "SEV_CONT",]
+tabl <- t(tabl)
+print(xtable::xtable(tabl), type = "html")
 ```

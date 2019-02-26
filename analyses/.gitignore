@@ -4,6 +4,7 @@ CASFRI_scripts/*
 *_files/
 *_cache/
 fireDataJoins
+fireDataSummary
 FireEvents
 firesInFMAs
 

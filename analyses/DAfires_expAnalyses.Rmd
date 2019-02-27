@@ -486,11 +486,12 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "pearson")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- t(tabl)
+tabl <- as.matrix(tabl[order(tabl[,1], decreasing = TRUE),])
 print(xtable::xtable(tabl), type = "html")
 ```
 
 ## Spearman correlations between SEV and covariates
-
+Correlations are significant but very low
 ```{r covariatesPearson, echo = FALSE, cache = TRUE}
 cols <- grep("SEV_CLASS|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
@@ -499,5 +500,6 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "spearman")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- t(tabl)
+tabl <- as.matrix(tabl[order(tabl[,1], decreasing = TRUE),])
 print(xtable::xtable(tabl), type = "html")
 ```

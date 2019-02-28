@@ -133,7 +133,7 @@ summarizeClimateVars <- function(DT, saveDir, overwrite = FALSE) {
     saveRDS(summaryDT, file = fileName)
     return(summaryDT)
   } else {
-    readRDS(filename)
+    summaryDT <- readRDS(fileName)
     return(summaryDT)
   }
 }

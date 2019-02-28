@@ -23,11 +23,12 @@ editor_options:
 
 
 knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
-library(factoextra)
-library(reshape2)
-library(vegan)
-library(sf)
 library(ggplot2)
+library(factoextra, lib.loc = "/home/cbarros/R/x86_64-pc-linux-gnu-library/3.5")
+library(reshape2)
+library(permute, lib.loc = "/home/cbarros/R/x86_64-pc-linux-gnu-library/3.5")
+library(vegan, lib.loc = "/home/cbarros/R/x86_64-pc-linux-gnu-library/3.5")
+library(sf)
 library(data.table)
 library(dplyr)
 library(xlsx)
@@ -296,7 +297,8 @@ text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = "SEVERITY")
 ```
 
-Consider pure stands only collapsing canopy and understory
+### Pure stands only 
+Collapsing canopy and understory
 
 ```{r PCA6, echo = FALSE, fig.height=8, warning=FALSE}
 ## extend dominant species data
@@ -329,21 +331,30 @@ text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = "SEVERITY")
 ```
 
-Consider stands in the Foothills of Alberta
+## COMMUNITY COMPOSITION/STRUCTURE PCAs - FOOTHILLS AND BOREAL SEPARATED
 
-```{r PCA7, echo = FALSE, fig.height=8, warning=FALSE}
-## HERE
-## extend dominant species data
-cols <- grep("SEV|Patch|FIRE|pixID|SPEC1$|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", 
-             names(ABSK_AllData), value = TRUE)
-commCompStruc <- ABSK_AllData[SPEC1_PER == 100, ..cols]
+### PCA with canopy and understory levels collapsed for tree species, but keeping dominant and subdominant spp separate (summed and rescaled to 0-1 - maybe not the best way)
+Only 1st and 2nd most dominant species included
+```{r FootVsBoreal_PCA, echo = FALSE, fig.height=8, warning=FALSE}
+cols <- grep("SEV|Patch|FIRE|pixID|SPEC(1|2)$|SPEC(1|2)_PER|ORIGIN_|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", names(ABSK_AllData))
+commCompStruc <- ABSK_AllData[!SPEC1 %in% c("XXXX MISS", "NA", NA),
+                              ..cols]
 
-## some columns should be numeric
-cols <- grep("FIRE_NAME|SMR|Patch|SPEC1", names(commCompStruc), invert = TRUE, value = TRUE)
-commCompStruc <- commCompStruc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+spec1 <- dcast(commCompStruc[, .SD, .SDcols = grep("SPEC2", names(commCompStruc), invert = TRUE)],
+               ... ~ SPEC1 , value.var = "SPEC1_PER", fun.aggregate = sum, na.rm = TRUE)
+sppNames <- grep("SEV|Patch|FIRE|pixID|ORIGIN|HEIGHT|CROWN_CLOSURE|SMR|Elevation|Aspect|temp|rh|rain|dmc|dc|bui|fwi|ws", names(spec1), invert = TRUE, value = TRUE)
+setnames(spec1, sppNames, paste0(sppNames, "_1"))
 
-## SPEC1 needs to be a factor for dudi
-commCompStruc <- commCompStruc[, SPEC1 := as.factor(SPEC1)]
+spec2 <- dcast(commCompStruc[, .SD, .SDcols = grep("SPEC1", names(commCompStruc), invert = TRUE)],
+               ... ~ SPEC2 , value.var = "SPEC2_PER", fun.aggregate = sum, na.rm = TRUE) 
+setnames(spec2, sppNames, paste0(sppNames, "_2"))
+
+cols <- grep(paste(sppNames, collapse = "|"), names(spec1), invert = TRUE, value = TRUE)
+rm(commCompStruc); amc::.gc()
+commCompStruc <- merge(spec1, spec2, by = cols)
+rm(spec1, spec2); amc::.gc()
+
+commCompStruc$`NA` <- NULL
 
 ## COLOURED BY CROWN CLOSURE
 ## columns to keep in table
@@ -351,17 +362,17 @@ colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR|Elevation|Aspect|temp|rh|rain|dmc|
               names(commCompStruc), invert = TRUE, value = TRUE)
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE", colsA, invert = TRUE, value = TRUE)
-vegCompDudi <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB],
-                              scannf = FALSE, nf = 4)
-env.fit <- envfit(vegCompDudi, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
+vegCompPCA <- rda(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB], scale = TRUE)
+env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 dev()
-PCAplot <- ordiplot(vegCompDudi, type = "none", main = "Coloured by crown closure")
+PCAplot <- ordiplot(vegCompPCA, type = "none", main = "Coloured by crown closure")
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(unique(na.omit(commCompStruc[, ..colsA]))$CROWN_CLOSURE_LOWER))
 text(PCAplot, "species", arrows = TRUE)
 plot(env.fit, labels = "SEVERITY")
 ```
+
 
 
 ## SIMPLIFY ANALYSIS/DATA 
@@ -455,9 +466,29 @@ plot(env.fit, labels = "SEVERITY")
 ## CORRELATIONS
 Pearson and spearman correlations between all covariates and each covariate and severity
 
-## Pearson correlations between covariates
-```{r covariatesPearson, echo = FALSE, cache = TRUE}
-cols <- grep("SEV|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+### Pearson correlations Vegetation and topo covariates only
+CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN_LOWER removed as they are redundant
+
+Some "decent" correlation values (>0.15) between
+* Picea glauca and -height, +age (origin)
+* Pinus contorta and -Picea mariana, -Larix laricinea, -Populus tremuloides, -Pinus banksiana
+* Pinus contorta and +closure, +height, -origin, +elevation
+* Picea mariana and -Populus tremuloides, -Pinus banskiana,
+* Picea mariana and -closure, -height, -origin, -slope
+* Larix laricinea and -Populus tremuloides, -Pinus banskiana
+* Larix laricinea and -closure, -height, -slope, +elevation
+* Populus tremuloides and +closure, +height, -elevation
+* Pinus banksiana  and +closure, +height, +origin, +elevation, +slope, -elevation
+* Picea engelmannii and Abies lasiocarpa
+* Picea engelmannii and -origin, +slope, +elevation 
+* Abies lasiocarpa and +slope, +elevation
+
+* Closure and +height, +origin
+* Height and -origin
+* Slope and +elevation (but not lots), ++SurfAspectRatio
+
+```{r vegTopoCorrPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
@@ -465,9 +496,69 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 print(xtable::xtable(tabl), type = "html")
 ```
 
-## Spearman correlations between covariates
-```{r covariatesPearson, echo = FALSE, cache = TRUE}
-cols <- grep("SEV|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+### Pearson correlations between fire weather and topo covariates only
+SurfAspectRatio adn DegSlope removed due to high correlation with PctSlope
+
+Some high correlation values (>0.5) between
+* startJulDay and +meanRH, -cvRH, -maxFFMC, +meanDC, +minDC, +maxDC
+* meanTemp and +minTemp, -cvTemp, -cvRH, +rangeDC, +meanBUI, +minBUI, +minFWI, -cvFWI
+* minTemp and -cvtemp, -cvRH, +randeDC, +meanBUI
+* maxTemp and cvTemp, rangeRH, -minRH, -minDMC, +rangeDMC, +meanISI, +maxISI, +cvISI, +rangeISI, +rangeBUI, +maxFWI
+* cvTemp and rangeRH, -minDMC, -rangeDC, +maxISI, +cvISI
+* rangeRH and -meanRH, maxRH, -minDMC, +cvDMC, +rangeDMC, +maxISI, +cvISI, +rangeISI, -minBUI, +rangeBUI, -minFWI
+* meanRH and +minRH, +maxRH, -minDMC, +cvDMC, +rangeDMC, +maxISI, +cvISI, +rangeISI, -minBUI, +rangeBUI, -minFWI
+* minRH and +meanRain, +maxRain, +rangeRain, -meanFFMC, -minFFMC, -maxFFMC, cvFFMC, -maxDMC, -rangeDMC, -meanISI, -maxISI, -cvISI, -rangeISI, -maxBUI, -rangeBUI, -meanFWI, -maxFWI, -rangeFWI
+* maxRH and +meanRain, -meanFFMC, -minFFMC, -maxFFMC, cvFFMC, rangeFFMC, -meanDMC, -minDMC, -maxDMC, cvDMC, -meanISI, -minISI, -meanBUI, -minBUI, -maxBUI, +cvBUI, -meanFWI, -minFWi, -maxFWI, +cvFWI
+* cvRH and +maxFFMC, -maxDC
+* meanWS and +maxWS, +rangeWS
+* maxWS and +cvWS, +rangeWS
+* cvWS and +rangeWS
+* rangeWS and +elevation
+* meanRain and +maxRain, +rangeRain, -meanFFMC, -minFFMC, -maxFFMC, +cvFFMC, +rangeFFMC, -meanDMC, -maxDMC, +cvDMC, +cvDC, -meanISI, -maxISI, -rangeISI, -meanBUI, -minBUI, -maxBUI, +cvBUI, -meanFWI, -maxFWI, +cvFWI, -rangeFWI
+* maxRain and +rangeRain, -meanFFMC, -minFFMC, -maxFFMC, +cvFFMC, +rangeFFMC, -maxDMC, +cvDMC, +cvDC, -meanISI, -meanBUI, -minBUI, -maxBUI, +cvBUI, -meanFWI, -maxFWI, +cvFWI,, -rangeFWI
+* cvRain and +meanFFMC, +meanISI, +meanFWI
+* rangeRain and -meanFFMC, -minFFMC, -maxFFMC, +cvFFMC, +rangeFFMC, -maxDMC, +cvDMC, +cvDC, -meanISI, -meanBUI, -minBUI, -maxBUI, +cvBUI, -meanFWI, -maxFWI, +cvFWi, -rangeFWI
+* meanFFMC and +minFFMC, +maxFFMC, -cvFFMC, -rangeFFMC, +meanDMC, +maxDMC, -cvDMC, -cvDC, +meanISI, +meanBUI, +minBUI, +maxBUI, -cvBUI, +meanFWI, +maxFWI, -cvFWI, +rangeFWI
+* minFFMC and -maxFFMC, -cvFFMC, +rangeFFMC, +meanDMC, +maxDMC, -cvDMC, +meanISI, +minISI, +meanBUI, +minBUI, -cvBUI, +meanFWI, +minFWI, +maxFWI, -cvFWI
+* maxFFMC and +meanDMC, +maxDMC, +meanFWI, +maxFWI
+* cvFFMC and +rangeFFMC, -meanDMC, -maxDMC, +cvDMC, +cvDC, -meanISI, -minISI, -meanBUI,-minBUI, -maxBUI, +cvBUI, -meanFWI, -maxFWI, +cvFWI, -rangeFWI
+* meanDMC and +minDMC, +maxDMC, -cvDMC, +meanISI, +minISI, +meanBUI, +minBUI, +maxBUI, -cvBUI, +meanFWI, +minFWI, -cvFWI
+* minDMC and -cvDMC, -rangeDMC, +minISI, -maxISI, -cvISI, -rangeISI, +minBUI, -cvBUI, -rangeBUI, +meanFWI, +minFWI, -cvFWI
+* maxDMC and -cvDMC, +meanISI, +minISI, +meanBUI, +minBUI, +maxBUI, -cvBUI, +meanFWI, +minFWI, +maxFWI, -cvFMI
+* cvDMC and -minISI, +cvISI, -meanBUI, -minBUI, +cvBUI, -meanFWI, -minFWI, +cvFWI
+* rangeDMC and +meanISI, +maxISI, +cvISI, +rangeISI, +maxBUI, +rangeBUI
+* meanDC and +minDC, +maxDC, -cvDC
+* minDC and +maxDC, -cvDC
+* maxDC and -cvDC
+* cvDC and +rangeDC, -maxBUI, +cvBUI
+* meanISI and +maxISI, +rangeISI, +meanBUI, +maxBUI, +rangeBUI, +meanFWI, +maxFWI, -cvFWI, +rangeFWI
+* minISI and +meanBUI, +minBUI, -cvBUI, +meanFWI, +minFWI, -cvFWI
+* maxISI and +cvISI, +rangeISI, +meanFWI
+* cvISI and +rangeISI, +rangeBUI
+* rangeISI and +rangeBUI
+* meanBUI and +minBUI, +maxBUI, -cvBUI, +meanFWI, +minFWI, -cvFWI
+* minBUI and +maxBUI, -cvBUI, +meanFWI, +minFWI, -cvFWI
+* maxBUI and -cvBUI, +rangeBUI, +meanFWI, +maxFWI, -cvFWI
+* cvBUI and -meanFWI, -minFWI, +cvFWI
+* meanFWI and +minFWI, +maxFWI, -cvFWI, +rangeFWI
+* minFWI and -cvFWI
+* maxFWI and +rangeFWI
+
+```{r weatherTopoCorrPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|DegSlope|SurfAspectRatio|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|HEIGHT|CROWN|ORIGIN|pixID|Czone|^NR1|^NR2|Lari|Pice|Pinu|Abie|Popu|Betu",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "pearson")
+print(xtable::xtable(tabl), type = "html")
+```
+
+
+### Spearman correlations Vegetation and topo covariates only
+CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN_LOWER removed as they are redundant
+
+```{r vegTopoCorrSpearman, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
@@ -475,31 +566,74 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 print(xtable::xtable(tabl), type = "html")
 ```
 
-## Pearson correlations between SEV and covariates
+### Spearman correlations between fire weather and topo covariates only
+SurfAspectRatio adn DegSlope removed due to high correlation with PctSlope
+
+```{r weatherTopoCorrSpearman, echo = FALSE, cache = TRUE}
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|DegSlope|SurfAspectRatio|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|HEIGHT|CROWN|ORIGIN|pixID|Czone|^NR1|^NR2|startJulDay|Lari|Pice|Pinu|Abie|Popu|Betu",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+print(xtable::xtable(tabl), type = "html")
+```
+
+### Pearson correlations between severity and vegetation and topo
 Correlations are significant but very low
 
-```{r covariatesPearson, echo = FALSE, cache = TRUE}
-cols <- grep("SEV_CLASS|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+```{r sevVegTopoCorrPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "pearson")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
-tabl <- t(tabl)
-tabl <- as.matrix(tabl[order(tabl[,1], decreasing = TRUE),])
+tabl <- as.data.frame(t(tabl))
+tabl <- tabl[order(tabl[, "SEV_CONT"], decreasing = TRUE),, drop = FALSE]
 print(xtable::xtable(tabl), type = "html")
 ```
 
-## Spearman correlations between SEV and covariates
-Correlations are significant but very low
-```{r covariatesPearson, echo = FALSE, cache = TRUE}
-cols <- grep("SEV_CLASS|FIRE_|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|pixID",
+### Pearson correlations between severity and weather
+Correlations are significant but very low (only slightly higher than those with veg)
+
+```{r sevWeatherTopoCorrPearson, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
+             names(summaryABSK_AllData), value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "pearson")
+tabl <- tabl[rownames(tabl) == "SEV_CONT",]
+tabl <- as.data.frame(t(tabl))
+tabl <- tabl[order(tabl[, "SEV_CONT"], decreasing = TRUE),, drop = FALSE]
+print(xtable::xtable(tabl), type = "html")
+```
+
+### Spearman correlations between severity and vegetation and topo
+Correlations imporved in some cases and got worse in others.
+
+```{r sevVegTopoCorrSpearman, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "spearman")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
-tabl <- t(tabl)
-tabl <- as.matrix(tabl[order(tabl[,1], decreasing = TRUE),])
+tabl <- as.data.frame(t(tabl))
+tabl <- tabl[order(tabl[, "SEV_CONT"], decreasing = TRUE),, drop = FALSE]
+print(xtable::xtable(tabl), type = "html")
+```
+
+### Spearman correlations between severity and weather
+Correlations are significant but very low (only slightly higher than those with veg)
+
+```{r sevWeatherTopoCorrSpearman, echo = FALSE, cache = TRUE}
+cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
+             names(summaryABSK_AllData), value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+tabl <- tabl[rownames(tabl) == "SEV_CONT",]
+tabl <- as.data.frame(t(tabl))
+tabl <- tabl[order(tabl[, "SEV_CONT"], decreasing = TRUE),, drop = FALSE]
 print(xtable::xtable(tabl), type = "html")
 ```

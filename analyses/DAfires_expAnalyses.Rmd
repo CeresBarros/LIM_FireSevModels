@@ -3,7 +3,6 @@ title: "Dave Andison's fire data preliminary analyses"
 author: "Ceres Barros"
 date: "March 28, 2018"
 output:
-  pdf_document: default
   html_document: default
 editor_options: 
   chunk_output_type: console
@@ -481,7 +480,7 @@ summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
 summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 
 ## exclude also P. banksiana, because it has no data
-cols2 <- grep("SEV_CONT|bank", cols, value = TRUE, invert = TRUE)
+cols2 <- grep("SEV_CONT|bank|mean|cv", cols, value = TRUE, invert = TRUE)
 summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
                               , nf = 3
                               , scannf = FALSE)
@@ -518,7 +517,7 @@ summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## c
 ## FOOTHILLS + ROCKY MOUNTAIN
 ## exclude also P. banksiana, because it has no data
 colsA <- grep("SEV_CONT|bank|FIRE_NAME", cols, value = TRUE, invert = TRUE)
-colsB <- grep("SEV_CONT|bank|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|bank|mean|cv|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
 summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsA][, ..colsB]) %>%
   ade4::dudi.mix(.
                  , nf = 3
@@ -551,7 +550,7 @@ plot(env.fit, labels = colsD)
 ## BOREAL FOREST + CANADIAN SHIELD
 ## exclude also P. banksiana, P. engelmann and A. lasiocarpa because they have no data
 colsA <- grep("SEV_CONT|bank|enge|lasi|FIRE_NAME", cols, value = TRUE, invert = TRUE)
-colsB <- grep("SEV_CONT|bank|enge|lasi|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|bank|enge|lasi|NR1|mean|cv|FIRE_NAME", cols, value = TRUE, invert = TRUE)
 summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsA][, ..colsB]) %>%
   ade4::dudi.mix(.
                  , nf = 3
@@ -581,13 +580,11 @@ plot(env.fit, labels = colsD)
 ```
 
 
-## FIRE WEATHER PCA - simplified data
-Average and covariance of temp, rain, rh, ffmc, fwi
-Also including elevation, slope, and then fitting everity
+## COMMUNITY COMPOSITION/STRUCTURE + FIRE WEATHER PCAs - simplified data
+PCAs calculated on variables of vegetation composition **and** average and covariance of temp, rain, rh, ffmc, fwi
+Severity fitted **a posteriori**
 
-```{r weather_summaryData_PCA_plotFFMC, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE}
-rm(summaryABSK_AllData2); amc::.gc()
-
+```{r summaryData_VegWeatherPCA_plotClosure, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE}
 ## check if any spp has >100 cover - good
 # cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
 #              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
@@ -601,19 +598,187 @@ summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
 summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 
 ## exclude also P. banksiana, because it has no data
-cols2 <- grep("mean|cv|Elev|Slope", cols, value = TRUE)
-summDataPCA <- rda(as.data.frame(summaryABSK_AllData2[, ..cols2]),
-                   scale = TRUE)
-env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2$SEV_CONT))
+cols2 <- grep("SEV_CONT|bank", cols, value = TRUE, invert = TRUE)
+summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
+                              , nf = 3
+                              , scannf = FALSE)
+
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, SEV_CONT]))
 
 # dev()
-PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by mean FFMC")
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2$meanFFMC))
+       col = as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]]))
+text(PCAplot, "species", arrows = TRUE)
+plot(env.fit, labels = "SEV_CONT")
+```
+
+### Now separating Foothills + Rocky Mountain from Boreal Forest + Canadian Shield
+Foothills and Rocky Mountain collapsed
+Boreal Forest and Canadian Shield collapsed
+
+```{r FootVsBoreal_summaryData_VegWeatherPCA_prep, echo = FALSE, warning=FALSE}
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
+
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("SEV_CLASS|Patch|FIRE_YEAR|pixID|SMR|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range|Czone|NR2", names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+```
+
+```{r Foot_summaryData_VegWeatherPCA_plotClosure, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+## FOOTHILLS + ROCKY MOUNTAIN
+## exclude also P. banksiana, because it has no data
+colsA <- grep("SEV_CONT|bank|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|bank|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|NR1", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsC][, SEV_CONT]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure\nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+```{r Foot_summaryData_VegWeatherPCA_plotFireName, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+```{r Boreal_summaryData_VegWeatherPCA_plotClosure, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+## BOREAL FOREST + CANADIAN SHIELD
+## exclude also P. banksiana, P. engelmann and A. lasiocarpa because they have no data
+colsA <- grep("SEV_CONT|bank|enge|lasi|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|bank|enge|lasi|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|NR1", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsC][, SEV_CONT]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+```{r Boreal_summaryData_VegWeatherPCA_plotFireName, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+## FIRE WEATHER PCA - simplified data
+Average and covariance of temp, rain, rh, ffmc, fwi
+Also including elevation, slope, and then fitting everity
+
+```{r weather_summaryData_PCA_plotFireName, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE}
+rm(summaryABSK_AllData2); amc::.gc()
+
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
+
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("mean|cv|Elev|PctSlope|NR1|SEV_CONT|FIRE_NAME", 
+             names(summaryABSK_AllData), value = TRUE)
+
+summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+
+## exclude also P. banksiana, because it has no data
+cols2 <- grep("mean|cv|Elev|Slope", cols, value = TRUE)
+summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
+                 , nf = 3
+                 , scannf = FALSE)
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, SEV_CONT]))
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2$FIRE_NAME))
 text(PCAplot, "species", labels = rep("", length(cols2)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
 ```
+
+### Now separating Foothills + Rocky Mountain from Boreal Forest + Canadian Shield
+Foothills and Rocky Mountain collapsed
+Boreal Forest and Canadian Shield collapsed
+
+```{r Foot_weather_summaryData_PCA_plotFireName, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+## FOOTHILLS + ROCKY MOUNTAIN
+## exclude also P. banksiana, because it has no data
+colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|NR1", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsC][, SEV_CONT]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure\nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
+
+```{r Boreal_weather_summaryData_PCA_plotFireName, echo = FALSE, fig.height=8, fig.show = "hold", warning=FALSE, cache=TRUE}
+## BOREAL FOREST + CANADIAN SHIELD
+## exclude also P. banksiana, P. engelmann and A. lasiocarpa because they have no data
+colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|NR1", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsC][, SEV_CONT]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = "SEVERITY")
+```
+
 
 ## CORRELATIONS
 Pearson and spearman correlations between all covariates and each covariate and severity
@@ -639,7 +804,7 @@ Some "decent" correlation values (>0.15) between
 * Height and -origin
 * Slope and +elevation (but not lots), ++SurfAspectRatio
 
-```{r vegTopoCorrPearson, echo = FALSE, cache = TRUE}
+```{r vegTopoCorrPearson, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -696,7 +861,7 @@ Some high correlation values (>0.5) between
 * minFWI and -cvFWI
 * maxFWI and +rangeFWI
 
-```{r weatherTopoCorrPearson, echo = FALSE, cache = TRUE}
+```{r weatherTopoCorrPearson, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|DegSlope|SurfAspectRatio|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|HEIGHT|CROWN|ORIGIN|pixID|Czone|^NR1|^NR2|Lari|Pice|Pinu|Abie|Popu|Betu",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -709,7 +874,7 @@ print(xtable::xtable(tabl), type = "html")
 ### Spearman correlations Vegetation and topo covariates only
 CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN_LOWER removed as they are redundant
 
-```{r vegTopoCorrSpearman, echo = FALSE, cache = TRUE}
+```{r vegTopoCorrSpearman, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -721,7 +886,9 @@ print(xtable::xtable(tabl), type = "html")
 ### Spearman correlations between fire weather and topo covariates only
 SurfAspectRatio adn DegSlope removed due to high correlation with PctSlope
 
-```{r weatherTopoCorrSpearman, echo = FALSE, cache = TRUE}
+```{r weatherTopoCorrSpearman, echo = FALSE, cache = TRUE, results="asis"}
+## TODO: THERE BE NANS IN THIS TABLE
+
 cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|DegSlope|SurfAspectRatio|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|HEIGHT|CROWN|ORIGIN|pixID|Czone|^NR1|^NR2|startJulDay|Lari|Pice|Pinu|Abie|Popu|Betu",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -733,7 +900,7 @@ print(xtable::xtable(tabl), type = "html")
 ### Pearson correlations between severity and vegetation and topo
 Correlations are significant but very low
 
-```{r sevVegTopoCorrPearson, echo = FALSE, cache = TRUE}
+```{r sevVegTopoCorrPearson, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -748,7 +915,7 @@ print(xtable::xtable(tabl), type = "html")
 ### Pearson correlations between severity and weather
 Correlations are significant but very low (only slightly higher than those with veg)
 
-```{r sevWeatherTopoCorrPearson, echo = FALSE, cache = TRUE}
+```{r sevWeatherTopoCorrPearson, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), value = TRUE)
 
@@ -763,7 +930,7 @@ print(xtable::xtable(tabl), type = "html")
 ### Spearman correlations between severity and vegetation and topo
 Correlations imporved in some cases and got worse in others.
 
-```{r sevVegTopoCorrSpearman, echo = FALSE, cache = TRUE}
+```{r sevVegTopoCorrSpearman, echo = FALSE, cache = TRUE, results="asis"}
 cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
@@ -778,7 +945,8 @@ print(xtable::xtable(tabl), type = "html")
 ### Spearman correlations between severity and weather
 Correlations are significant but very low (only slightly higher than those with veg)
 
-```{r sevWeatherTopoCorrSpearman, echo = FALSE, cache = TRUE}
+```{r sevWeatherTopoCorrSpearman, echo = FALSE, cache = TRUE, results = "as.is"}
+## TODO: THERE BE NANS IN THIS TABLE
 cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), value = TRUE)
 

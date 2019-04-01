@@ -2,8 +2,14 @@
 ## calculates summary statistics on weather data and reshapes species data to species columns containing
 ## percent cover values per pixel. Ignores understory layer, but creates a column of understory presence/absence
 
-summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
-  summaryDT <- summarizeClimateVars(DT = DT, saveDir = saveDir, overwrite = overwrite)
+## dim (dim of DT) is used for caching purposes to avoid caching DT
+
+summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
+  summaryDT <- Cache(summarizeClimateVars,
+                     DT = DT,
+                     dim = dim,
+                     saveDir = saveDir,
+                     overwrite = overwrite)
 
   ## merge with remaining data
   setkey(summaryDT, pixID)
@@ -70,7 +76,8 @@ summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
 
 ## Function to summarize fire weather columns.
 ## Used internally by summarizeABSK_AllData to enable caching
-summarizeClimateVars <- function(DT, saveDir, overwrite = FALSE) {
+## dim (dim of DT) is used for caching purposes to avoid caching DT
+summarizeClimateVars <- function(DT, saveDir, dim, overwrite = FALSE) {
   fileName <- file.path(saveDir, "summClimateVarsAllDataABSK.rds")
   if (!file.exists(fileName) | overwrite) {
     summaryDT <- DT %>%

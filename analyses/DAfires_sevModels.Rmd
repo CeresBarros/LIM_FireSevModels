@@ -1,34 +1,105 @@
 ---
-title: "Dave Andison's fire data severity models"
+title: "Dave Andison's fire data Severity models"
 author: "Ceres Barros"
-date: "March 28, 2018"
-output: html_document
+date: "02/04/2019"
+output:
+  html_document: default
+editor_options: 
+  chunk_output_type: console
 ---
 
-```{r, include = FALSE}
-knitr::opts_knit$set(root.dir = getwd())
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
+knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
+
+library(data.table)
+library(ggplot2)
 library(reshape2)
+library(sf)
+library(dplyr)
+library(xlsx)
+library(foreign)
+library(fasterize)
+library(velox)
+library(reproducible)
+
+options("reproducible.useNewDigestAlgorithm" = TRUE,
+        "reproducible.useMemoise" = FALSE) 
+source("analyses/R_tools/summarizeABSK_AllData.R")
+source("R/R_tools/prepCorrTable.R")
+source("R/R_tools/Useful_functions.R")
+source("R/R_tools/CASFRIrelated_functions.R")
+source("R/R_tools/prepFireWeather.R")
+source("R/R_tools/joinSevVegTopoWeatherData.R")
+source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
+
+doCache = TRUE
 ```
 
 
-```{r setup, echo=FALSE}
+```{r dataprep, include = FALSE, cache = FALSE}
+knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion")
 ## source dataprep:
-source("R/DAfires_expAnalyses_dataPrep.R")
+ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
+                                    fireDataPath = "data/fires_Dave/fireSev",
+                                    vegDataPath = "data/fires_Dave/prefireVeg",
+                                    topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+                                    weatherDataPath = "data/fires_Dave/fireWeather",
+                                    doCache = doCache, bindAllFires = FALSE, 
+                                    cacheRepo = "analyses/cache",
+                                    userTags = "ABSKfires_DataPrep")
 
-## subset variables of interest:
-vars <- which(names(AB1_vegFireEvents.mdt) %in% 
-                c(grep("MOIS|DENS|HEIG|TPR|ORIG|NFL|NAT_N|STRUC", 
-                       names(AB1_vegFireEvents.mdt), value = TRUE),
-                  grep("^SP", names(AB1_vegFireEvents.mdt), value = TRUE),
-                  grep("^USP", names(AB1_vegFireEvents.mdt), value = TRUE),
-                  names(AB1_fireEvents), "SEV_CONT",
-                  "WATER_TY"))
-AB1_vegFireEvents.mdt <- AB1_vegFireEvents.mdt[, vars, with = FALSE]
+## exclude event perimeter patch type
+memory.limit(size = 64000)
+ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
+amc::.gc()
+
+## remove columns with no data
+NAcols <- sapply(ABSK_AllData, FUN = function(x) all(is.na(x))) 
+ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
+zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE)) 
+ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
+
+## calculate stand age at fire year by subtracting fire year.
+ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]
+
+## convert SMR to ordinal variable (moister as values increase)
+ABSK_AllData[SMR == "D", SMR_ord := 1]
+ABSK_AllData[SMR == "F", SMR_ord := 2]
+ABSK_AllData[SMR == "M", SMR_ord := 3]
+ABSK_AllData[SMR == "W", SMR_ord := 4]
+ABSK_AllData[SMR == "A", SMR_ord := 5]
+
+ABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
+
+## summarise weather data - faster if not cached
+summaryABSK_AllData <- Cache(summarizeABSK_AllData,
+                             DT = ABSK_AllData,
+                             saveDir = "analyses/fireDataSummary/",
+                             dim = dim(ABSK_AllData),
+                             overwrite = FALSE, omitArgs = c("DT"))
+rm(NAcols, zeroCols)
+amc::.gc()
+
 ```
 
-## Logit regression - vegetation only
-```{r setup, echo=FALSE}
 
-
+Variables selected for models:
+* Climate:
+  + minDMC
+  + cvDMC
+  + cvBUI
+  + minFFMC
+* Topography
+  + Aspect
+  + SurfReliefRatio (highy correlated with slope)      
+  + Elevation (affects species)
+* Vegetation 
+  + all species cover
+  + UNDERSTOREY
+  
+```{r}
 
 ```
+
+

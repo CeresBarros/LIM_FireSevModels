@@ -4,12 +4,13 @@
 
 ## dim (dim of DT) is used for caching purposes to avoid caching DT
 
-summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
+summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
   summaryDT <- Cache(summarizeClimateVars,
                      DT = DT,
-                     dim = dim,
+                     dim = dim(DT),
                      saveDir = saveDir,
-                     overwrite = overwrite)
+                     overwrite = overwrite,
+                     omitArgs = c("DT"))
 
   ## merge with remaining data
   setkey(summaryDT, pixID)
@@ -37,13 +38,13 @@ summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
   for (j in which(names(summaryDT) %in% colB))
     set(summaryDT, which(is.na(summaryDT[[j]])), j, 0)
 
-  summaryDT <- melt(summaryDT, measure = list(colA, colB),
+  summaryDT <- melt.data.table(summaryDT, measure = list(colA, colB),
                     value.name = c("SPEC", "SPEC_PER"), variable.name = "SPEC_dominance")
   rm(colA, colB)
   amc::.gc()
 
   ## and now re-cast to have a column per species
-  summaryDT <- dcast(summaryDT, ... ~ SPEC, value.var = "SPEC_PER", fill = 0)
+  summaryDT <- dcast.data.table(summaryDT, ... ~ SPEC, value.var = "SPEC_PER", fill = 0)
 
   ## remove "NA" columns
   cols <- grep("^NA$", names(summaryDT))

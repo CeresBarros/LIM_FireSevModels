@@ -4,7 +4,7 @@
 
 ## dim (dim of DT) is used for caching purposes to avoid caching DT
 
-summarizeABSK_AllData <- function(DT, saveDir, overwrite = FALSE) {
+summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
   summaryDT <- Cache(summarizeClimateVars,
                      DT = DT,
                      dim = dim(DT),

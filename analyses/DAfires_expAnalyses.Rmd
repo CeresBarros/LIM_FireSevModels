@@ -55,7 +55,6 @@ doCache = TRUE
 
 
 ```{r dataprep, include = FALSE, cache = FALSE}
-knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion")
 ## source dataprep:
 ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     fireDataPath = "data/fires_Dave/fireSev",
@@ -509,6 +508,7 @@ amc::.gc()
 # summarise weather data - faster if not cached
 summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
+                             dim = dim(ABSK_AllData),
                              saveDir = "analyses/fireDataSummary/",
                              overwrite = FALSE, omitArgs = c("DT"))
 
@@ -913,42 +913,6 @@ plot(env.fit, labels = "SEVERITY")
 ```
 
 
-## RELATIONSHIPS BETWEEN VARIABLES
-
-### Plots
-#### Severity, vegetation and topo covariates only
-CROWN_CLOSURE_LOWER, HEIGHT_LOWER and STAND_AGE removed as they are redundant
-
-```{r vegTopoPairsPlot, fig.height=8, fig.show = "hold"}
-cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|ORIGIN|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
-             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-
-GGally::ggpairs(summaryABSK_AllData[, ..cols])
-```
-
-### Severity, fire weather and topo covariates only
-SurfAspectRatio adn DegSlope removed due to high correlation with PctSlope
-
-```{r weatherTopoPairsPlot, fig.height=8, fig.show = "hold"}
-cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|DegSlope|SurfAspectRatio|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND_S|SITE|NON_|UNDERSTOREY|HEIGHT|CROWN|ORIGIN|STAND_AGE|pixID|Czone|^NR1|^NR2|Lari|Pice|Pinu|Abie|Popu|Betu",
-             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-
-pairs(summaryABSK_AllData[, ..cols])
-```
-
-
-### Pearson correlations between severity and weather
-Correlations are significant but very low (only slightly higher than those with veg)
-
-```{r sevWeatherTopoCorrPearson}
-cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
-             names(summaryABSK_AllData), value = TRUE)
-
-tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
-
-```
-
-
 ### Correlations
 Pearson and spearman correlations between all covariates and each covariate and severity
 
@@ -956,7 +920,7 @@ Pearson and spearman correlations between all covariates and each covariate and 
 CROWN_CLOSURE_LOWER, HEIGHT_LOWER and STAND_AGE removed as they are redundant
 
 ```{r vegTopoCorrPearson}
-cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|UNDERSTOREY|ORIGIN|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|UNDERSTOREY|ORIGIN|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
@@ -964,7 +928,7 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 ```
 
 ```{r vegTopoCorrPearsonPrint, results="asis"}
-print(xtable(tabl), scalebox = 0.7)
+print(xtable(tabl), type = "html")
 ```
 
 ### Pearson correlations between fire weather and topo covariates only
@@ -979,14 +943,14 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 ```
 
 ```{r weatherTopoCorrPearsonPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Spearman correlations Vegetation and topo covariates only
 CROWN_CLOSURE_LOWER, HEIGHT_LOWER and STAND_AGE removed as they are redundant
 
 ```{r vegTopoCorrSpearman}
-cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|UNDERSTOREY|ORIGIN|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
@@ -994,7 +958,7 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 ```
 
 ```{r vegTopoCorrSpearmanPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Spearman correlations between fire weather and topo covariates only
@@ -1012,25 +976,28 @@ tabl <- tabl[which(rownames(tabl) != "minRain"),]
 ```
 
 ```{r weatherTopoCorrSpearmanPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Pearson correlations between severity and vegetation and topo
 Correlations are significant but very low
 
 ```{r sevVegTopoCorrPearson}
-cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND_S|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|UNDERSTOREY|ORIGIN|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
+cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "pearson")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- as.data.frame(t(tabl))
-tabl <- tabl[order(abs(tabl[, "SEV_CONT"]), decreasing = TRUE),, drop = FALSE]
+
+corrVals <- as.numeric(gsub("\\*", "", tabl[, "SEV_CONT"]))
+tabl <- tabl[order(abs(corrVals), decreasing = TRUE),, drop = FALSE]
 ```
 
 ```{r sevVegTopoCorrPearsonPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Pearson correlations between severity and weather
@@ -1040,33 +1007,39 @@ Correlations are significant but very low (only slightly higher than those with 
 cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), value = TRUE)
 
+cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "pearson")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- as.data.frame(t(tabl))
-tabl <- tabl[order(abs(tabl[, "SEV_CONT"]), decreasing = TRUE),, drop = FALSE]
+
+corrVals <- as.numeric(gsub("\\*", "", tabl[, "SEV_CONT"]))
+tabl <- tabl[order(abs(corrVals), decreasing = TRUE),, drop = FALSE]
 ```
 
 ```{r sevWeatherTopoCorrPearsonPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Spearman correlations between severity and vegetation and topo
 Correlations imporved in some cases and got worse in others.
 
 ```{r sevVegTopoCorrSpearman}
-cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR|STAND_S|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|UNDERSTOREY|ORIGIN|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
+cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "spearman")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- as.data.frame(t(tabl))
-tabl <- tabl[order(abs(tabl[, "SEV_CONT"]), decreasing = TRUE),, drop = FALSE]
+
+corrVals <- as.numeric(gsub("\\*", "", tabl[, "SEV_CONT"]))
+tabl <- tabl[order(abs(corrVals), decreasing = TRUE),, drop = FALSE]
 ```
 
 ```{r sevVegTopoCorrSpearmanPrint, results="asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
 
 ### Spearman correlations between severity and weather
@@ -1077,14 +1050,92 @@ Note that minRain is always 0, hence the lack of correlation value
 cols <- grep("SEV_CONT|startJulDay|^mean|^min|^max|^cv|^range",
              names(summaryABSK_AllData), value = TRUE)
 
+cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
   prepCorrTable(., method = "spearman")
 tabl <- tabl[rownames(tabl) == "SEV_CONT",]
 tabl <- as.data.frame(t(tabl))
 tabl <- tabl[which(rownames(tabl) != "minRain"),, drop = FALSE]
-tabl <- tabl[order(abs(tabl[, "SEV_CONT"]), decreasing = TRUE),, drop = FALSE]
+
+corrVals <- as.numeric(gsub("\\*", "", tabl[, "SEV_CONT"]))
+tabl <- tabl[order(abs(corrVals), decreasing = TRUE),, drop = FALSE]
 ```
 
 ```{r sevWeatherTopoCorrSpearmanPrint, results = "asis"}
-print(xtable(tabl))
+print(xtable(tabl), type = "html")
 ```
+
+
+## RELATIONSHIPS BETWEEN BEST CORRELATED VARIABLES
+
+### Plots
+#### Severity and vegetation covariates only
+CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN removed as they are redundant
+
+```{r vegSevPlots, fig.height=8, fig.show = "hold", cache=FALSE}
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Aspect|CTI|Curv|Slope|SCOS|Elev|SSIN|Surf|TRASP|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND_S|SITE|NON_|ORIGIN|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
+tablePlot[value == "TRUE", value := "1"]
+tablePlot[value == "FALSE", value := "0"]
+tablePlot[, value := as.numeric(value)]
+
+plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT, group = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+```{r vegSevPlotsPrint, fig.height=8, fig.show = "hold"}
+plot1
+```
+
+#### Severity and topo covariates only (only highest correlations)
+```{r topoPairsPlot, fig.height=8, fig.show = "hold", cache=FALSE}
+cols <- grep("Aspect|^CTI$|SurfReliefRatio|PctSlope|Elevation|SEV_CONT",
+             names(summaryABSK_AllData), value = TRUE)
+
+tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
+
+plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT)) +
+  geom_point() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+```{r topoPairsPlotPrint, fig.height=8, fig.show = "hold"}
+plot1
+```
+
+#### Severity and fire weather covariates only (only highest correlations)
+
+```{r weatherTopoPairsPlot, fig.height=8, fig.show = "hold", cache=FALSE}
+cols <- grep("SEV_CONT|minDMC|cvDMC|cvBUI|minFFMC|rangeFFMC|cvISI|minBUI|rangeBUI|meanFWI|cvFWI|cvFFMC",
+             names(summaryABSK_AllData), value = TRUE)
+
+tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
+
+plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT)) +
+  geom_point() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+```{r weatherTopoPairsPlotPrint, fig.height=8, fig.show = "hold"}
+plot1
+```
+
+Similar variables but using means
+```{r weatherTopoPairsPlot2, fig.height=8, fig.show = "hold", cache=FALSE}
+cols <- grep("SEV_CONT|meanDMC|meanBUI|meanFFMC|meanISI|meanFWI",
+             names(summaryABSK_AllData), value = TRUE)
+
+tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
+
+plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT)) +
+  geom_point() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+```{r weatherTopoPairsPlot2Print, fig.height=8, fig.show = "hold"}
+plot1
+```
+
+

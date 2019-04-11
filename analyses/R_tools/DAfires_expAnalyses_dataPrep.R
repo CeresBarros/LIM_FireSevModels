@@ -168,6 +168,16 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                          omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
                                          useCache = doCache)
 
+  ## remove empty geometries (e.g. if nor inner residuals exist, empty geometries are produced)
+  ABSK_fireEvents <- ABSK_fireEvents[!is.na(st_dimension(ABSK_fireEvents)),]
+
+  ## validategeometries if need be
+  ABSK_fireEvents <- Cache(validateGeomsSf,
+                           sfObj = ABSK_fireEvents,
+                           dim = dim(ABSK_fireEvents),
+                           cacheRepo = "analyses/cache", userTags = "validABSK_fireEvents",
+                           omitArgs = c("sfObj"),
+                           useCache = doCache)
 
   ## ADD SEVERITY IN DISTURBED PATCHES
   ## using a left join that will add severity polys within the disturbed patch (all should be added)
@@ -178,8 +188,30 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   ABSK_distPatchSev.dt <- firesABSK.dt[ABSK_fireEvents.dt[PatchType == "disturbedPatch",], on = "FIRE_NAME"]
   ABSK_distPatchSev.dt <- ABSK_distPatchSev.dt[order(P_ID)]
-
   ABSK_fireEventsSev <- st_set_geometry(ABSK_distPatchSev.dt, st_geometry(firesABSK))
+
+  ## add residuals
+  ABSK_fireEventsSev.dt <- data.table(st_set_geometry(ABSK_fireEventsSev, NULL))
+  ABSK_fireEventsResids.dt <- as.data.table(ABSK_fireEvents[grepl("Resids", ABSK_fireEvents$PatchType),])
+
+  ## add missing columns to resids and set severity to 0
+  setkey(ABSK_fireEventsSev.dt, FIRE_NAME)
+  setkey(ABSK_fireEventsResids.dt, FIRE_NAME)
+  ABSK_fireEventsResids.dt <- unique(ABSK_fireEventsSev.dt[, .(FIRE_NAME, FIRE_YEAR, Province)])[ABSK_fireEventsResids.dt]
+  ABSK_fireEventsResids.dt[, `:=` (SEV_CLASS = 0, SEV_CONT = 0)]
+
+  ## match column names (P_IDs will be updated)
+  ABSK_fireEventsSev$P_ID <- NULL
+  setcolorder(ABSK_fireEventsResids.dt, names(ABSK_fireEventsSev))
+
+  ## make sf object, convert any multipolygon to a polygon and bind
+  ABSK_fireEventsResids <- st_as_sf(ABSK_fireEventsResids.dt)
+  ABSK_fireEventsSev <- st_cast(ABSK_fireEventsSev, "MULTIPOLYGON") %>%
+    st_cast("POLYGON")
+  ABSK_fireEventsResids <- st_cast(ABSK_fireEventsResids, "MULTIPOLYGON") %>%
+    st_cast("POLYGON")
+
+  ABSK_fireEventsSev <- rbind(ABSK_fireEventsSev, ABSK_fireEventsResids)
 
   ## PRE-FIRE VEGETATION DATA ----
   files = c("albertafires1_prefire", "albertafires2_prefire", "saskatchewanfires_prefire")

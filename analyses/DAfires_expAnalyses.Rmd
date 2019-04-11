@@ -511,7 +511,6 @@ summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              dim = dim(ABSK_AllData),
                              saveDir = "analyses/fireDataSummary/",
                              overwrite = FALSE, omitArgs = c("DT"))
-
 amc::.gc()
 ```
 
@@ -1139,3 +1138,90 @@ plot1
 ```
 
 
+## SIMPLIFY VEGETATION ANALYSIS/DATA 
+Group species as:
+-Group flammable conifers
+  + Pinu cont
+  + Pinu bank
+  + Pice mari
+  + Pice glau
+  + Pice enge
+Group Larix
+  + Lari lari	
+Group Abies
+  + Abie lasi	
+  + Abie bals	
+Group deciduous
+  + Betu papy	
+  + Popu trem	
+  + Popu balb
+  
+  
+```{r summaryDataVeg, cache = FALSE}
+# summarise weather data - faster if not cached
+summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
+                                        `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
+                    by = pixID] 
+  
+summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+                    by = pixID] 
+summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
+                    by = pixID] 
+
+```
+
+### Spearman correlations collapsed species and topo covariates only
+CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN replacing STAND_AGE
+
+```{r vegTopoCorrSpearman2}
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice|Pinu|Abie [b|l]|Popu|Betu",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+```
+
+```{r vegTopoCorrSpearman2Print, results="asis"}
+print(xtable(tabl), type = "html")
+```
+
+### Spearman correlationsbetseen severity and collapsed species and topo covariates only
+CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN replacing STAND_AGE
+
+```{r vegSevTopoCorrSpearman2}
+cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice|Pinu|Abie [b|l]|Popu|Betu",
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
+tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
+  prepCorrTable(., method = "spearman")
+tabl <- tabl[rownames(tabl) == "SEV_CONT",]
+tabl <- as.data.frame(t(tabl))
+
+corrVals <- as.numeric(gsub("\\*", "", tabl[, "SEV_CONT"]))
+tabl <- tabl[order(abs(corrVals), decreasing = TRUE),, drop = FALSE]
+```
+
+```{r vegSevTopoCorrSpearman2Print, results="asis"}
+print(xtable(tabl), type = "html")
+```
+
+
+### Plots
+#### Severity and collapsed vegetation covariates only
+
+```{r vegSevPlots2, fig.height=8, fig.show = "hold", cache=FALSE}
+cols <- grep("Abie$|Lari|Decid|Flam|SEV_CONT", names(summaryABSK_AllData), value = TRUE)
+tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
+tablePlot[value == "TRUE", value := "1"]
+tablePlot[value == "FALSE", value := "0"]
+tablePlot[, value := as.numeric(value)]
+
+plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT, group = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+```{r vegSevPlotsPrint, fig.height=8, fig.show = "hold"}
+plot1
+```

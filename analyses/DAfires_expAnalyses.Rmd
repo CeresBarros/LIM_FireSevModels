@@ -1094,9 +1094,10 @@ cols <- grep("Aspect|^CTI$|SurfReliefRatio|PctSlope|Elevation|SEV_CONT",
              names(summaryABSK_AllData), value = TRUE)
 
 tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
-
-plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT)) +
-  geom_point() +
+tablePlot$valueCuts <- cut(tablePlot$value, breaks = seq(min(tablePlot$value), max(tablePlot$value),
+                                              length.out = 10))
+plot1 <- ggplot(tablePlot, aes(x = valueCuts, y = SEV_CONT)) +
+  geom_boxplot() +
   facet_wrap(~ variable, scales = "free")
 ```
 
@@ -1107,13 +1108,14 @@ plot1
 #### Severity and fire weather covariates only (only highest correlations)
 
 ```{r weatherTopoPairsPlot, fig.height=8, fig.show = "hold", cache=FALSE}
-cols <- grep("SEV_CONT|minDMC|cvDMC|cvBUI|minFFMC|rangeFFMC|cvISI|minBUI|rangeBUI|meanFWI|cvFWI|cvFFMC",
+cols <- grep("SEV_CONT|meanFFMC|cvDMC|cvBUI|minFFMC",
              names(summaryABSK_AllData), value = TRUE)
 
 tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
-
-plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT)) +
-  geom_point() +
+tablePlot$valueCuts <- cut(tablePlot$value, breaks = seq(min(tablePlot$value), max(tablePlot$value),
+                                              length.out = 10))
+plot1 <- ggplot(tablePlot, aes(x = valueCuts, y = SEV_CONT)) +
+  geom_boxplot() +
   facet_wrap(~ variable, scales = "free")
 ```
 
@@ -1139,42 +1141,172 @@ plot1
 
 
 ## SIMPLIFY VEGETATION ANALYSIS/DATA 
+Make variable with non forested classes:
+* NATURALLY_NON_VEG
+* NON_FORESTED_VEG
+* NON_FORESTED_ANTHRO
+
 Group species as:
--Group flammable conifers
+* Group fire resistant conifers
   + Pinu cont
   + Pinu bank
-  + Pice mari
-  + Pice glau
   + Pice enge
-Group Larix
-  + Lari lari	
-Group Abies
+* Group fire sensitive conifers
   + Abie lasi	
-  + Abie bals	
-Group deciduous
+  + Abie bals
+  + Pice glau
+* Group Larix
+  + Lari lari	
+* Group Pice mari
+  + Pice mari	
+* Group deciduous
   + Betu papy	
   + Popu trem	
   + Popu balb
   
-  
 ```{r summaryDataVeg, cache = FALSE}
 # summarise weather data - faster if not cached
-summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
-                                        `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
+summaryABSK_AllData[, FireResConif := sum(`Pice enge`,
+                                          `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
                     by = pixID] 
-  
-summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+summaryABSK_AllData[, FireSenConif := sum(`Pice glau`,
+                                          `Abie bals`, `Abie lasi`, na.rm = TRUE), 
                     by = pixID] 
 summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
                     by = pixID] 
 
+## collapse non-forested variables
+if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
+    dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
+    dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
+  warning("> 1 non-forest class type present")
+  
+collapseCols <- function(x) {
+  x <- unlist(x)
+  names(x) <- NULL
+  if(all(is.na(x)))
+    "NA"
+  else 
+    x[!is.na(x)]
+}
+
+cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
+summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
 ```
+
+### COMMUNITY COMPOSITION/STRUCTURE PCAs - FOOTHILLS AND BOREAL SEPARATED
+
+```{r FootVsBoreal_summaryData_PCA_prep, cache = FALSE}
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("UNDER|SEV_CONT|FIRE_NAME|Conif|Decid|Lari|Pice mari|HEIGHT_LOWER|CROWN_CLOSURE_LOWER|SMR_ord|NR1|mean|cv", names(summaryABSK_AllData), value = TRUE)
+
+summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+```
+
+```{r Foot_summaryData_PCA_plotClosure, fig.height=8, fig.show = "hold"}
+## FOOTHILLS + ROCKY MOUNTAIN
+## exclude also P. banksiana, because it has no data
+colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONTmean|cv|NR1|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|mean|cv|NR1", cols, value = TRUE)
+colsD <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Foothills|Rocky", NR1), ..colsC][, ..colsD]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure\nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$CROWN_CLOSURE_LOWER)) %>%
+  legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
+```{r Foot_summaryData_PCA_plotFireName, fig.height=8, fig.show = "hold"}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+# unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$FIRE_NAME)) %>%
+#   legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
+```{r Foot_summaryData_PCA_plotSMR, fig.height=8, fig.show = "hold"}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR \nFoothills + Rocky Mountain")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)) %>%
+  legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
+```{r Boreal_summaryData_PCA_plotClosure, fig.height=8, fig.show = "hold"}
+## BOREAL FOREST + CANADIAN SHIELD
+## exclude also P. banksiana, P. engelmann and A. lasiocarpa because they have no data
+colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+colsB <- grep("SEV_CONT|NR1|mean|cv|FIRE_NAME", cols, value = TRUE, invert = TRUE)
+summDataPCA <- as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsA][, ..colsB]) %>%
+  ade4::dudi.mix(.
+                 , nf = 3
+                 , scannf = FALSE)
+
+colsC <- grep("SEV_CONT|mean|cv|NR1", cols, value = TRUE)
+colsD <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
+env.fit <-  as.data.frame(summaryABSK_AllData2[grep("Boreal|Canadian", NR1), ..colsC][, ..colsD]) %>%
+  envfit(summDataPCA, env = .)
+
+# dev()
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$CROWN_CLOSURE_LOWER))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$CROWN_CLOSURE_LOWER)) %>%
+  legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
+```{r Boreal_summaryData_PCA_plotFireName, fig.height=8, fig.show = "hold"}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$FIRE_NAME))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+# unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$FIRE_NAME)) %>%
+#   legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
+```{r Boreal_summaryData_PCA_plotSMR, fig.height=8, fig.show = "hold"}
+PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR\nBoreal Forest + Canadian Shield")
+points(PCAplot, "sites", pch = 19, 
+       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord))
+text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
+text(PCAplot, "species", arrows = FALSE)
+plot(env.fit, labels = colsD)
+unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>%
+  legend(x = "bottomright", legend = ., col = ., pch = 19)
+```
+
 
 ### Spearman correlations collapsed species and topo covariates only
 CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN replacing STAND_AGE
 
 ```{r vegTopoCorrSpearman2}
-cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice|Pinu|Abie [b|l]|Popu|Betu",
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice [g|e]|Pinu|Abie [b|l]|Popu|Betu|NonForest",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
@@ -1185,11 +1317,11 @@ tabl <- as.matrix(summaryABSK_AllData[, ..cols]) %>%
 print(xtable(tabl), type = "html")
 ```
 
-### Spearman correlationsbetseen severity and collapsed species and topo covariates only
+### Spearman correlations between severity and collapsed species and topo covariates only
 CROWN_CLOSURE_LOWER, HEIGHT_LOWER and ORIGIN replacing STAND_AGE
-
+Correlation values are worse becase some groups are collapsing species that had opposite correlation signs with severity.
 ```{r vegSevTopoCorrSpearman2}
-cols <- grep("SEV_CLASS|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice|Pinu|Abie [b|l]|Popu|Betu",
+cols <- grep("SEV|FIRE_|fireNum|Patch|Province|P_ID|gridID|Long|Lat|WETLAND|MAPSHEET|Duration|Area|Pre.|LAYER|PROD|DIST|SMR$|STAND|SITE|NON_|UNDERSTOREY|LOWER|pixID|Czone|^NR1|^NR2|startJulDay|^mean|^min|^max|^cv|^range|Pice [g|e]|Pinu|Abie [b|l]|Popu|Betu|NonForest",
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
 cols  <- c(cols[!cols %in% "SEV_CONT"], "SEV_CONT")   ## reorder
@@ -1211,7 +1343,7 @@ print(xtable(tabl), type = "html")
 #### Severity and collapsed vegetation covariates only
 
 ```{r vegSevPlots2, fig.height=8, fig.show = "hold", cache=FALSE}
-cols <- grep("Abie$|Lari|Decid|Flam|SEV_CONT", names(summaryABSK_AllData), value = TRUE)
+cols <- grep("Pice mari|Lari|Decid|Conif|SEV_CONT", names(summaryABSK_AllData), value = TRUE)
 tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
 tablePlot[value == "TRUE", value := "1"]
 tablePlot[value == "FALSE", value := "0"]
@@ -1220,8 +1352,21 @@ tablePlot[, value := as.numeric(value)]
 plot1 <- ggplot(tablePlot, aes(x = value, y = SEV_CONT, group = value)) +
   geom_boxplot() +
   facet_wrap(~ variable, scales = "free")
+
+plot2 <- ggplot(summaryABSK_AllData, aes(x = NonForestValue, y = SEV_CONT)) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("FA" = "Infrastruc.",
+                              "HG" = "Grassland (gram.)",
+                              "IN" = "Industry", 
+                              "RI" = "River", 
+                              "SL" = "Low shrub",
+                              "ST" = "Tall shrub",
+                              "NA" = "Forested"))
 ```
 
-```{r vegSevPlotsPrint, fig.height=8, fig.show = "hold"}
+Note that only 7 pixels have "Infrascturure", "River" or "Industry", and only 3230/417985 have a non-NA non forested class.
+
+```{r vegSevPlots2Print, fig.height=8, fig.show = "hold"}
 plot1
+plot2
 ```

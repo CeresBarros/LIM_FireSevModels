@@ -22,9 +22,12 @@ library(foreign)
 library(fasterize)
 library(velox)
 library(reproducible)
+library(zoib)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
-        "reproducible.useMemoise" = FALSE) 
+        "reproducible.useMemoise" = FALSE,
+        "reproducible.cachePath" = "analyses/cache")
+
 source("analyses/R_tools/summarizeABSK_AllData.R")
 source("R/R_tools/prepCorrTable.R")
 source("R/R_tools/Useful_functions.R")
@@ -38,7 +41,6 @@ doCache = TRUE
 
 
 ```{r dataprep, include = FALSE, cache = FALSE}
-knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion")
 ## source dataprep:
 ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     fireDataPath = "data/fires_Dave/fireSev",
@@ -60,7 +62,7 @@ ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
 zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE)) 
 ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
 
-## calculate stand age at fire year by subtracting fire year.
+## calculate stand age at fire year by subtracting fire year - makes negative values
 ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]
 
 ## convert SMR to ordinal variable (moister as values increase)
@@ -75,30 +77,115 @@ ABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
 ## summarise weather data - faster if not cached
 summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
-                             saveDir = "analyses/fireDataSummary/",
                              dim = dim(ABSK_AllData),
+                             saveDir = "analyses/fireDataSummary/",
                              overwrite = FALSE, omitArgs = c("DT"))
-rm(NAcols, zeroCols)
-amc::.gc()
 
+## collapse species into more generic categories
+summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
+                                        `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
+                    by = pixID] 
+summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+                    by = pixID] 
+summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
+                    by = pixID] 
+dim(summaryABSK_AllData)
+
+## collapse non-forested variables
+if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
+    dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
+    dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
+  warning("> 1 non-forest class type present")
+  
+collapseCols <- function(x) {
+  x <- unlist(x)
+  names(x) <- NULL
+  if(all(is.na(x)))
+    "NA"
+  else 
+    x[!is.na(x)]
+}
+
+cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
+summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+
+summaryABSK_AllData[, isForest := 0]
+summaryABSK_AllData[is.na(NonForestValue), isForest := 1]
+
+## change lari laris to simpler name
+setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
+## change understorey to numeric
+summaryABSK_AllData[, UNDERSTOREY := as.numeric(UNDERSTOREY)]
+
+## rescale severity from 0-1
+summaryABSK_AllData[, SEV_PROP := SEV_CONT/100]
+
+rm(NAcols, zeroCols, ABSK_AllData)
+amc::.gc()
 ```
 
 
 Variables selected for models:
 * Climate:
-  + minDMC
-  + cvDMC
-  + cvBUI
-  + minFFMC
+  + meanFFMC	-0.16***
+  + cvDMC	0.16***
+  + cvBUI	0.15***
+  + minFFMC	-0.14***
+  + rangeFFMC	0.14*** - highly correlated with minFFMC
+  + cvFFMC	0.13*** - highly correlated with minFFMC
+  + minDMC	-0.13*** - highly correlated with cvDMC
+  + minBUI	-0.13*** - - highly correlated with min/cvDMC
 * Topography
-  + Aspect
-  + SurfReliefRatio (highy correlated with slope)      
-  + Elevation (affects species)
-* Vegetation 
-  + all species cover
+  + PctSlope	0.08***
+  + SurfAspectRatio	0.08***
+  + Aspect	0.07***
+  + CTI	-0.07*** 
+  + SurfReliefRatio	0.04***
+  + Elevation	-0.03***
+* Vegetation - Spearmand correlations with severity
+  + Group flammable conifers 0.10 ***
+    + Pinu bank	0.15***
+    + Pice mari	0.06***
+    + Pice glau	-0.04***
+    + Pinu cont	-0.04***
+    + Pice enge	0.01***
+  + Group Larix
+    + Lari lari	-0.05***
+  + Group Abies 0.00***
+    + Abie lasi	0.00
+    + Abie bals	0.01***
+  + Group deciduous 0.03***
+    + Betu papy	-0.03***
+    + Popu trem	0.03***
+    + Popu balb	0.02***
+ 
   + UNDERSTOREY
+  + ORIGIN_UPPER 0.10***
+* Landcover type
+  + isForest
   
-```{r}
+```{r severityHist, fig.height=8, fig.show = "hold"}
+## subset data
+modelData <- summaryABSK_AllData[, .(SEV_PROP, meanFFMC, cvDMC, cvBUI, minFFMC, rangeFFMC, cvFFMC, minDMC, minBUI, FlamConif, Abie, Decid, Lari, UNDERSTOREY, ORIGIN_UPPER, PctSlope, SurfAspectRatio, Aspect, CTI, SurfReliefRatio, Elevation, isForest, FIRE_NAME)]
+cols <- grep("FIRE_NAME", names(modelData), invert = TRUE, value = TRUE)
+modelData <- modelData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+# form <- SEV_PROP ~ meanFFMC + cvDMC + cvBUI | 1 | FlamConif + isForest | meanFFMC + cvDMC| 1
+# Error in jags.model(op, data = dataIn, n.adapt = 0, inits = inits.internal,  : 
+#   Error in node (log(p1[1,1]))
+# Invalid parent values
+
+# form <- SEV_PROP ~ meanFFMC + cvDMC + cvBUI | 1 | FlamConif | meanFFMC + cvDMC| 1
+# Error in setParameters(init.values[[i]], i) : RUNTIME ERROR:
+# Dimension mismatch in values supplied for sigmab0.L1
+
+form <- SEV_PROP ~ meanFFMC + cvDMC + cvBUI | 1 | FlamConif | meanFFMC + cvDMC| 1
+form <- Formula(form)
+
+zoib1 <- zoib(model = form, zero.inflation = TRUE, one.inflation = TRUE, random = 1, EUID = modelData$FIRE_NAME, data = na.omit(modelData), joint = FALSE)
+
 
 ```
 

@@ -249,61 +249,92 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   allVars <- c(allVars, paste0("U", allVars))
 
   albertafires1_prefireMelt <- reproducible::Cache(meltPreFireABInv,
-                                                   inv = "albertafires1_prefire",
+                                                   inv = albertafires1_prefire,
+                                                   invName = "albertafires1_prefire",
                                                    allVars = allVars,
                                                    folder = vegDataPath,
+                                                   dim = dim(albertafires1_prefire),
                                                    cacheRepo = "analyses/cache",
                                                    userTags = "meltABprefire_1",
-                                                   useCache = doCache)
+                                                   useCache = doCache, omitArgs = c("inv"))
 
   albertafires2_prefireMelt <- reproducible::Cache(meltPreFireABInv,
-                                                   inv = "albertafires2_prefire",
+                                                   inv = albertafires2_prefire,
+                                                   invName = "albertafires2_prefire",
                                                    allVars = allVars,
                                                    folder = vegDataPath,
+                                                   dim = dim(albertafires2_prefire),
                                                    cacheRepo = "analyses/cache",
                                                    userTags = "meltABprefire_2",
-                                                   useCache = doCache)
+                                                   useCache = doCache, omitArgs = c("inv"))
 
   ## Saskatchewan - melting has to come before renaming
   ## note: for SK these names are not the same as the names accepted by CASFRI,
   ##    because CASFRI is not using the "official" field names
   saskatchewanfires_prefireMelt <- reproducible::Cache(meltPreFireSKInv,
-                                                       inv = "saskatchewanfires_prefire",
+                                                       inv = saskatchewanfires_prefire,
+                                                       invName = "saskatchewanfires_prefire",
                                                        folder = vegDataPath,
+                                                       dim = dim(saskatchewanfires_prefire),
                                                        cacheRepo = "analyses/cache",
                                                        userTags = "meltSKprefire",
-                                                       useCache = doCache)
+                                                       useCache = doCache, omitArgs = c("inv"))
 
   saskatchewanfires_prefireMelt <- renameCleanSfFields(sfObj = saskatchewanfires_prefireMelt,
                                                        namesTable = read.table("data/VegInventories/saskatchewanPrefire_SFVI_varCorresp.txt", header = TRUE))
+  ## TROUBLESHOOTING SK INVENTORY DATA MISMATCHES
+  ## TYPE, CSG and PFT columns are a mess
+  ## CSG an PFT  columns have classes that belong to TYPE and NA's do not match
+  ## AQUATIC_CLASS also has info not contained in TYPE
+  ## NVSL/LUC have no info and there is no Non Productive column (which CASFRI uses).
+  ## TYPE can be used instead of Non Productive for most things, but NVSL should have water info
+  tempDT <- as.data.table(as.data.frame(saskatchewanfires_prefireMelt))
+  cols <- c("TYPE", "CSG", "PFT")
+  tempDT <- tempDT[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+
+  ## add watter class where missing
+  tempDT[, TYPE := addWaterInfo(AQUATIC_CLASS, TYPE, CSG, PFT), by = 1:nrow(tempDT)]
+  tempDT[TYPE %in% "WAT", NVSL := "WA"]
+
+  ## note that one polyogn has TYPE/CSG/PFT = NFA (after checking AQUATIC info) and no veg info - will have to be ignored
+  tempDT[, c("TYPE", "CSG", "PFT") := correctCSGPFTTYPE(LAYER, TYPE, CSG, PFT, SP1_COVER, SMR),
+         by = P_ID]
+
+  ## back to sf object
+  saskatchewanfires_prefireMelt <- st_as_sf(as.data.frame(tempDT))
+  rm(tempDT, cols)
+  amc::.gc()
 
   ## AVI AND SFVI TO CASFRI
   tablesDir <- "data/VegInventories/CASFRIConvTables.xlsx"
   albertafires1_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI,
-                                                         inv = "albertafires1_prefireMelt",
+                                                         inv = albertafires1_prefireMelt,
                                                          tablesDir = tablesDir,
                                                          folder = vegDataPath,
+                                                         dim = dim(albertafires1_prefireMelt),
                                                          cacheRepo = "analyses/cache",
                                                          userTags = "AB2CASFRI_1",
-                                                         useCache = doCache)
+                                                         useCache = doCache, omitArgs = c("inv"))
 
   albertafires2_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI,
-                                                         inv = "albertafires2_prefireMelt",
+                                                         inv = albertafires2_prefireMelt,
                                                          tablesDir = tablesDir,
                                                          folder = vegDataPath,
+                                                         dim = dim(albertafires2_prefireMelt),
                                                          cacheRepo = "analyses/cache",
                                                          userTags = "AB2CASFRI_2",
-                                                         useCache = doCache)
+                                                         useCache = doCache, omitArgs = c("inv"))
 
   saskatchewanfires_prefireMeltCASFRI <- reproducible::Cache(SKToCASFRI,
-                                                             inv = "saskatchewanfires_prefireMelt",
+                                                             inv = saskatchewanfires_prefireMelt,
                                                              tablesDir = tablesDir,
                                                              folder = vegDataPath,
+                                                             dim = dim(saskatchewanfires_prefireMelt),
                                                              cacheRepo = "analyses/cache",
                                                              userTags = "SK2CASFRI_1",
-                                                             useCache = doCache)
-
-
+                                                             useCache = doCache, omitArgs = c("inv"))
+  ## change LA (lakes) to  water, since Dave'S data is not clear about the type of water bodies in SK
+  saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
 
   ## rbind pre-fire data
   setcolorder(albertafires2_prefireMeltCASFRI, names(albertafires1_prefireMeltCASFRI))

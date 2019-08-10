@@ -342,7 +342,8 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   allPrefireCASFRI <- rbind(albertafires1_prefireMeltCASFRI, albertafires2_prefireMeltCASFRI,
                             saskatchewanfires_prefireMeltCASFRI)
-  allPrefireCASFRI$P_ID <- NULL
+  ## re-do polygon IDs
+  allPrefireCASFRI$P_ID <-  1:nrow(allPrefireCASFRI[,, drop = TRUE])
 
   ## WATER DATA ----
   # files = c("water-abta", "water-sask")

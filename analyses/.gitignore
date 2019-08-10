@@ -1,6 +1,5 @@
 ## ignore the following folders/folder contents
 cache/*
-CASFRI_scripts/*
 *_files/
 *_cache/
 fireDataJoins

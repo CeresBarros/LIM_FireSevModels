@@ -446,7 +446,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                                         ls(), value = TRUE)))
   amc::.gc()
 
-  ## make sure some Veg. data classes are correct
+  ## make sure some Veg. data classes are the correct type
   cols <- c("CROWN_CLOSURE_LOWER", "CROWN_CLOSURE_UPPER",
             "DIST1_EXTENT_LOWER", "DIST1_EXTENT_UPPER",
             "DIST2_EXTENT_LOWER", "DIST2_EXTENT_UPPER",

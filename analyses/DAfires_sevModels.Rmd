@@ -22,7 +22,8 @@ library(foreign)
 library(fasterize)
 library(velox)
 library(reproducible)
-library(zoib)
+library(gamlss.inf)
+library(gamlss)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,

@@ -1,4 +1,3 @@
-## HOW MANY NON FOREST BEFORE CASFRI
 
 ## SASKATCWEWAN
 ## note that orignal SK shp had many data mismatches
@@ -35,8 +34,11 @@ length(setdiff(pixWaterCAS, pixWater)) == 0 & length(setdiff(pixWater, pixWaterC
 saskatchewanfires_prefireMelt[saskatchewanfires_prefireMelt$P_ID %in% setdiff(pixNonForCAS, pixNonFor),]
 saskatchewanfires_prefireMeltCASFRI[saskatchewanfires_prefireMeltCASFRI$P_ID %in% setdiff(pixNonForCAS, pixNonFor),]
 
-saskatchewanfires_prefireMelt[saskatchewanfires_prefireMelt$P_ID %in% ,]
+saskatchewanfires_prefireMelt[saskatchewanfires_prefireMelt$P_ID %in% setdiff(pixWaterCAS, pixWater),]
 saskatchewanfires_prefireMeltCASFRI[saskatchewanfires_prefireMeltCASFRI$P_ID %in% setdiff(pixWaterCAS, pixWater),]
+
+
+names(ABSK_AllData)
 
 
 ## ALBERTA

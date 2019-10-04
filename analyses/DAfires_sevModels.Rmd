@@ -294,8 +294,53 @@ modelHurdle3 <- gamlssInf0to1(y = SEV_PROP,
                                 CTI + Abie*Elevation + random(FIRE_NAME),
                               data = modelData,
                               control = gamlss.control(n.cyc = 40))
-summary(modelHurdle3)
+summary.gamlssinf0to1_2(modelHurdle3)
 
+modelHurdle4 <- gamlssInf0to1(y = SEV_PROP,
+                              mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari + random(FIRE_NAME),
+                              sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                              xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + SurfAspectRatio*Aspect + 
+                                Lari*Elevation + Lari*ORIGIN_UPPER + Lari*PctSlope + Lari*Aspect + CTI + random(FIRE_NAME),
+                              xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Decid*Aspect +
+                                Abie*Elevation + Abie*Aspect + SurfAspectRatio*Aspect + PctSlope + CTI + random(FIRE_NAME),
+                              data = modelData,
+                              control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelHurdle4)
+
+
+modelHurdle5 <- gamlssInf0to1(y = SEV_PROP,
+                              mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari + random(FIRE_NAME),
+                              sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                              xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + CTI*FlamConif +
+                                SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                              xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Decid*CTI +
+                                Abie*Elevation + Abie*Aspect + Abie*CTI + SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope +
+                                CTI + random(FIRE_NAME),
+                              data = modelData,
+                              control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelHurdle5)
+
+modelHurdle6 <- gamlssInf0to1(y = SEV_PROP,
+                              mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari*CTI + Lari*Decid + random(FIRE_NAME),
+                              sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                              xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + CTI*FlamConif +
+                                SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                              xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Abie*Elevation + Abie*Aspect +
+                                SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope + CTI + random(FIRE_NAME),
+                              data = modelData,
+                              control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelHurdle6)
+
+modelHurdle7 <- gamlssInf0to1(y = SEV_PROP,
+                              mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari*Decid + random(FIRE_NAME),
+                              sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                              xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + CTI*FlamConif +
+                                SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                              xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Abie*Elevation + Abie*Aspect +
+                                SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope + CTI + random(FIRE_NAME),
+                              data = modelData,
+                              control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelHurdle7)
 
 
 GAIC(modelNULL,
@@ -307,7 +352,6 @@ GAIC(modelNULL,
      modelHurdle5,
      modelHurdle6,
      modelHurdle7,
-     modelHurdle8,
      k = log(nrow(modelData)))
 
 plot(model1)   ## pretty horrible

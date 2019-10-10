@@ -421,6 +421,16 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   fireEcoregions <- fireEcoregions[!is.na(FIRE_NAME)]
   fireEcoregions[, FIRE_NAME := toupper(FIRE_NAME)]
 
+  ## correct ecoregions:
+  ## Livock fire says "Foothills" in NR2, but Boreal Forest in NR1, I will put foothills on NR1
+  ## Little Smoky and Gregg River fires have Czone1 as B. Plais, but Montane Cordillera  for Czone2 and Foothills in either NR1 or NR2, I will put M. Cordillera in Czone1
+  fireEcoregions[NR2 == "Foothills" & !grepl("Rocky|Foothills", NR1), NR1 := "Foothills"]
+  fireEcoregions[grepl("Boreal", Czone1) & grepl("Montane", Czone2), Czone1 := Czone2]
+
+  ## drop columns that are no longer necessary (and only confuse things!)
+  fireEcoregions[, Czone2 := NULL]
+  fireEcoregions[, NR2 := NULL]
+
   ## -------------------------------------------------
   ## JOIN DATA ---------------------------------------
   ## clean-up before joining

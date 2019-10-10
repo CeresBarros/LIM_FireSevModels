@@ -3,12 +3,20 @@
 ## percent cover values per pixel. Ignores understory layer, but creates a column of understory presence/absence
 
 ## dim (dim of DT) is used for caching purposes to avoid caching DT
+## days (passed to summarizeClimateVars) can be used to index the days that enter the summary ('1' is the first day)
+##   the if more days are listed than those available for a fire, all days for that fire will be used.
+##   Defaults to 'NULL' to use all available days.
 
-summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
+summarizeABSK_AllData <- function(DT, saveDir, dim,
+                                  days = NULL, overwrite = FALSE) {
+  if (!is.null(days) & !is.numeric(days))
+    stop("'days' can only be a numeric vector of days, or 'NULL'")
+
   summaryDT <- Cache(summarizeClimateVars,
                      DT = DT,
                      dim = dim(DT),
                      saveDir = saveDir,
+                     days = days,
                      overwrite = overwrite,
                      omitArgs = c("DT"))
 
@@ -78,8 +86,38 @@ summarizeABSK_AllData <- function(DT, saveDir, dim, overwrite = FALSE) {
 ## Function to summarize fire weather columns.
 ## Used internally by summarizeABSK_AllData to enable caching
 ## dim (dim of DT) is used for caching purposes to avoid caching DT
-summarizeClimateVars <- function(DT, saveDir, dim, overwrite = FALSE) {
-  fileName <- file.path(saveDir, "summClimateVarsAllDataABSK.rds")
+## days can be used to index the days that enter the summary ('1' is the first day)
+##   the if more days are listed than those available for a fire, all days for that fire will be used.
+##   Defaults to 'NULL' to use all available days.
+summarizeClimateVars <- function(DT, saveDir, dim, days = NULL,
+                                 overwrite = FALSE) {
+  if (is.null(days)) {
+    fileName <- file.path(saveDir, "summClimateVarsAllDataABSK.rds")
+  } else {
+    fileName <- file.path(saveDir,
+                          paste0("summClimateVarsAllDataABSK_days",
+                          paste(days[1], tail(days, 1), sep = "_"),
+                          ".rds"))
+  }
+
+  if (!is.null(days)) {
+    ## make a temp table of fires and julian days
+    fireDays <- unique(DT[, .(FIRE_NAME, julDay)])
+    setkey(fireDays, FIRE_NAME, julDay)
+
+    ## make a columns of day no. per fire
+    fireDays[, fireDayID := 1:length(julDay), by = FIRE_NAME]
+
+    ## subset according to selected days
+    fireDays <- fireDays[fireDayID %in% days]
+
+    ## subset table
+    setkey(DT, FIRE_NAME, julDay)
+    setkey(fireDays, FIRE_NAME, julDay)
+    DT <- fireDays[DT, .(FIRE_NAME, julDay), nomatch = 0]
+  }
+
+
   if (!file.exists(fileName) | overwrite) {
     summaryDT <- DT %>%
       group_by(pixID) %>%

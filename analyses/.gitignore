@@ -11,3 +11,5 @@ firesInFMAs
 *.png
 *.tex
 *.RData
+
+!.gitignore

@@ -509,6 +509,7 @@ amc::.gc()
 summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
                              dim = dim(ABSK_AllData),
+                             days = 1:3,
                              saveDir = "analyses/fireDataSummary/",
                              overwrite = FALSE, omitArgs = c("DT"))
 amc::.gc()

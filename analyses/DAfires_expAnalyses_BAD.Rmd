@@ -1,0 +1,442 @@
+---
+title: "Dave Andison's fire data Severity models (bad sampling)"
+author: "Ceres Barros"
+date: "02/04/2019"
+output:
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
+knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
+
+library(data.table)
+library(ggplot2)
+library(reshape2)
+library(sf)
+library(dplyr)
+library(xlsx)
+library(foreign)
+library(fasterize)
+library(velox)
+library(reproducible)
+library(gamlss.inf)
+library(gamlss)
+
+options("reproducible.useNewDigestAlgorithm" = TRUE,
+        "reproducible.useMemoise" = FALSE,
+        "reproducible.cachePath" = "analyses/cache")
+
+source("R/R_tools/prepCorrTable.R")
+source("R/R_tools/Useful_functions.R")
+source("R/R_tools/CASFRIrelated_functions.R")
+source("R/R_tools/prepFireWeather.R")
+source("R/R_tools/joinSevVegTopoWeatherData.R")
+source("R/R_tools/summary.gamlssinf0to1_FIXED.R")
+source("R/R_tools/Rsq_FIXED.R")
+source("analyses/R_tools/summarizeABSK_AllData.R")
+source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
+
+doCache = TRUE
+```
+
+
+```{r dataprep, include = FALSE, cache = FALSE}
+## source dataprep:
+ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
+                                    fireDataPath = "data/fires_Dave/fireSev",
+                                    vegDataPath = "data/fires_Dave/prefireVeg",
+                                    topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+                                    weatherDataPath = "data/fires_Dave/fireWeather",
+                                    doCache = doCache, bindAllFires = FALSE, 
+                                    cacheRepo = "analyses/cache",
+                                    userTags = "ABSKfires_DataPrep")
+
+## exclude event perimeter patch type
+memory.limit(size = 64000)
+ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
+amc::.gc()
+
+## remove columns with no data
+NAcols <- sapply(ABSK_AllData, FUN = function(x) all(is.na(x))) 
+ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
+zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE)) 
+ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
+
+## calculate stand age at fire year by subtracting fire year - makes negative values
+ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]
+
+## convert SMR to ordinal variable (moister as values increase)
+ABSK_AllData[SMR == "D", SMR_ord := 1]
+ABSK_AllData[SMR == "F", SMR_ord := 2]
+ABSK_AllData[SMR == "M", SMR_ord := 3]
+ABSK_AllData[SMR == "W", SMR_ord := 4]
+ABSK_AllData[SMR == "A", SMR_ord := 5]
+
+ABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
+
+## summarise weather data - faster if not cached
+summaryABSK_AllData <- Cache(summarizeABSK_AllData,
+                             DT = ABSK_AllData,
+                             dim = dim(ABSK_AllData),
+                             days = 1:3,
+                             saveDir = "analyses/fireDataSummary/",
+                             overwrite = FALSE, omitArgs = c("DT"))
+
+## collapse species into more generic categories
+summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
+                                       `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
+                    by = pixID] 
+summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+                    by = pixID] 
+summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
+                    by = pixID] 
+
+## collapse non-forested variables
+if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
+    dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
+    dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
+  warning("> 1 non-forest class type present")
+
+collapseCols <- function(x) {
+  x <- unlist(x)
+  names(x) <- NULL
+  if(all(is.na(x)))
+    "NA"
+  else 
+    x[!is.na(x)]
+}
+
+cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
+summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+
+summaryABSK_AllData[, isForest := 0]
+summaryABSK_AllData[NonForestValue == "NA", isForest := 1]
+
+## change Lari lari to simpler name
+setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
+## rescale severity from 0-1
+summaryABSK_AllData[, SEV_PROP := SEV_CONT/100]
+## convert the highest fire severity to 1
+summaryABSK_AllData[SEV_PROP == 0.9750, SEV_PROP := 1.0]
+
+## change some columns to numeric
+cols <- grep("mean|max|min|cv|range|pixID|P_ID|Duration|ORIGIN|HEIGHT|isForest|SEV_PROP|Aspect|^CTI$|PctSlope|SurfReliefRatio|SurfAspectRatio|Elevation", names(summaryABSK_AllData), value = TRUE)
+str(summaryABSK_AllData[, ..cols])
+summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+## make some columns factors
+cols <- c("FIRE_NAME", "Czone1", "NR1")
+summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
+
+rm(NAcols, zeroCols, ABSK_AllData, cols)
+amc::.gc()
+```
+
+
+Variables selected for models (when using all fire weather days):
+* Climate:
++ meanFFMC	-0.16***
++ cvDMC	0.16***
++ cvBUI	0.15***
++ minFFMC	-0.14***
++ rangeFFMC	0.14*** - highly correlated with minFFMC
++ cvFFMC	0.13*** - highly correlated with minFFMC
++ minDMC	-0.13*** - highly correlated with cvDMC
++ minBUI	-0.13*** - - highly correlated with min/cvDMC
+* Topography
++ PctSlope	0.08***
++ SurfAspectRatio	0.08***
++ Aspect	0.07***
++ CTI	-0.07*** ([Compound Topographic Index (CTI) (Moore et al. 1991) or "soil wetness" transformation can be used to models aspects of hydrologic systems. CTI is strongly correlated with soil moisture](https://wikispaces.psu.edu/display/AnthSpace/Compound+Topographic+Index))
++ SurfReliefRatio	0.04*** ([Describes rugosity. Ratio between relief and length in a particular window](https://en.wikipedia.org/wiki/Relief_ratio))
++ Elevation	-0.03***
+* Vegetation - Spearmand correlations with severity
++ Group flammable conifers 0.10 ***
++ Pinu bank	0.15***
++ Pice mari	0.06***
++ Pice glau	-0.04***
++ Pinu cont	-0.04***
++ Pice enge	0.01***
++ Group Larix
++ Lari lari	-0.05***
++ Group Abies 0.00***
++ Abie lasi	0.00
++ Abie bals	0.01***
++ Group deciduous 0.03***
++ Betu papy	-0.03***
++ Popu trem	0.03***
++ Popu balb	0.02***
+
++ UNDERSTOREY
++ ORIGIN_UPPER 0.10***
+* Landcover type
++ isForest
+
+```{r modelData, include = FALSE}
+## variables for analysis (when using pre-selected variables and all fire weather days)
+cols <- c("SEV_PROP", "meanFFMC", "cvDMC", "cvBUI", "minFFMC", "rangeFFMC", "cvFFMC", "minDMC", "minBUI", "FlamConif", "Abie",
+          "Decid", "Lari", "UNDERSTOREY", "ORIGIN_UPPER", "PctSlope", "SurfAspectRatio", "Aspect", "CTI", "SurfReliefRatio",
+          "Elevation", "isForest", "FIRE_NAME")
+
+## sample a third of the pixels in each fire
+set.seed(123)
+samp <- sample(summaryABSK_AllData$pixID, size = nrow(summaryABSK_AllData)/4, replace = FALSE)
+rm(sampDT)
+
+modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
+
+## check we didn't lose fires
+if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME), 
+                   unique(modelData$FIRE_NAME))))
+  stop("Fires lost in sampling!")
+```
+
+## GAMLSS models
+Selection of variables going "in".
+Start with a high covergence criterion to speed up model fitting for now
+```{r gamlssModels, results = "asis"}
+modelNULL <- gamlss(SEV_PROP ~ 1 + re(random = ~ 1|Czone1/NR1/FIRE_NAME),
+                    family = BEINF, control = gamlss.control(c.crit = 0.1),
+                    data = modelData)
+
+## model with only pre-selected variables (bad sampling)
+model1 <- stepGAIC(modelNULL,
+                   scope = ~ meanFFMC + cvDMC + cvBUI + minFFMC + rangeFFMC + cvFFMC + minDMC + minBUI + FlamConif +
+                     Abie + Decid + Lari + UNDERSTOREY + PctSlope + SurfAspectRatio + Aspect + CTI +
+                     SurfReliefRatio + Elevation + isForest +
+                     re(random = ~ 1|Czone1/NR1/FIRE_NAME),
+                   direction = "both", k = log(length(samp)))
+model1 <- gamlss(formula = SEV_PROP ~  Decid + CTI + Lari + UNDERSTOREY + re(random = ~1 | FIRE_NAME),
+                 family = BEINF, data = modelData)
+
+## model with only pre-selected variables (bad sampling)
+model2 <- stepGAIC(model1,
+                   what = "sigma",
+                   scope = ~ meanFFMC + cvDMC + cvBUI + minFFMC + rangeFFMC + cvFFMC + minDMC + minBUI + FlamConif +
+                     Abie + Decid + Lari + UNDERSTOREY + ORIGIN_UPPER + PctSlope + SurfAspectRatio + Aspect + CTI +
+                     SurfReliefRatio + Elevation + isForest + re(random = ~ 1|FIRE_NAME),
+                   direction = "both", k = log(length(samp)))
+
+model2 <- gamlss(SEV_PROP ~ Decid + UNDERSTOREY + CTI + re(random = ~1 | FIRE_NAME),
+                 sigma.formula = ~ Decid + Elevation + PctSlope + re(random = ~1 | FIRE_NAME),
+                 family = BEINF, data = modelData)
+
+amc::.gc()
+
+
+## model with only pre-selected variables (bad sampling)
+model3 <- stepGAIC(model2,
+                   what = "nu",
+                   scope = ~ meanFFMC + cvDMC + cvBUI + minFFMC + rangeFFMC + cvFFMC + minDMC + minBUI + FlamConif +
+                     Abie + Decid + Lari + UNDERSTOREY + ORIGIN_UPPER + PctSlope + SurfAspectRatio + Aspect + CTI +
+                     SurfReliefRatio + Elevation + isForest + re(random = ~ 1|FIRE_NAME),
+                   direction = "both", k = log(length(samp)))
+
+model3 <- gamlss(SEV_PROP ~ Decid + UNDERSTOREY + CTI + re(random = ~1 | FIRE_NAME),
+                 sigma.formula = ~ Decid + UNDERSTOREY + CTI + PctSlope + Abie + Aspect + re(random = ~1 | FIRE_NAME),
+                 nu.formula = ~ FlamConif + ORIGIN_UPPER + Elevation + PctSlope + SurfAspectRatio + Aspect + Lari + CTI +
+                   re(random = ~1 | FIRE_NAME),
+                 family = BEINF, data = modelData)
+
+amc::.gc()
+
+## model with only pre-selected variables (bad sampling)
+model4 <- stepGAIC(model3,
+                   what = "tau",
+                   scope = ~ meanFFMC + cvDMC + cvBUI + minFFMC + rangeFFMC + cvFFMC + minDMC + minBUI + FlamConif +
+                     Abie + Decid + Lari + UNDERSTOREY + ORIGIN_UPPER + PctSlope + SurfAspectRatio + Aspect + CTI +
+                     SurfReliefRatio + Elevation + isForest + re(random = ~ 1|FIRE_NAME),
+                   direction = "both", k = log(length(samp)))
+
+## tau remained unchanged
+model4 <- gamlss(SEV_PROP ~ Decid + UNDERSTOREY + CTI + re(random = ~1 | FIRE_NAME),
+                 sigma.formula = ~ Decid + UNDERSTOREY + CTI + PctSlope + Abie + Aspect + re(random = ~1 | FIRE_NAME),
+                 nu.formula = ~ FlamConif + ORIGIN_UPPER + Elevation + PctSlope + SurfAspectRatio + Aspect + Lari + CTI +
+                   re(random = ~1 | FIRE_NAME),
+                 tau.formula = ~  Decid + UNDERSTOREY + Aspect + PctSlope + SurfAspectRatio + CTI + Abie + Elevation + re(random = ~1 | FIRE_NAME),
+                 family = BEINF, data = modelData)
+
+amc::.gc()
+
+GAIC(modelNULL,
+     model1,
+     model2,
+     model3,  
+     model4,  ## best
+     k = log(nrow(modelData)))
+
+plot(modelNULL)   ## pretty horrible (with bad sampling) | pretty good  (good sampling and more REs)
+plot(model4)   ## pretty good!!!!  (with bad sampling) | looks even better (good sampling and more REs)
+```
+
+
+Let's try with the GAMLSS INF (probabilities at 0s and 1s have more direct interpretation), starting from the previous best model
+Note that \code{gamlssInf0to1} doesn't seem to like \code{re} in this case.
+`nu` and `tau` are replaced by `xi0` and `xi1`, respectively, which in the case of 0 and 1 inflation are the same between `gamlss` and `gamlssInf0to1`. GAMLSS Inf fits a log-linear multinomial model to the 0s 1s and everything in between  (0 becomes 1, 1 becomes 2 and everything else becomes 3).
+Note that when the sampling was corrected and more random effects added, using gamlss.inf offered no improvement
+```{r gamlssinfModels, results = "asis"}
+modelInf <- gamlssInf0to1(y = SEV_PROP,
+                          mu.formula = ~ Decid + CTI + Lari + UNDERSTOREY + random(FIRE_NAME),
+                          sigma.formula = ~ Decid + Elevation + PctSlope + random(FIRE_NAME),
+                          xi0.formula = ~ FlamConif + ORIGIN_UPPER + Elevation + PctSlope + SurfAspectRatio +
+                            Aspect + Lari + CTI + random(FIRE_NAME),
+                          xi1.formula = ~ Decid + UNDERSTOREY + Aspect + PctSlope + SurfAspectRatio +
+                            CTI + Abie + Elevation + random(FIRE_NAME),
+                          control = gamlss.control(n.cyc = 40),
+                          data = modelData)
+
+## inspect p-values and exclude non-significant effects/add interactions
+summary.gamlssinf0to1_2(modelInf)
+plot(modelInf)
+modelInf2 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI + Lari + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif + ORIGIN_UPPER + Elevation*PctSlope + SurfAspectRatio*Aspect +
+                             Lari + CTI + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + SurfAspectRatio*Aspect + PctSlope +
+                             CTI + Abie*UNDERSTOREY + Elevation + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 30))
+summary.gamlssinf0to1_2(modelInf2)
+
+## add/ covariates for the 0 inflated component first
+modelInf3 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI + Lari*UNDERSTOREY + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + Decid*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + SurfAspectRatio*Aspect +
+                             Lari + CTI + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + SurfAspectRatio*Aspect + PctSlope +
+                             CTI + Abie*Elevation + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf3)
+
+modelInf4 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + SurfAspectRatio*Aspect +
+                             Lari*Elevation + Lari*ORIGIN_UPPER + Lari*PctSlope + Lari*Aspect + CTI + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Decid*Aspect +
+                             Abie*Elevation + Abie*Aspect + SurfAspectRatio*Aspect + PctSlope + CTI + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf4)
+ 
+modelInf5 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + CTI*FlamConif +
+                             SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Decid*CTI +
+                             Abie*Elevation + Abie*Aspect + Abie*CTI + SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope +
+                             CTI + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf5)
+
+modelInf6 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari*CTI + Lari*Decid + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + CTI*FlamConif +
+                             SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Abie*Elevation + Abie*Aspect +
+                             SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope + CTI + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf6)
+
+modelInf7 <- gamlssInf0to1(y = SEV_PROP,
+                           mu.formula = ~ Decid*UNDERSTOREY + CTI*UNDERSTOREY + Lari*Decid + random(FIRE_NAME),
+                           sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                           xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + CTI*FlamConif +
+                             SurfAspectRatio*Aspect + Lari*Elevation + Lari*PctSlope + Lari*Aspect + random(FIRE_NAME),
+                           xi1.formula = ~ Decid*UNDERSTOREY + Decid*Elevation + Abie*Elevation + Abie*Aspect +
+                             SurfAspectRatio*Aspect + PctSlope*CTI + PctSlope + CTI + random(FIRE_NAME),
+                           data = modelData,
+                           control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf7)
+
+modelInf3.2 <- gamlssInf0to1(y = SEV_PROP,
+                             mu.formula = ~ Decid*UNDERSTOREY + CTI + Lari + random(FIRE_NAME),
+                             sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + random(FIRE_NAME),
+                             xi0.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + SurfAspectRatio*Aspect +
+                               Lari + CTI + random(FIRE_NAME),
+                             xi1.formula = ~ Decid*UNDERSTOREY + SurfAspectRatio*Aspect + PctSlope +
+                               CTI + Abie*Elevation + random(FIRE_NAME),
+                             data = modelData,
+                             control = gamlss.control(n.cyc = 40))
+summary.gamlssinf0to1_2(modelInf3.2)
+
+
+GAIC(modelNULL,
+     model4,  
+     modelInf,
+     modelInf2,
+     modelInf3, ## best
+     modelInf3.2,
+     modelInf4,
+     modelInf5,
+     modelInf6,
+     modelInf7,
+     k = log(nrow(modelData)))
+
+plot(model4)   
+plot(modelInf3) ## noice!
+```
+
+
+Go back to "standard" GAMLSS, using the best GAMLSS Inf model (for old sampling and one RE). The advantage of using GAMLSS is that more methods are available. Also, because we are using a beta inflates distribution there's not much gain in using `gamlssInf0to1`.
+We can use re() again.
+
+The coefficients are pratically the same.
+
+We can get the fitted probabilities at 0 (p0) and 1 (p1) as by reversing the following equations:
+xi0 = nu = p0 / (1 - p0 - p1)
+xi1 = tau = p1 / (1 - p0 - p1)
+
+hence,
+p0 = xi0 / (1 + xi0 + xi1) = nu / (1 + nu + tau)
+p1 = xi1 / (1 + xi0 + xi1) = tau / (1 + nu + tau)
+
+```{r back2gamlss}
+model5 <- gamlss(SEV_PROP ~ Decid*UNDERSTOREY + CTI + Lari*UNDERSTOREY + re(random = ~1 | FIRE_NAME),
+                 sigma.formula = ~ Decid*Elevation + Elevation*PctSlope + Decid*PctSlope + re(random = ~1 | FIRE_NAME),
+                 nu.formula = ~ FlamConif*Elevation + FlamConif*ORIGIN_UPPER + FlamConif*PctSlope + SurfAspectRatio*Aspect +
+                   Lari + CTI + re(random = ~1 | FIRE_NAME),
+                 tau.formula = ~ Decid*UNDERSTOREY + SurfAspectRatio*Aspect + PctSlope +
+                   CTI + Abie*Elevation + re(random = ~1 | FIRE_NAME),
+                 family = BEINF, data = modelData,
+                 control = gamlss.control(n.cyc = 40))
+summary(model5)
+GAIC(modelInf3, model5)
+Rsq(model5)
+Rsq_2(modelInf3)
+
+## plot the probabilities at 0 and 1
+modelData$p0 <- fitted(model5, "nu") / (1 + fitted(model5, "nu") + fitted(model5, "tau"))
+modelData$p1 <- fitted(model5, "tau") / (1 + fitted(model5, "nu") + fitted(model5, "tau"))
+
+ggplot(modelData, aes(x = Decid, y = p0)) +
+  geom_smooth() +
+  labs(title = "p0 ~ Deciduous % cover")
+
+ggplot(modelData, aes(x = Decid, y = p1)) +
+  geom_smooth() +
+  labs(title = "p1 ~ Deciduous % cover")
+
+ggplot(modelData, aes(x = CTI, y = p0)) +
+  geom_smooth() +
+  labs(title = "p0 ~ CTI")
+
+ggplot(modelData, aes(x = CTI, y = p1)) +
+  geom_smooth() +
+  labs(title = "p1 ~ CTI")
+```
+
+
+

@@ -395,71 +395,154 @@ modelData$p1 <- fitted(model6, "tau") / (1 + fitted(model6, "nu") + fitted(model
 ```
 
 Plots of probabilities at 0 and 1 vs. covariates
+```{r p0p1Plots}
 ## 0 probs
-plot1 <- ggplot(modelData, aes(x = as.integer(UNDERSTOREY), y = p0)) +
-  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
-  labs(title = "p0 ~ presence of understory\n(GLM logit smoother)")
+plot1 <- ggplot(modelData, aes(x = FlamConif, y = p0,
+                               colour = as.factor(UNDERSTOREY))) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() +
+  labs(title = "p0 ~ %FlamConifer * hasUnderstorey\n GAM smoother",
+       x = "% cover", colour = "Understorey?")
 
-plot2 <- ggplot(modelData, aes(x = FlamConif, y = p0)) +
-  geom_smooth() +
-  labs(title = "p0 ~ Flamm. conifers % cover\n GAM smoother")
+plot2 <- ggplot(modelData, aes(x = Decid, y = p0,
+                               colour = as.factor(UNDERSTOREY))) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + theme(legend.position = "none") +
+  labs(title = "p0 ~ %Deciduous * hasUnderstorey\n GAM smoother",
+       x = "% cover", colour = "Understorey?")
 
-plot3 <- ggplot(modelData, aes(x = Decid, y = p0)) +
-  geom_smooth() +
-  labs(title = "p0 ~ Deciduous % cover\n GAM smoother")
+plot3 <- ggplot(modelData, aes(x = PctSlope, y = p0)) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p0 ~ %Slope\n GAM smoother",
+       x = "% slope")
 
-plot4 <- ggplot(modelData, aes(x = PctSlope, y = p0)) +
-  geom_smooth() +
-  labs(title = "p0 ~ % slope\n GAM smoother")
+plot4 <- ggplot(modelData, aes(x = SurfAspectRatio, y = p0)) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p0 ~ Roughness(SAR)\n GAM smoother",
+       x = "% roughness")
 
-plot5 <- ggplot(modelData, aes(x = SurfAspectRatio, y = p0)) +
-  geom_smooth() +
-  labs(title = "p0 ~ Roughness (SAR)\n GAM smoother")
+plot5 <- ggplot(modelData, aes(x = SurfReliefRatio, y = p0)) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p0 ~ Roughness(SRR)\n GAM smoother",
+       x = "% roughness")
 
-plot6 <- ggplot(modelData, aes(x = SurfReliefRatio, y = p0)) +
-  geom_smooth() +
-  labs(title = "p0 ~ Roughness (SRR)\n GAM smoother")
-
-ggarrange(plot1, plot2,
-          plot3, plot4, 
-          plot5, plot6,
+ggarrange(plot1 + theme(legend.position = "none"), 
+          plot2, plot3, plot4, 
+          plot5, get_legend(plot1),
           nrow = 3, ncol = 2)
 
-
-## 1 probs
+## 1 probs,
 plot7 <- ggplot(modelData, aes(x = as.integer(UNDERSTOREY), y = p1)) +
- geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
-  labs(title = "p1 ~ presence of understory\n(GLM logit smoother)")
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ hasUnderstorey\n(GLM logit smoother)",
+       x = "understorey")
 
 plot8 <- ggplot(modelData, aes(x = FlamConif, y = p1)) +
- geom_smooth() +
-  labs(title = "p1 ~ Flamm. conifers % cover\n GAM smoother")
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %FlamConifer % cover\n GAM smoother",
+       x = "% cover")
 
 plot9 <- ggplot(modelData, aes(x = Lari, y = p1)) +
- geom_smooth() +
-  labs(title = "p1 ~ Larch % cover\n GAM smoother")
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %Larch\n GAM smoother",
+       x = "% cover")
 
 plot10 <- ggplot(modelData, aes(x = Abie, y = p1)) +
- geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
-  labs(title = "p1 ~ Fir % cover\n(GLM logit smoother)")
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %Fir\n(GLM logit smoother)",
+       x = "% cover")
 
 plot11 <- ggplot(modelData, aes(x = SurfAspectRatio, y = p1)) +
- geom_smooth() +
-  labs(title = "p1 ~ Roughness (SAR)\n GAM smoother")
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p1 ~ Roughness SAR)\n GAM smoother",
+       x = "% roughness")
 
 plot12 <- ggplot(modelData, aes(x = HEIGHT_LOWER, y = p1)) +
- geom_smooth() +
-  labs(title = "p1 ~ Stand height\n GAM smoother")
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "p1 ~ Height\n GAM smoother",
+       x = "height")
 
 ggarrange(plot7, plot8,
           plot9, plot10, 
           plot11, plot12,
           nrow = 3, ncol = 2)
-
 ```
 
-```{r saveRdata}
-save(list = grep("model", ls(), value = TRUE), file = "modelsGAMLSS_0-3Days_goodSample_Nov1.RData")
+Partial effects plots
+(not working, not sure why)
+```{r partialEffectsPlots}
+## getPEF accesses the environment for modelData, so exclude extra variables
+set(modelData, i = NULL, j = c("p0", "p1"), NULL)
+getPEF(model6, term = "CTI", parameter = "mu", data = modelData,
+       plot = TRUE, type = 'response')
+getPEF(model6, term = "CTI",
+       plot = TRUE, type = 'response')
+```
+
+Plot of the fitted mean vs covariates
+```{r fittedMeanPlots}
+modelData[, fittedVals := fitted(model6)]
+
+plot13 <- ggplot(modelData, aes(x = CTI, y = fittedVals)) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + 
+  labs(title = "Severity ~ Wetness\n GAM smoother",
+       x = "CTI", y = "mean")
+
+plot14 <- ggplot(modelData, 
+                 aes(x = as.factor(isForest), y = fittedVals,
+                     fill = as.factor(isForest))) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) +
+  theme_pubr() + theme(legend.position = "none") +
+  scale_x_discrete(labels = c("0" = "not forest", "1" = "forest")) +
+  labs(title = "Severity ~ isForest\n GAM smoother",
+       x = "", y = "mean")
+
+plot14v2 <- ggplot(modelData, 
+                 aes(x = isForest, y = fittedVals)) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0,1),
+                     labels = c("not forest", "forest")) +
+  labs(title = "Severity ~ forest presence\n logit smoother",
+       x = "", y = "mean")
+
+plot15 <- ggplot(modelData, 
+                 aes(x = Lari, y = fittedVals,
+                     colour = cut(HEIGHT_LOWER, 
+                                  breaks = c(0, 5, 10, 20, max(modelData$HEIGHT_LOWER))))) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial"), 
+              size = 1.3) +
+  scale_color_manual(values = c("coral", "darkturquoise", "limegreen", "orchid")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Larch\n logit smoother",
+       x = "% cover", y = "mean", colour = "height class")
+
+plot16 <- ggplot(modelData, 
+                 aes(x = FlamConif, y = fittedVals,
+                     colour = cut(HEIGHT_LOWER, 
+                                  breaks = c(0, 5, 10, 20, max(modelData$HEIGHT_LOWER))))) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial"), 
+              size = 1.3) +
+  scale_color_manual(values = c("coral", "darkturquoise", "limegreen", "orchid")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %FlamConifer\n logit smoother",
+       x = "% cover", y = "mean", colour = "height class")
+
+ggarrange(plot13, plot14v2,
+          plot15, plot16, 
+          nrow = 2, ncol = 2, legend = "bottom", 
+          font.label = list(size = 16))
+
 ```
 
 

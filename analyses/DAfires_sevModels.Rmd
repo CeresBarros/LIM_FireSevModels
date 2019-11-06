@@ -138,6 +138,7 @@ rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()
 ```
 
+## SUMMARY OF PRELIMINARY ANALYSES
 
 Variables selected for models (when using all fire weather days):
 * Climate:
@@ -294,7 +295,7 @@ plot(modelNULL)   ## pretty horrible (with bad sampling) | pretty good  (good sa
 plot(model4)   ## pretty good!!!!  (with bad sampling) | looks even better (good sampling and more REs)
 ```
 
-
+## GAMLSS INF models
 Let's try with the GAMLSS INF (probabilities at 0s and 1s have more direct interpretation), starting from the previous best model
 Note that \code{gamlssInf0to1} doesn't seem to like \code{re} in this case.
 `nu` and `tau` are replaced by `xi0` and `xi1`, respectively, which in the case of 0 and 1 inflation are the same between `gamlss` and `gamlssInf0to1`. GAMLSS Inf fits a log-linear multinomial model to the 0s 1s and everything in between  (0 becomes 1, 1 becomes 2 and everything else becomes 3).
@@ -320,6 +321,7 @@ GAIC(modelNULL,
      modelInf)  ## this is actually worse.
 ```
 
+## Adding/removing covariates and interactions 
 Go back to "standard" GAMLSS, since GAMLSS Inf did not improve models. The advantage of using GAMLSS is that more methods are available. Also, because we are using a beta inflates distribution there's not much gain in using `gamlssInf0to1`.
 We can use re() again.
 
@@ -378,19 +380,21 @@ Rsq(model6)
 ```
 
 
-##### Inspecting final model
+## Inspecting the final model and figures
 Probabilities of 0s and 1s in function of covariates:
 xi0 = nu = p0 / (1 - p0 - p1)
 xi1 = tau = p1 / (1 - p0 - p1)
 
 Only significant covariates are plotted
-```{r back2gamlss}
+```{r back2gamlss, include = FALSE}
 Rsq(model6)
 
 ## plot the probabilities at 0 and 1
 modelData$p0 <- fitted(model6, "nu") / (1 + fitted(model6, "nu") + fitted(model6, "tau"))
 modelData$p1 <- fitted(model6, "tau") / (1 + fitted(model6, "nu") + fitted(model6, "tau"))
+```
 
+Plots of probabilities at 0 and 1 vs. covariates
 ## 0 probs
 plot1 <- ggplot(modelData, aes(x = as.integer(UNDERSTOREY), y = p0)) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
@@ -459,4 +463,13 @@ save(list = grep("model", ls(), value = TRUE), file = "modelsGAMLSS_0-3Days_good
 ```
 
 
+
+```{r saveRdata, include = FALSE, eval = FALSE}
+save(list = grep("model", ls(), value = TRUE), 
+     file = "analyses/modelsGAMLSS_0-3Days_goodSample_Nov1.RData")
+```
+
+```{r loadRdata, include = FALSE, eval = FALSE}
+load("analyses/modelsGAMLSS_0-3Days_goodSample_Nov1.RData")
+```
 

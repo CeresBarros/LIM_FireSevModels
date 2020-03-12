@@ -7,17 +7,15 @@
 ##   the if more days are listed than those available for a fire, all days for that fire will be used.
 ##   Defaults to 'NULL' to use all available days.
 
-summarizeABSK_AllData <- function(DT, saveDir, dim,
-                                  days = NULL, overwrite = FALSE) {
+summarizeABSK_AllData <- function(DT, dim,
+                                  days = NULL) {
   if (!is.null(days) & !is.numeric(days))
     stop("'days' can only be a numeric vector of days, or 'NULL'")
 
   summaryDT <- Cache(summarizeClimateVars,
                      DT = DT,
                      dim = dim(DT),
-                     saveDir = saveDir,
                      days = days,
-                     overwrite = overwrite,
                      omitArgs = c("DT"))
 
   ## merge with remaining data
@@ -89,17 +87,7 @@ summarizeABSK_AllData <- function(DT, saveDir, dim,
 ## days can be used to index the days that enter the summary ('1' is the first day)
 ##   the if more days are listed than those available for a fire, all days for that fire will be used.
 ##   Defaults to 'NULL' to use all available days.
-summarizeClimateVars <- function(DT, saveDir, dim, days = NULL,
-                                 overwrite = FALSE) {
-  if (is.null(days)) {
-    fileName <- file.path(saveDir, "summClimateVarsAllDataABSK.rds")
-  } else {
-    fileName <- file.path(saveDir,
-                          paste0("summClimateVarsAllDataABSK_days",
-                          paste(days[1], tail(days, 1), sep = "_"),
-                          ".rds"))
-  }
-
+summarizeClimateVars <- function(DT, dim, days = NULL) {
   if (!is.null(days)) {
     ## make a temp table of fires and julian days
     fireDays <- unique(DT[, .(FIRE_NAME, julDay)])
@@ -111,76 +99,67 @@ summarizeClimateVars <- function(DT, saveDir, dim, days = NULL,
     ## subset according to selected days
     fireDays <- fireDays[fireDayID %in% days]
 
-    ## subset table
+    ## subset table by fire days
     setkey(DT, FIRE_NAME, julDay)
     setkey(fireDays, FIRE_NAME, julDay)
-    DT <- fireDays[DT, .(FIRE_NAME, julDay), nomatch = 0]
+    DT <- fireDays[.(FIRE_NAME, julDay)][DT, nomatch = 0]
   }
 
+  summaryDT <- DT %>%
+    group_by(pixID) %>%
+    summarise(startJulDay = min(julDay),
+              meanTemp = mean(temp),
+              minTemp = min(temp),
+              maxTemp = max(temp),
+              cvTemp = sd(temp)/mean(temp),
+              rangeRH = max(rh) - min(rh),
+              meanRH = mean(rh),
+              minRH = min(rh),
+              maxRH = max(rh),
+              cvRH = sd(rh)/mean(rh),
+              rangeRH = max(rh) - min(rh),
+              meanWS = mean(ws),
+              minWS = min(ws),
+              maxWS = max(ws),
+              cvWS = sd(ws)/mean(ws),
+              rangeWS = max(ws) - min(ws),
+              meanRain = mean(rain),
+              minRain = min(rain),
+              maxRain = max(rain),
+              cvRain = sd(rain)/mean(rain),
+              rangeRain = max(rain) - min(rain),
+              meanFFMC = mean(ffmc),
+              minFFMC = min(ffmc),
+              maxFFMC = max(ffmc),
+              cvFFMC = sd(ffmc)/mean(ffmc),
+              rangeFFMC = max(ffmc) - min(ffmc),
+              meanDMC = mean(dmc),
+              minDMC = min(dmc),
+              maxDMC = max(dmc),
+              cvDMC = sd(dmc)/mean(dmc),
+              rangeDMC = max(dmc) - min(dmc),
+              meanDC = mean(dc),
+              minDC = min(dc),
+              maxDC = max(dc),
+              cvDC = sd(dc)/mean(dc),
+              rangeDC = max(dc) - min(dc),
+              meanISI = mean(isi),
+              minISI = min(isi),
+              maxISI = max(isi),
+              cvISI = sd(isi)/mean(isi),
+              rangeISI = max(isi) - min(isi),
+              meanBUI = mean(bui),
+              minBUI = min(bui),
+              maxBUI = max(bui),
+              cvBUI = sd(bui)/mean(bui),
+              rangeBUI = max(bui) - min(bui),
+              meanFWI = mean(fwi),
+              minFWI = min(fwi),
+              maxFWI = max(fwi),
+              cvFWI = sd(fwi)/mean(fwi),
+              rangeFWI = max(fwi) - min(fwi)) %>%
+    data.table(.)
 
-  if (!file.exists(fileName) | overwrite) {
-    summaryDT <- DT %>%
-      group_by(pixID) %>%
-      summarise(startJulDay = min(julDay),
-                meanTemp = mean(temp),
-                minTemp = min(temp),
-                maxTemp = max(temp),
-                cvTemp = sd(temp)/mean(temp),
-                rangeRH = max(rh) - min(rh),
-                meanRH = mean(rh),
-                minRH = min(rh),
-                maxRH = max(rh),
-                cvRH = sd(rh)/mean(rh),
-                rangeRH = max(rh) - min(rh),
-                meanWS = mean(ws),
-                minWS = min(ws),
-                maxWS = max(ws),
-                cvWS = sd(ws)/mean(ws),
-                rangeWS = max(ws) - min(ws),
-                meanRain = mean(rain),
-                minRain = min(rain),
-                maxRain = max(rain),
-                cvRain = sd(rain)/mean(rain),
-                rangeRain = max(rain) - min(rain),
-                meanFFMC = mean(ffmc),
-                minFFMC = min(ffmc),
-                maxFFMC = max(ffmc),
-                cvFFMC = sd(ffmc)/mean(ffmc),
-                rangeFFMC = max(ffmc) - min(ffmc),
-                meanDMC = mean(dmc),
-                minDMC = min(dmc),
-                maxDMC = max(dmc),
-                cvDMC = sd(dmc)/mean(dmc),
-                rangeDMC = max(dmc) - min(dmc),
-                meanDC = mean(dc),
-                minDC = min(dc),
-                maxDC = max(dc),
-                cvDC = sd(dc)/mean(dc),
-                rangeDC = max(dc) - min(dc),
-                meanISI = mean(isi),
-                minISI = min(isi),
-                maxISI = max(isi),
-                cvISI = sd(isi)/mean(isi),
-                rangeISI = max(isi) - min(isi),
-                meanBUI = mean(bui),
-                minBUI = min(bui),
-                maxBUI = max(bui),
-                cvBUI = sd(bui)/mean(bui),
-                rangeBUI = max(bui) - min(bui),
-                meanFWI = mean(fwi),
-                minFWI = min(fwi),
-                maxFWI = max(fwi),
-                cvFWI = sd(fwi)/mean(fwi),
-                rangeFWI = max(fwi) - min(fwi)) %>%
-      data.table(.)
-
-    if (!dir.exists(saveDir))
-      dir.create(saveDir, recursive = TRUE)
-    saveRDS(summaryDT, file = fileName)
     return(summaryDT)
-  } else {
-    summaryDT <- readRDS(fileName)
-    return(summaryDT)
-  }
 }
 

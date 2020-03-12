@@ -13,7 +13,6 @@ knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
 knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
 
 library(data.table)
-library(ggplot2)
 library(reshape2)
 library(sf)
 library(dplyr)
@@ -24,7 +23,9 @@ library(velox)
 library(reproducible)
 library(gamlss.inf)
 library(gamlss)
+library(ggplot2)
 library(ggpubr)
+library(ggrepel)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,
@@ -289,7 +290,7 @@ GAIC(modelNULL,
      model2,
      model3,  
      model4,  ## best
-     k = log(nrow(modelData)))
+     k = log(length(samp)))
 
 plot(modelNULL)   ## pretty horrible (with bad sampling) | pretty good  (good sampling and more REs)
 plot(model4)   ## pretty good!!!!  (with bad sampling) | looks even better (good sampling and more REs)
@@ -318,7 +319,8 @@ plot(modelInf)
 
 GAIC(modelNULL,
      model4,  
-     modelInf)  ## this is actually worse.
+     modelInf, ## this is actually worse.
+     k = log(length(samp)))  
 ```
 
 ## Adding/removing covariates and interactions 

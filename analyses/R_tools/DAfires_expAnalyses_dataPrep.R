@@ -4,6 +4,7 @@
 ## Dataprep function for Exploratory analysis
 ## ---------------------------------
 
+## resolution is passed to joinSevVegTopoWeatherData
 ## doCache controls all caching
 ## bindAllFires controls whether all fire data binding should be repeated
 
@@ -11,6 +12,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                vegDataPath = "data/fires_Dave/prefireVeg",
                                topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
                                weatherDataPath = "data/fires_Dave/fireWeather",
+                               resolution = 20,
                                doCache = TRUE, bindAllFires = FALSE) {
   ## checks
   if (is.null(fireDataPath) |
@@ -441,12 +443,14 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                    ls(), value = TRUE)))
   amc::.gc()
 
+  pathToSaveDir <- file.path("analyses/fireDataJoins", paste0("res", resolution, "m"))
   ABSK_AllData <- Cache(joinSevVegTopoWeatherData,
                         sevDataSf = ABSK_fireEventsSev,
                         vegDataSf = allPrefireCASFRI,
                         topoDataSf = DEM,
                         weatherDataDt = copy(fireWeatherLs$fireWeather),
-                        saveDir = "analyses/fireDataJoins",
+                        resolution = resolution,
+                        saveDir = pathToSaveDir,
                         doAll = bindAllFires,
                         userTags = "ABSK_AllData",
                         cacheRepo = "analyses/cache",

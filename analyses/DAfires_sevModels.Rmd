@@ -154,7 +154,8 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i-1] * 2
 }
 
-calculateNgbSevWrapper(bufferDists, SEV_PROPpoints, "SEV_PROP")
+nbgSev <- calculateNgbSevWrapper(bufferDists, SEV_PROPpoints, "SEV_PROP")
+
 ```
 
 

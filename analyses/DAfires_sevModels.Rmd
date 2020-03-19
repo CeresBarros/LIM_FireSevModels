@@ -38,9 +38,9 @@ source("R/R_tools/prepFireWeather.R")
 source("R/R_tools/joinSevVegTopoWeatherData.R")
 source("R/R_tools/summary.gamlssinf0to1_FIXED.R")
 source("R/R_tools/Rsq_FIXED.R")
+source("R/R_tools/crossValidFunction.R")
 source("analyses/R_tools/summarizeABSK_AllData.R")
 source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
-source("analyses/R_tools/crossValidFunction.R")
 
 doCache = TRUE
 ```

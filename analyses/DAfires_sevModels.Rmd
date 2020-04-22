@@ -1386,47 +1386,45 @@ summary(allValidMetrics4)
 ### Model overall performance
 Checking the overall performance of the model, when fitted used the full dataset. 
 ```{r fullNgbSevModelValidation, message=FALSE}
-predictionsDT <- predictAll(model8.4FULL,
-                            data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
-                            type = "response", output = "matrix")
-predictionsDT <- as.data.table(predictionsDT)
-
-
-quantile(predictionsDT$predSEV_PROP, probs = c(0, cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))))
-
+predictionsDT2 <- predictAll(modelNgbSev4FULL2,
+                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                             type = "response", output = "matrix")
+predictionsDT2 <- as.data.table(predictionsDT2)
 ## change name
-setnames(predictionsDT, "y", "SEV_PROP")
+setnames(predictionsDT2, "y", "SEV_PROP")
 
 ## add severity classes
-cols <- c("pixID", cols)
-predictionsDT[, pixID := na.omit(summaryABSK_AllData[, ..cols])$pixID]
-cols <- c("pixID", "SEV_CLASS", cols)
-predictionsDT <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT, on = "pixID"]
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+cols <- unique(c("pixID", cols))
+pixIDs <- na.omit(summaryABSK_AllData[, ..cols])$pixID
+predictionsDT2[, pixID := pixIDs]
+cols <- unique(c("pixID", "SEV_CLASS", cols))
+predictionsDT2 <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT2, on = "pixID"]
 
 ## predict using rBEINF
-## tried generating many values and averaging, but doing that results in the same value
-predictionsDT[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
+predictionsDT2[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
 
-## convert to classes
-predictionsDT[predSEV_PROP < 0.5443352, predSEV_CLASS := 0]
-predictionsDT[predSEV_PROP > 0.5443352 & predSEV_PROP <= 0.6116138, predSEV_CLASS := 1]
-predictionsDT[predSEV_PROP > 0.6116138 & predSEV_PROP <= 0.6586120, predSEV_CLASS := 2]
-predictionsDT[predSEV_PROP > 0.6586120 & predSEV_PROP <= 0.7000000, predSEV_CLASS := 3]
-predictionsDT[predSEV_PROP > 0.7000000 & predSEV_PROP < 0.7457516, predSEV_CLASS := 4]
-predictionsDT[predSEV_PROP >= 0.7457516, predSEV_CLASS := 5]
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT2$SEV_CLASS)/nrow(predictionsDT2))
+classRanges <- c(0, quantile(predictionsDT2$predSEV_PROP, probs = quantProbs))
+predictionsDT2[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+predictionsDT2[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
 
-classes <- as.character(sort(unique(predictionsDT$SEV_CLASS)))
-predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
-                     predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+classes <- as.character(sort(unique(predictionsDT2$SEV_CLASS)))
+predictionsDT2[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
+                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
 
 ## calculate overall statistics
-validMetrics <- caret::multiClassSummary(predictionsDT[, list(obs = SEV_CLASS,
-                                                              pred = predSEV_CLASS)],
-                                         lev = classes)
+validMetrics2 <- caret::multiClassSummary(predictionsDT2[, list(obs = SEV_CLASS,
+                                                                pred = predSEV_CLASS)],
+                                          lev = classes)
 
 ## calculate confusion matrix
-confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, reference = predictionsDT$SEV_CLASS)
-
+confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, reference = predictionsDT2$SEV_CLASS)
 ```
 
 

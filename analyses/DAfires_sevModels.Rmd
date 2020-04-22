@@ -1436,121 +1436,125 @@ xi1 = tau = p1 / (1 + p0 + p1)
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE}
 ## plot the probabilities at 0 and 1
-plotData <- na.omit(summaryABSK_AllData[, c("SEV_PROP", "CTI", "isForest", "Lari", "Abie", "HEIGHT_LOWER", "FlamConif",
-                                            "SMR_ord", "Elevation", "Decid", "UNDERSTOREY", 
-                                            "PctSlope", "SurfAspectRatio", "SurfReliefRatio", 
-                                            "Czone1",  "NR1", "FIRE_NAME"), with = FALSE])
-plotData$p0 <- fitted(model14_allData, "nu") / (1 + fitted(model14_allData, "nu") + fitted(model14_allData, "tau"))
-plotData$p1 <- fitted(model14_allData, "tau") / (1 + fitted(model14_allData, "nu") + fitted(model14_allData, "tau"))
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
+plotData$p0 <- fitted(modelNgbSev4FULL2, "nu") / (1 + fitted(modelNgbSev4FULL2, "nu") + fitted(modelNgbSev4FULL2, "tau"))
+plotData$p1 <- fitted(modelNgbSev4FULL2, "tau") / (1 + fitted(modelNgbSev4FULL2, "nu") + fitted(modelNgbSev4FULL2, "tau"))
 ```
 
 Plots of probabilities at 0 and 1 vs. covariates
 ```{r p0p1Plots}
 ## 0 probs
-plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0,
-                              colour = as.factor(UNDERSTOREY))) +
+plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() +
-  labs(title = "p0 ~ %FlamConifer * hasUnderstorey\n GAM smoother",
-       x = "% cover", colour = "Understorey?")
+  labs(title = "p0 ~ %FlamConifer\n GAM smoother",
+       x = "% cover")
 
-plot2 <- ggplot(plotData, aes(x = Decid, y = p0,
-                              colour = as.factor(UNDERSTOREY))) +
+plot2 <- ggplot(plotData, aes(x = Decid, y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p0 ~ %Deciduous * hasUnderstorey\n GAM smoother",
-       x = "% cover", colour = "Understorey?")
+  labs(title = "p0 ~ %Deciduous\n GAM smoother",
+       x = "% cover")
 
-plot3 <- ggplot(plotData, aes(x = PctSlope, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ %Slope\n GAM smoother",
-       x = "% slope")
-
-plot4 <- ggplot(plotData, aes(x = SurfAspectRatio, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ Roughness(SAR)\n GAM smoother",
-       x = "% roughness")
-
-plot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ Roughness(SRR)\n GAM smoother",
-       x = "% roughness")
-
-plot6 <- ggplot(plotData, aes(x = SMR_ord, y = p0)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
-  theme_pubr() + 
-  labs(title = "p0 ~ SoilMoisture\n",
-       x = "soil moisture (SMR)")
-
-ggarrange(plot1 + theme(legend.position = "none"), 
-          plot2 + theme(legend.position = "none"), 
-          plot6, plot3, plot4, 
-          plot5, # get_legend(plot1),
-          nrow = 3, ncol = 2)
-ggarrange(get_legend(plot1))
-
-## 1 probs,
-plot7 <- ggplot(plotData, aes(x = as.integer(UNDERSTOREY), y = p1)) +
+plot3 <- ggplot(plotData, aes(x = as.integer(UNDERSTOREY), y = p0)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "p1 ~ hasUnderstorey\n(GLM logit smoother)",
+  labs(title = "p0 ~ hasUnderstorey\n(GLM logit smoother)",
        x = "understorey")
 
-plot8 <- ggplot(plotData, aes(x = FlamConif, y = p1)) +
+plot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p0 ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
+
+plot5 <- ggplot(plotData, 
+                aes(x = PctSlope, y = p0,
+                    colour = cut(SurfAspectRatio, 
+                                 breaks = quantile(plotData$SurfAspectRatio, 
+                                                   probs = c(0, 0.10, 0.25, 0.5, 0.75, 0.90, 1))))) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ %FlamConifer \n GAM smoother",
-       x = "% cover")
+  labs(title = "p0 ~ Slope * Roughness(SAR)\n GAM smoother",
+       colour = "% roughness")
 
-plot9 <- ggplot(plotData, aes(x = Lari, y = p1)) +
+plot6 <- ggplot(plotData, 
+                aes(x = meanngbSEV_PROP_30m, y = p0)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "p0 ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
+
+ggarrange(plot1,plot2, 
+          plot6, plot3, plot4, 
+          # plot5, # get_legend(plot1),
+          nrow = 3, ncol = 2)
+
+## 1 probs,
+plot7 <- ggplot(plotData, aes(x = as.integer(isForest), y = p1,
+                              col = UNDERSTOREY)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ isForest\n(GLM logit smoother)",
+       x = "", y = "understorey")
+
+plot8 <- ggplot(plotData, aes(x = Decid, y = p1,
+                              colour = cut(HEIGHT_LOWER, 
+                                           breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %Deciduous * Height\n GAM smoother",
+       x = "% cover", colour = "height")
+
+plot9 <- ggplot(plotData, aes(x = Lari, y = p1,
+                              colour = cut(HEIGHT_LOWER, 
+                                           breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "p1 ~ %Larch\n GAM smoother",
-       x = "% cover")
+       x = "% cover", colour = "height")
 
-plot10 <- ggplot(plotData, aes(x = Abie, y = p1)) +
+plot10 <- ggplot(plotData, aes(x = CTI, y = p1)) +
   geom_point(alpha = 0.5) +
-  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
-  labs(title = "p1 ~ %Fir\n(GLM logit smoother)",
-       x = "% cover")
+  labs(title = "p1 ~ Wetness\n GAM smoother",
+       x = "CTI", y = "mean")
 
-plot11 <- ggplot(plotData, aes(x = SurfAspectRatio, y = p1)) +
+plot11 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 6, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ Roughness SAR)\n GAM smoother",
+  labs(title = "p1 ~ Roughness (SRR)\n GAM smoother",
        x = "% roughness")
 
-plot12 <- ggplot(plotData, aes(x = HEIGHT_LOWER, y = p1)) +
+plot12 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ Height\n GAM smoother",
-       x = "height")
+  labs(title = "p1 ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
 
-plot13 <- ggplot(plotData, aes(x = SMR_ord, y = p1)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot13 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "p1 ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "p1 ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
 ggarrange(plot7, plot8,
           plot9, plot10, 
@@ -1561,102 +1565,83 @@ ggarrange(plot7, plot8,
 
 Plot of the fitted mean vs covariates
 ```{r fittedMeanPlots}
-plotData[, fittedVals := fitted(model14_allData)]
+plotData[, fittedVals := fitted(modelNgbSev4FULL2)]
 
-plot14 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+
+plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
+                               colour = cut(HEIGHT_LOWER, 
+                                            breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Deciduous * Height \n GAM smoother",
+       x = "% cover", colour = "height")
+
+plot15 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
   labs(title = "Severity ~ Wetness\n GAM smoother",
-       x = "CTI", y = "mean")
+       x = "CTI")
 
-plot15 <- ggplot(plotData, 
-                 aes(x = as.factor(isForest), y = fittedVals,
-                     fill = as.factor(isForest))) +
-  geom_boxplot() +
-  theme_pubr() + theme(legend.position = "none") +
-  scale_x_discrete(labels = c("0" = "not forest", "1" = "forest")) +
-  labs(title = "Severity ~ isForest\n GAM smoother",
-       x = "", y = "mean")
+plot16 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Larch\n GAM smoother",
+       x = "% cover")
 
-plot15v2 <- ggplot(plotData, 
-                   aes(x = isForest, y = fittedVals)) +
+plot17 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
-  theme_pubr() + theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,1),
-                     labels = c("not forest", "forest")) +
-  labs(title = "Severity ~ forest presence\n logit smoother",
-       x = "", y = "mean")
-
-plot16 <- ggplot(plotData, 
-                 aes(x = FlamConif, y = fittedVals,
-                     colour = cut(HEIGHT_LOWER, 
-                                  breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
-  geom_point(alpha = 0.7, position = position_dodge(width = 2)) +
-  geom_smooth(method = "glm", method.args = list(family = "quasibinomial"), 
-              size = 1.3) +
-  scale_color_manual(values = c("coral", "darkturquoise", "limegreen", "orchid")) +
   theme_pubr() + 
-  labs(title = "Severity ~ %FlamConifer\n logit smoother",
-       x = "% cover", y = "mean", colour = "height class")
+  labs(title = "Severity ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
-plot17 <- ggplot(plotData, aes(x = SMR_ord, y = fittedVals)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot18 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = fittedVals)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "Severity ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "Severity ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
 
-ggarrange(plot16,
-          plot17, 
-          plot14, plot15v2,
-          nrow = 2, ncol = 2, 
+ggarrange(plot14, plot15,
+          plot16,plot17, plot18,
+          nrow = 3, ncol = 2, 
           font.label = list(size = 16))
 
 ```
 
-
 Plot of the fitted scale vs covariates
 ```{r fittedScalePlots}
-plotData[, fittedValsScale := fitted(model7_allData, what = "sigma")]
+plotData[, fittedValsScale := fitted(modelNgbSev4FULL2, what = "sigma")]
 
 plot18 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
-                               colour = as.factor(UNDERSTOREY))) +
-  geom_point(alpha = 0.7, position = position_dodge(width = 2)) +
+                               col = UNDERSTOREY)) +
+  geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "Severity (scale) ~ %Deciduous * hasUnderstorey\n GAM smoother",
-       x = "% cover", y = "variance", colour = "Understorey?")
+  labs(title = "Severity (scale) ~ %Deciduous\n GAM smoother",
+       x = "% cover", colour = "understorey")
 
-plot19 <- ggplot(plotData, 
-                 aes(x = Elevation, y = fittedValsScale)) +
-  geom_point(aes(colour = as.integer(FIRE_NAME)),alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_text_repel(data = plotData[, list(mean(Elevation), mean(fittedValsScale)), by = "FIRE_NAME"],
-                  mapping = aes(x = V1, y = V2, label = FIRE_NAME, group = FIRE_NAME),
-                  point.padding = 0.5,
-                  segment.color = "grey50", 
-                  force = 50) +
-  scale_color_distiller(palette = "Spectral") +
-  theme_pubr() + theme(legend.position = "none") +
-  labs(title = "Severity (scale) ~ Elevation\n GAM smoother",
-       x = "", y = "variance")
-
-plot20 <- ggplot(plotData, aes(x = SMR_ord, y = fittedVals)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot19 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedValsScale)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "Severity (scale) ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "Severity (scale) ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
-ggarrange(plot18, plot19 + theme(legend.position = "none"),  
-          plot20,
+plot20 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = fittedValsScale)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
+
+ggarrange(plot18, plot19, plot20,
           nrow = 1, ncol = 3,
           font.label = list(size = 16))
 

@@ -1342,41 +1342,45 @@ avgAllConfMatrices3 <- dcast(avgAllConfMatrices3, Prediction ~ Reference)
 
 ## ------------------------------------------------------------------------------------------------
 ## !!! RESULTS ARE EXACTLY THE SAME BECAUSE FIRE_NAME IS UNIQUE IN THE NESTING
-crossValidResults2 <- Cache(crossValidFunction,
-                            fullDT = summaryABSK_AllData[, cols, with = FALSE],
-                            origData = summaryABSK_AllData[, cols, with = FALSE],
+cols <- c("SEV_PROP", "SEV_CLASS", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID")
+
+crossValidResults4 <- Cache(crossValidFunction,
+                            fullDT = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
                             statsModel = modelNgbSev4FULL2,
                             k = 4, idCol = "pixID",
-                            cacheObj1 = summaryABSK_AllData[, cols, with = FALSE][, pixID],
-                            cacheObj2 = summaryABSK_AllData[, cols, with = FALSE][, pixID],
+                            cacheObj1 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
+                            cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
                             # useCache = "overwrite",
                             userTags = c("validation", "modelNgbSev4FULL"),
                             omitArgs = c("fullDT", "origData", "userTags"),
                             cacheRepo = "analyses/cache")
 
 ## collapse results into data.tables
-allValidMetrics2 <- rbindlist(lapply(crossValidResults2, FUN = function(x) as.data.table(t(x$validMetrics))))
-allValidMetrics2[, sampID := 1:length(crossValidResults2)]
+allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics4[, sampID := 1:length(crossValidResults4)]
 
-allConfMatrices2 <- rbindlist(lapply(1:length(crossValidResults2), FUN = function(x) {
-  DT <- as.data.table(crossValidResults2[[x]]$confMatrix$table)
+allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$table)
   DT[, sampID := x]
   DT
 }
 ))
 
 ## add identifier
-allConfMatrices2[, compareID := paste(Prediction, Reference, sep = "_")]
+allConfMatrices4[, compareID := paste(Predictioqn, Reference, sep = "_")]
 
 ## average and confusion matrix 
-avgallConfMatrices2 <- allConfMatrices2[, list(avgN = mean(N)), by = compareID]
-avgallConfMatrices2 <- unique(allConfMatrices2[, .(Prediction, Reference, compareID)])[avgallConfMatrices2, on = "compareID"]
-avgallConfMatrices2[, compareID := NULL]
-avgallConfMatrices2 <- dcast(avgallConfMatrices2, Prediction ~ Reference)
+avgallConfMatrices4 <- allConfMatrices4[, list(avgN = mean(N)), by = compareID]
+avgallConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compareID)])[avgallConfMatrices4, on = "compareID"]
+avgallConfMatrices4[, compareID := NULL]
+avgallConfMatrices4 <- dcast(avgallConfMatrices4, Prediction ~ Reference)
 
 
-summary(allValidMetrics)
-summary(allValidMetrics2)
+summary(allValidMetrics3)
+summary(allValidMetrics4)
 ```
 
 ### Model overall performance

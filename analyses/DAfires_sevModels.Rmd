@@ -144,7 +144,7 @@ rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()
 ```
 
-```{r}
+```{r add ngbSev}
 ## make different buffer sizes around points - HERE USE IS WITHIN DISTANCE INSTEASD
 crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
@@ -165,7 +165,6 @@ nbgSev <- reproducible::Cache(calculateNgbSevWrapper,
                               cacheRepo = "analyses/cache",
                               userTags = "nbgSev") 
 summaryABSK_AllData <- nbgSev[summaryABSK_AllData, on = .(pixID)]
-
 ```
 
 ## SUMMARY OF PRELIMINARY ANALYSES
@@ -1286,7 +1285,6 @@ modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, co
 Rsq(modelNgbSev4FULL)
 summary(modelNgbSev4FULL)
 
-
 ## remove some interactions that are not significant:
 modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
                               CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
@@ -1309,8 +1307,8 @@ summary(modelNgbSev4FULL2)
 ```
 
 ### Model validation
-Using k-fold cross validation on `model8.4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
-Note that simplifying the random effects makes no differenc, with regards to the more complex nesting.
+Using k-fold cross validation on `modelNgbSev4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
+Note that simplifying the random effects makes no difference, with regards to the more complex nesting.
 ```{r crossValidationNgbSev, message=FALSE}
 crossValidResults3 <- Cache(crossValidFunction,
                             fullDT = summaryABSK_AllData,
@@ -1319,11 +1317,10 @@ crossValidResults3 <- Cache(crossValidFunction,
                             k = 4, idCol = "pixID",
                             cacheObj1 = summaryABSK_AllData$pixID,
                             cacheObj2 = na.omit(modelData)$pixID,
-                            useCache = "overwrite",
+                            # useCache = "overwrite",
                             userTags = c("validation", "modelNgbSev4"),
                             omitArgs = c("fullDT", "origData", "userTags"),
-                            cacheRepo = "analyses/cache",
-                            showSimilar = TRUE)
+                            cacheRepo = "analyses/cache")
 
 ## collapse results into data.tables
 allValidMetrics3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$validMetrics))))

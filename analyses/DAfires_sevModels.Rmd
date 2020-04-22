@@ -1651,7 +1651,8 @@ ggarrange(plot18, plot19, plot20,
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}
 save(list = c("plotData", grep("model", ls(), value = TRUE)),
      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData")
-     file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
+     # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
+     file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbSevApr21.RData")
 
 ## save to GDrive
 # library(googledrive)

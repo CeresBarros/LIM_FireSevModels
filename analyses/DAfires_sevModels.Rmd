@@ -1133,34 +1133,29 @@ predictionsDT <- predictAll(model8.4FULL,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
                             type = "response", output = "matrix")
 predictionsDT <- as.data.table(predictionsDT)
-
-
-quantile(predictionsDT$predSEV_PROP, probs = c(0, cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))))
-
 ## change name
 setnames(predictionsDT, "y", "SEV_PROP")
 
 ## add severity classes
-cols <- c("pixID", cols)
+cols <- unique(c("pixID", cols))
 predictionsDT[, pixID := na.omit(summaryABSK_AllData[, ..cols])$pixID]
-cols <- c("pixID", "SEV_CLASS", cols)
+cols <- unique(c("pixID", "SEV_CLASS", cols))
 predictionsDT <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT, on = "pixID"]
 
-## predict using rBEINF
-## tried generating many values and averaging, but doing that results in the same value
+# predict using rBEINF
 predictionsDT[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
 
-## convert to classes
-predictionsDT[predSEV_PROP < 0.5443352, predSEV_CLASS := 0]
-predictionsDT[predSEV_PROP > 0.5443352 & predSEV_PROP <= 0.6116138, predSEV_CLASS := 1]
-predictionsDT[predSEV_PROP > 0.6116138 & predSEV_PROP <= 0.6586120, predSEV_CLASS := 2]
-predictionsDT[predSEV_PROP > 0.6586120 & predSEV_PROP <= 0.7000000, predSEV_CLASS := 3]
-predictionsDT[predSEV_PROP > 0.7000000 & predSEV_PROP < 0.7457516, predSEV_CLASS := 4]
-predictionsDT[predSEV_PROP >= 0.7457516, predSEV_CLASS := 5]
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
+classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
+predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+predictionsDT[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
 
 classes <- as.character(sort(unique(predictionsDT$SEV_CLASS)))
 predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
-                     predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
 
 ## calculate overall statistics
 validMetrics <- caret::multiClassSummary(predictionsDT[, list(obs = SEV_CLASS,

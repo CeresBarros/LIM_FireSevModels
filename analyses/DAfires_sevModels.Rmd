@@ -133,6 +133,9 @@ cols <- grep("mean|max|min|cv|range|pixID|P_ID|Duration|ORIGIN|HEIGHT|isForest|S
 str(summaryABSK_AllData[, ..cols])
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
 
+## calculate SMR_wet
+summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+
 ## make some columns factors
 cols <- c("FIRE_NAME", "Czone1", "NR1")
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
@@ -925,9 +928,6 @@ So, for this resolution `model8` was the best model.
 **However**, this model failed when using the whole dataset, or different subsets of data. So, I fit simpler models to see if I could get a more generic one. If the end, the next best model was one with a simpler random effects structure, using only "FIRE_NAME" - `model8.4`. This model will be submitted to validation. 
 
 ```{r fullDataModel, cache = FALSE, message=FALSE}
-## calculate SMR_wet
-summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
-
 ## not being able to fit model to another subset
 # crossValidFunction(fullDT = summaryABSK_AllData, origData = modelData,
 #                    statsModel = model8, k = 4, idCol = "pixID")

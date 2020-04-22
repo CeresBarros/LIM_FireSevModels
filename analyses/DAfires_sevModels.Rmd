@@ -1428,11 +1428,9 @@ confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, refer
 ```
 
 
-
-
 ## Inspecting the final model and figures
 Probabilities of 0s and 1s in function of covariates:
-xi0 = nu = p0 / (1 + p0 + p1)
+  xi0 = nu = p0 / (1 + p0 + p1)
 xi1 = tau = p1 / (1 + p0 + p1)
 
 Only significant covariates are plotted

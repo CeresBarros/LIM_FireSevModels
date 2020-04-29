@@ -167,6 +167,33 @@ nbgSev <- reproducible::Cache(calculateNgbSevWrapper,
 summaryABSK_AllData <- nbgSev[summaryABSK_AllData, on = .(pixID)]
 ```
 
+
+```{r addNgbNoBurns, cache = FALSE, include = FALSE}
+## make different buffer sizes around points - HERE USE IS WITHIN DISTANCE INSTEASD
+crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
+
+SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)]
+SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
+                           agr = "constant", crs = crsProj)
+
+bufferDists <- 30
+for (i in 2:7) {
+  bufferDists[i] <- bufferDists[i-1] * 2
+}
+
+nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
+                                  dists = bufferDists,
+                                  sevPoints = SEV_PROPpoints, 
+                                  sevColID = "SEV_PROP",
+                                  fireColID = "FIRE_NAME",
+                                  resolution = 30,
+                                  parallel = FALSE,
+                                  useCache = doCache,
+                                  cacheRepo = "analyses/cache",
+                                  userTags = "nbgSev") 
+summaryABSK_AllData <- nbgSev[summaryABSK_AllData, on = .(pixID)]
+```
+
 ## SUMMARY OF PRELIMINARY ANALYSES
 
 Variables selected for models (when using all fire weather days):

@@ -55,11 +55,11 @@ ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     weatherDataPath = "data/fires_Dave/fireWeather",
                                     resolution = 30,
                                     doCache = doCache, bindAllFires = TRUE, 
-                                    cacheRepo = "analyses/cache",
+                                    cacheRepo = "analyses/cache", 
                                     userTags = "ABSKfires_DataPrep")
 
 ## exclude event perimeter patch type
-memory.limit(size = 64000)
+# memory.limit(size = 64000)
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
 amc::.gc()
 
@@ -144,7 +144,7 @@ rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()
 ```
 
-```{r add ngbSev}
+```{r addNgbSev, cache = FALSE, include = FALSE}
 ## make different buffer sizes around points - HERE USE IS WITHIN DISTANCE INSTEASD
 crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
@@ -1150,12 +1150,12 @@ predictionsDT[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID
 quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
 classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
 predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
-                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+                                     include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
 predictionsDT[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
 
 classes <- as.character(sort(unique(predictionsDT$SEV_CLASS)))
 predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
-                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+                     predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
 
 ## calculate overall statistics
 validMetrics <- caret::multiClassSummary(predictionsDT[, list(obs = SEV_CLASS,
@@ -1372,7 +1372,7 @@ allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = functio
 ## add identifier
 allConfMatrices4[, compareID := paste(Predictioqn, Reference, sep = "_")]
 
-## average and confusion matrix 
+## average confusion matrix 
 avgallConfMatrices4 <- allConfMatrices4[, list(avgN = mean(N)), by = compareID]
 avgallConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compareID)])[avgallConfMatrices4, on = "compareID"]
 avgallConfMatrices4[, compareID := NULL]
@@ -1430,7 +1430,7 @@ confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, refer
 
 ## Inspecting the final model and figures
 Probabilities of 0s and 1s in function of covariates:
-  xi0 = nu = p0 / (1 + p0 + p1)
+xi0 = nu = p0 / (1 + p0 + p1)
 xi1 = tau = p1 / (1 + p0 + p1)
 
 Only significant covariates are plotted

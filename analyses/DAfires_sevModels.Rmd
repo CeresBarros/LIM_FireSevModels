@@ -1396,6 +1396,14 @@ allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = functio
 }
 ))
 
+## Metrics by class
+allValidMetricsbyClass4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$byClass)
+  DT[, sampID := x]
+  DT[, class := rownames(crossValidResults4[[x]]$confMatrix$byClass)]
+  DT
+}))
+
 ## add identifier
 allConfMatrices4[, compareID := paste(Predictioqn, Reference, sep = "_")]
 
@@ -1408,6 +1416,8 @@ avgallConfMatrices4 <- dcast(avgallConfMatrices4, Prediction ~ Reference)
 
 summary(allValidMetrics3)
 summary(allValidMetrics4)
+cols <- grep("sampID|class", names(allValidMetricsbyClass4), invert = TRUE, value = TRUE)
+allValidMetricsbyClass4[, lapply(.SD, mean), .SDcols = cols, by = class]
 ```
 
 ### Model overall performance

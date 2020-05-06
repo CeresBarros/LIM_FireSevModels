@@ -91,7 +91,7 @@ CA_admin <- Cache(prepInputs, url = "http://www12.statcan.gc.ca/census-recenseme
                   destinationPath = "data/CA_admin",
                   cacheRepo = "analyses/cache")
 CA_admin <- CA_admin[CA_admin$PRENAME %in% c("Alberta", "Saskatchewan"),]
-CA_admin <- sp::spTransform(CA_admin, CRSobj = st_crs(ABSK_firePerims)$proj4string)
+CA_admin <- sp::spTransform(CA_admin, CRSobj = crs(ABSK_firePerims))
 
 FMAs <- Cache(prepInputs, targetFile = "FMA_Boundary_Updated.shp",
               url = "https://drive.google.com/file/d/1nTFOcrdMf1hIsxd_yNCSTr8RrYNHHwuc/view?usp=sharing", 

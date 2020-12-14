@@ -144,8 +144,13 @@ rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()
 ```
 
+<<<<<<< Updated upstream
 ```{r addNgbSev, cache = FALSE, include = FALSE}
 ## make different buffer sizes around points
+=======
+```{r calcNgbSev, include = FALSE, cache = FALSE}
+## make different buffer sizes around points - HERE USE IS WITHIN DISTANCE INSTEASD
+>>>>>>> Stashed changes
 crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
 SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, SEV_PROP, Lat, Long)]

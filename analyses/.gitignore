@@ -1,8 +1,8 @@
 ## ignore the following folders/folder contents
 cache
 cache/
-*_files/
-*_cache/
+*_files
+*_cache
 fireDataJoins
 fireDataSummary
 FireEvents

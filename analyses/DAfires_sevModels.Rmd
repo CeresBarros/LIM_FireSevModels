@@ -150,7 +150,7 @@ crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
 SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, SEV_PROP, Lat, Long)]
 SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
-                           agr = "constant", crs = crsProj)
+                           agr = "constant", crs = st_crs(crsProj))
 
 bufferDists <- 30
 for (i in 2:7) {
@@ -174,7 +174,7 @@ crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
 SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)]
 SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
-                           agr = "constant", crs = crsProj)
+                           agr = "constant", crs = st_crs(crsProj))
 
 bufferDists <- 30
 for (i in 2:7) {

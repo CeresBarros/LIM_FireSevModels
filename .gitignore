@@ -4,7 +4,10 @@
 .Ruserdata
 .httr-oauth
 
+*.pdf
 *.RData
 figs/*
 outputs/*
 analyses/FireEvents/*
+*.rds
+*.dat

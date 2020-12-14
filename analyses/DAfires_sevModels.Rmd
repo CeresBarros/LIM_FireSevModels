@@ -38,9 +38,9 @@ source("R/R_tools/prepFireWeather.R")
 source("R/R_tools/joinSevVegTopoWeatherData.R")
 source("R/R_tools/summary.gamlssinf0to1_FIXED.R")
 source("R/R_tools/Rsq_FIXED.R")
+source("R/R_tools/crossValidFunction.R")
 source("analyses/R_tools/summarizeABSK_AllData.R")
 source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
-source("analyses/R_tools/crossValidFunction.R")
 
 doCache = TRUE
 ```
@@ -55,11 +55,11 @@ ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     weatherDataPath = "data/fires_Dave/fireWeather",
                                     resolution = 30,
                                     doCache = doCache, bindAllFires = TRUE, 
-                                    cacheRepo = "analyses/cache",
+                                    cacheRepo = "analyses/cache", 
                                     userTags = "ABSKfires_DataPrep")
 
 ## exclude event perimeter patch type
-memory.limit(size = 64000)
+# memory.limit(size = 64000)
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
 amc::.gc()
 
@@ -133,6 +133,9 @@ cols <- grep("mean|max|min|cv|range|pixID|P_ID|Duration|ORIGIN|HEIGHT|isForest|S
 str(summaryABSK_AllData[, ..cols])
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
 
+## calculate SMR_wet
+summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+
 ## make some columns factors
 cols <- c("FIRE_NAME", "Czone1", "NR1")
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
@@ -141,8 +144,8 @@ rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()
 ```
 
-```{r}
-## make different buffer sizes around points - HERE USE IS WITHIN DISTANCE INSTEASD
+```{r addNgbSev, cache = FALSE, include = FALSE}
+## make different buffer sizes around points
 crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
 
 SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, SEV_PROP, Lat, Long)]
@@ -154,11 +157,42 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i-1] * 2
 }
 
-nbgSev <- calculateNgbSevWrapper(bufferDists, SEV_PROPpoints, "SEV_PROP")
-
+nbgSev <- reproducible::Cache(calculateNgbSevWrapper,
+                              dists = bufferDists,
+                              sevPoints = SEV_PROPpoints, 
+                              sevColID = "SEV_PROP",
+                              useCache = doCache,
+                              cacheRepo = "analyses/cache",
+                              userTags = "nbgSev") 
+summaryABSK_AllData <- nbgSev[summaryABSK_AllData, on = .(pixID)]
 ```
 
 
+```{r addNgbNoBurns, cache = FALSE, include = FALSE}
+## make different buffer sizes around points
+crsProj <- crs(shapefile("data/fires_Dave/fireSev/albertafires1_postfire.shp"))
+
+SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)]
+SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
+                           agr = "constant", crs = crsProj)
+
+bufferDists <- 30
+for (i in 2:7) {
+  bufferDists[i] <- bufferDists[i-1] * 2
+}
+
+nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
+                                  dists = bufferDists,
+                                  sevPoints = SEV_PROPpoints, 
+                                  sevColID = "SEV_PROP",
+                                  fireColID = "FIRE_NAME",
+                                  resolution = 30,
+                                  parallel = FALSE,
+                                  useCache = doCache,
+                                  cacheRepo = "analyses/cache",
+                                  userTags = "nbgSev") 
+summaryABSK_AllData <- nbgSev[summaryABSK_AllData, on = .(pixID)]
+```
 
 ## SUMMARY OF PRELIMINARY ANALYSES
 
@@ -882,19 +916,19 @@ model8.2 <-gamlss(formula = SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
 
 ## removing SAR and CTI from model8 - fails
 model8.3 <- gamlss(formula = SEV_PROP ~ Decid*HEIGHT_LOWER + Lari +
-                    SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                  sigma.formula = ~ Decid*UNDERSTOREY +
-                    SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                  nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
-                    PctSlope*SurfReliefRatio +
-                    SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
-                  tau.formula = ~ isForest + isForest*UNDERSTOREY +
-                    Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
-                    Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
-                    SurfReliefRatio + SMR_wet +
-                    re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                  family = BEINF, control = gamlss.control(c.crit = 0.1),
-                  data = modelData)
+                     SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                   sigma.formula = ~ Decid*UNDERSTOREY +
+                     SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                   nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
+                     PctSlope*SurfReliefRatio +
+                     SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
+                   tau.formula = ~ isForest + isForest*UNDERSTOREY +
+                     Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
+                     Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
+                     SurfReliefRatio + SMR_wet +
+                     re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                   family = BEINF, control = gamlss.control(c.crit = 0.1),
+                   data = modelData)
 
 GAIC(
   model8,  ## 30 res still best 
@@ -917,12 +951,9 @@ The final model is `model14`.
 ### 30 res
 The model didn't improve by removing SAR/CTI, and adding DC variables decreased AIC while not improving R2.
 So, for this resolution `model8` was the best model.
-**However**, this model failed when using the whole dataset, or different subsets of data. So, I fit simpler models to see if I could get a more generic one. If the end, the next best model was one with a simpler random effects structure, using only "FIRE_NAME" - `model8.4`. This model will be submitted to validation. 
+**However**, `model8` failed when using the whole dataset, or different subsets of data. So, I fit simpler models to see if I could get a more generic one. In the end, the next best model was one with a simpler random effects structure, using only "FIRE_NAME", while keeping SMR_wet and CTI - `model8.4`. This model will be submitted to validation. 
 
 ```{r fullDataModel, cache = FALSE, message=FALSE}
-## calculate SMR_wet
-summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
-
 ## not being able to fit model to another subset
 # crossValidFunction(fullDT = summaryABSK_AllData, origData = modelData,
 #                    statsModel = model8, k = 4, idCol = "pixID")
@@ -959,70 +990,53 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet", "Czone1
           "isForest")
 ## model doesn't fit with full data
 model8FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
-                   SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 sigma.formula = ~ Decid*UNDERSTOREY +
-                   SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
-                   PctSlope*SurfAspectRatio + PctSlope*SurfReliefRatio +
-                   SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
-                 tau.formula = ~ isForest + isForest*UNDERSTOREY +
-                   Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
-                   Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
-                   CTI + SurfReliefRatio + SMR_wet +
-                   re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 family = BEINF, control = gamlss.control(c.crit = 0.1),
-                 data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+                       SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                     sigma.formula = ~ Decid*UNDERSTOREY +
+                       SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                     nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
+                       PctSlope*SurfAspectRatio + PctSlope*SurfReliefRatio +
+                       SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
+                     tau.formula = ~ isForest + isForest*UNDERSTOREY +
+                       Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
+                       Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
+                       CTI + SurfReliefRatio + SMR_wet +
+                       re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                     family = BEINF, control = gamlss.control(c.crit = 0.1),
+                     data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 
 ## try to remove SAR (hit singularity again) and CTI (converged)
 model8.2FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + Lari +
-                   SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 sigma.formula = ~ Decid*UNDERSTOREY +
-                   SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
-                   + PctSlope*SurfReliefRatio +
-                   SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
-                 tau.formula = ~ isForest + isForest*UNDERSTOREY +
-                   Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
-                   Lari*HEIGHT_LOWER + Lari*UNDERSTOREY + SurfReliefRatio +
-                   SMR_wet +
-                   re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 family = BEINF, control = gamlss.control(c.crit = 0.1),
-                 data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+                         SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       sigma.formula = ~ Decid*UNDERSTOREY +
+                         SMR_wet + re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
+                         + PctSlope*SurfReliefRatio +
+                         SMR_wet + re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
+                       tau.formula = ~ isForest + isForest*UNDERSTOREY +
+                         Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
+                         Lari*HEIGHT_LOWER + Lari*UNDERSTOREY + SurfReliefRatio +
+                         SMR_wet +
+                         re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       family = BEINF, control = gamlss.control(c.crit = 0.1),
+                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 
 ## try to remove SAR (hit singularity again) and SMR (hit singularity again)
 model8.3FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
-                   re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 sigma.formula = ~ Decid*UNDERSTOREY +
-                   re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
-                   PctSlope*SurfReliefRatio +
-                   re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
-                 tau.formula = ~ isForest + isForest*UNDERSTOREY +
-                   Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
-                   Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
-                   CTI + SurfReliefRatio + 
-                   re(random = ~1 | Czone1/NR1/FIRE_NAME),
-                 family = BEINF, control = gamlss.control(c.crit = 0.1),
-                 data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+                         re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       sigma.formula = ~ Decid*UNDERSTOREY +
+                         re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
+                         PctSlope*SurfReliefRatio +
+                         re(random = ~ 1 | Czone1/NR1/FIRE_NAME),
+                       tau.formula = ~ isForest + isForest*UNDERSTOREY +
+                         Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
+                         Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
+                         CTI + SurfReliefRatio + 
+                         re(random = ~1 | Czone1/NR1/FIRE_NAME),
+                       family = BEINF, control = gamlss.control(c.crit = 0.1),
+                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 
-## simplify REs, but keep SMR_wet - that worked
-model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
-                   SMR_wet + re(random = ~1 | FIRE_NAME),
-                 sigma.formula = ~ Decid*UNDERSTOREY +
-                   SMR_wet + re(random = ~1 | FIRE_NAME),
-                 nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
-                   PctSlope*SurfAspectRatio + PctSlope*SurfReliefRatio +
-                   SMR_wet + re(random = ~ 1 | FIRE_NAME),
-                 tau.formula = ~ isForest + isForest*UNDERSTOREY +
-                   Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
-                   Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
-                   CTI + SurfReliefRatio + SMR_wet +
-                   re(random = ~1 | FIRE_NAME),
-                 family = BEINF, control = gamlss.control(c.crit = 0.1),
-                 data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
-
-
-## simplify REs, but keep SMR_wet and CTI - now using the datasubset so that we can compare with he more complex model
+## simplify REs, but keep SMR_wet and CTI - now using the datasubset so that we can compare with the more complex model
 model8.4 <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                      SMR_wet + re(random = ~1 | FIRE_NAME),
                    sigma.formula = ~ Decid*UNDERSTOREY +
@@ -1038,6 +1052,21 @@ model8.4 <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                    family = BEINF, control = gamlss.control(c.crit = 0.1),
                    data = modelData)
 
+model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
+                         SMR_wet + re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~ Decid*UNDERSTOREY +
+                         SMR_wet + re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~ FlamConif + Decid + UNDERSTOREY +
+                         PctSlope*SurfAspectRatio + PctSlope*SurfReliefRatio +
+                         SMR_wet + re(random = ~ 1 | FIRE_NAME),
+                       tau.formula = ~ isForest + isForest*UNDERSTOREY +
+                         Decid*HEIGHT_LOWER + Decid*UNDERSTOREY +
+                         Lari*HEIGHT_LOWER + Lari*UNDERSTOREY +
+                         CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       family = BEINF, control = gamlss.control(c.crit = 0.1),
+                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+
 
 GAIC(model8,
      model8.4,  ## almost the same.
@@ -1047,13 +1076,6 @@ Rsq(model8)
 Rsq(model8.4) ## also almost the same
 Rsq(model8.4FULL)  ## a bit lower with all the data
 ```
-
-
-
-clah clahas
-
-
-
 
 ## Model validation
 Using k-fold cross validation on `model8.4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
@@ -1095,14 +1117,14 @@ avgAllConfMatrices <- dcast(avgAllConfMatrices, Prediction ~ Reference)
 ## ------------------------------------------------------------------------------------------------
 ## !!! RESULTS ARE EXACTLY THE SAME BECAUSE FIRE_NAME IS UNIQUE IN THE NESTING
 crossValidResults2 <- Cache(crossValidFunction,
-                           fullDT = summaryABSK_AllData, 
-                           origData = modelData, 
-                           statsModel = model8,
-                           k = 4, idCol = "pixID",
-                           cacheObj1 = summaryABSK_AllData$pixID, 
-                           cacheObj2 = modelData$pixID,
-                           omitArgs = c("fullDT", "origData"), 
-                           cacheRepo = "analyses/cache")
+                            fullDT = summaryABSK_AllData, 
+                            origData = modelData, 
+                            statsModel = model8,
+                            k = 4, idCol = "pixID",
+                            cacheObj1 = summaryABSK_AllData$pixID, 
+                            cacheObj2 = modelData$pixID,
+                            omitArgs = c("fullDT", "origData"), 
+                            cacheRepo = "analyses/cache")
 
 ## collapse results into data.tables
 allValidMetrics2 <- rbindlist(lapply(crossValidResults2, FUN = function(x) as.data.table(t(x$validMetrics))))
@@ -1129,7 +1151,6 @@ summary(allValidMetrics)
 summary(allValidMetrics2)
 ```
 
-
 ## Model overall performance
 Checking the overall performance of the model, when fitted used the full dataset. 
 ```{r fullModelValidation, cache = FALSE, message=FALSE}
@@ -1137,30 +1158,25 @@ predictionsDT <- predictAll(model8.4FULL,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
                             type = "response", output = "matrix")
 predictionsDT <- as.data.table(predictionsDT)
-
-
-quantile(predictionsDT$predSEV_PROP, probs = c(0, cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))))
-
 ## change name
 setnames(predictionsDT, "y", "SEV_PROP")
 
 ## add severity classes
-cols <- c("pixID", cols)
+cols <- unique(c("pixID", cols))
 predictionsDT[, pixID := na.omit(summaryABSK_AllData[, ..cols])$pixID]
-cols <- c("pixID", "SEV_CLASS", cols)
+cols <- unique(c("pixID", "SEV_CLASS", cols))
 predictionsDT <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT, on = "pixID"]
 
-## predict using rBEINF
-## tried generating many values and averaging, but doing that results in the same value
+# predict using rBEINF
 predictionsDT[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
 
-## convert to classes
-predictionsDT[predSEV_PROP < 0.5443352, predSEV_CLASS := 0]
-predictionsDT[predSEV_PROP > 0.5443352 & predSEV_PROP <= 0.6116138, predSEV_CLASS := 1]
-predictionsDT[predSEV_PROP > 0.6116138 & predSEV_PROP <= 0.6586120, predSEV_CLASS := 2]
-predictionsDT[predSEV_PROP > 0.6586120 & predSEV_PROP <= 0.7000000, predSEV_CLASS := 3]
-predictionsDT[predSEV_PROP > 0.7000000 & predSEV_PROP < 0.7457516, predSEV_CLASS := 4]
-predictionsDT[predSEV_PROP >= 0.7457516, predSEV_CLASS := 5]
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
+classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
+predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                     include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+predictionsDT[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
 
 classes <- as.character(sort(unique(predictionsDT$SEV_CLASS)))
 predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
@@ -1177,6 +1193,542 @@ confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, referen
 ```
 
 
+## Include neighbours
+### Average severity of burnt neighbours
+Start from last best model, and find the best buffer sizes to add to each parameter.
+```{r NgbSevModels, cache = FALSE}
+upperFormula <- as.formula(paste(
+  paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+
+modelNgbSevMu <- add1(model8.4, what = "mu",
+                      scope = upperFormula,
+                      k = log(length(samp)),
+                      parallel = "multicore", ncpus = 10)
+
+modelNgbSev1 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev1$sigma.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevSigma <- add1(modelNgbSev1, what = "sigma",
+                         scope = upperFormula,
+                         k = log(length(samp)),
+                         parallel = "multicore", ncpus = 10)
+
+modelNgbSev2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev2$nu.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevNu <- add1(modelNgbSev2, what = "nu",
+                      scope = upperFormula,
+                      k = log(length(samp)),
+                      parallel = "multicore", ncpus = 10)
+
+modelNgbSev3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev3$tau.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevTau <- add1(modelNgbSev3, what = "tau",
+                       scope = upperFormula,
+                       k = log(length(samp)),
+                       parallel = "multicore", ncpus = 10)
+modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                         SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+```
+
+#### fit model to full dataset:
+```{r FullNgbSevModel, cache = FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+
+modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+Rsq(modelNgbSev4FULL)
+summary(modelNgbSev4FULL)
+
+## remove some interactions that are not significant:
+modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                              CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+                              re(random = ~1 | FIRE_NAME),
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+                              re(random = ~1 | FIRE_NAME),
+                            nu.formula = ~FlamConif +
+                              Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                              PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+                              re(random = ~1 | FIRE_NAME),
+                            tau.formula = ~isForest + isForest *
+                              UNDERSTOREY + Decid * HEIGHT_LOWER +
+                              Lari * HEIGHT_LOWER + CTI +
+                              SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+                              re(random = ~1 | FIRE_NAME), family = BEINF,
+                            data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            control = gamlss.control(c.crit = 0.1))
+
+summary(modelNgbSev4FULL2)
+```
+
+#### Model validation
+Using k-fold cross validation on `modelNgbSev4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
+Note that simplifying the random effects makes no difference, with regards to the more complex nesting.
+```{r crossValidationNgbSev, message=FALSE}
+crossValidResults3 <- Cache(crossValidFunction,
+                            fullDT = summaryABSK_AllData,
+                            origData = na.omit(modelData),
+                            statsModel = modelNgbSev4,
+                            k = 4, idCol = "pixID",
+                            cacheObj1 = summaryABSK_AllData$pixID,
+                            cacheObj2 = na.omit(modelData)$pixID,
+                            # useCache = "overwrite",
+                            userTags = c("validation", "modelNgbSev4"),
+                            omitArgs = c("fullDT", "origData", "userTags"),
+                            cacheRepo = "analyses/cache")
+
+## collapse results into data.tables
+allValidMetrics3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics3[, sampID := 1:length(crossValidResults3)]
+
+allConfMatrices3 <- rbindlist(lapply(1:length(crossValidResults3), FUN = function(x) {
+  DT <- as.data.table(crossValidResults3[[x]]$confMatrix$table)
+  DT[, sampID := x]
+  DT
+}
+))
+
+allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$Rsquared))))
+allRsquared3[, sampID := 1:length(crossValidResults3)]
+
+## add identifier
+allConfMatrices3[, compareID := paste(Prediction, Reference, sep = "_")]
+
+## average confusion matrix 
+avgAllConfMatrices3 <- allConfMatrices3[, list(avgN = mean(N)), by = compareID]
+avgAllConfMatrices3 <- unique(allConfMatrices3[, .(Prediction, Reference, compareID)])[avgAllConfMatrices3, on = "compareID"]
+avgAllConfMatrices3[, compareID := NULL]
+avgAllConfMatrices3 <- dcast(avgAllConfMatrices3, Prediction ~ Reference)
+
+## ------------------------------------------------------------------------------------------------
+## !!! RESULTS ARE EXACTLY THE SAME BECAUSE FIRE_NAME IS UNIQUE IN THE NESTING
+cols <- c("SEV_PROP", "SEV_CLASS", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID")
+
+crossValidResults4 <- Cache(crossValidFunction,
+                            fullDT = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            statsModel = modelNgbSev4FULL2,
+                            k = 4, idCol = "pixID",
+                            cacheObj1 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
+                            cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
+                            # useCache = "overwrite",
+                            userTags = c("validation", "modelNgbSev4FULL"),
+                            omitArgs = c("fullDT", "origData", "userTags"),
+                            cacheRepo = "analyses/cache")
+
+## collapse results into data.tables
+allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics4[, sampID := 1:length(crossValidResults4)]
+
+allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$table)
+  DT[, sampID := x]
+  DT
+}
+))
+
+## Metrics by class
+allValidMetricsbyClass4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$byClass)
+  DT[, sampID := x]
+  DT[, class := rownames(crossValidResults4[[x]]$confMatrix$byClass)]
+  DT
+}))
+
+## add identifier
+allConfMatrices4[, compareID := paste(Predictioqn, Reference, sep = "_")]
+
+## average confusion matrix 
+avgallConfMatrices4 <- allConfMatrices4[, list(avgN = mean(N)), by = compareID]
+avgallConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compareID)])[avgallConfMatrices4, on = "compareID"]
+avgallConfMatrices4[, compareID := NULL]
+avgallConfMatrices4 <- dcast(avgallConfMatrices4, Prediction ~ Reference)
+
+
+summary(allValidMetrics3)
+summary(allValidMetrics4)
+cols <- grep("sampID|class", names(allValidMetricsbyClass4), invert = TRUE, value = TRUE)
+allValidMetricsbyClass4[, lapply(.SD, mean), .SDcols = cols, by = class]
+```
+
+#### Model overall performance
+Checking the overall performance of the model, when fitted used the full dataset. 
+```{r fullNgbSevModelValidation, message=FALSE}
+predictionsDT2 <- predictAll(modelNgbSev4FULL2,
+                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                             type = "response", output = "matrix")
+predictionsDT2 <- as.data.table(predictionsDT2)
+## change name
+setnames(predictionsDT2, "y", "SEV_PROP")
+
+## add severity classes
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+cols <- unique(c("pixID", cols))
+pixIDs <- na.omit(summaryABSK_AllData[, ..cols])$pixID
+predictionsDT2[, pixID := pixIDs]
+cols <- unique(c("pixID", "SEV_CLASS", cols))
+predictionsDT2 <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT2, on = "pixID"]
+
+## predict using rBEINF
+predictionsDT2[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
+
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT2$SEV_CLASS)/nrow(predictionsDT2))
+classRanges <- c(0, quantile(predictionsDT2$predSEV_PROP, probs = quantProbs))
+predictionsDT2[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+predictionsDT2[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
+
+classes <- as.character(sort(unique(predictionsDT2$SEV_CLASS)))
+predictionsDT2[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
+                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+
+## calculate overall statistics
+validMetrics2 <- caret::multiClassSummary(predictionsDT2[, list(obs = SEV_CLASS,
+                                                                pred = predSEV_CLASS)],
+                                          lev = classes)
+
+## calculate confusion matrix
+confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, reference = predictionsDT2$SEV_CLASS)
+```
+
+### Proportion of burnt neighbours
+Start from last best model, and find the best buffer sizes to add to each parameter.
+```{r burnNgbPropModels, cache = FALSE}
+upperFormula <- as.formula(paste(
+  paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),
+  "+",
+  paste(grep("ngbPropBurnsSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+
+modelNgbSevMu <- add1(model8.4, what = "mu",
+                      scope = upperFormula,
+                      k = log(length(samp)),
+                      parallel = "multicore", ncpus = 10)
+
+# modelNgbSev1 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME),
+#                        nu.formula = ~FlamConif +
+#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+#                          PctSlope * SurfReliefRatio + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME),
+#                        tau.formula = ~isForest + isForest *
+#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME), family = BEINF,
+#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev1$sigma.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevSigma <- add1(modelNgbSev1, what = "sigma",
+                         scope = upperFormula,
+                         k = log(length(samp)),
+                         parallel = "multicore", ncpus = 10)
+
+# modelNgbSev2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        nu.formula = ~FlamConif +
+#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+#                          PctSlope * SurfReliefRatio + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME),
+#                        tau.formula = ~isForest + isForest *
+#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME), family = BEINF,
+#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev2$nu.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevNu <- add1(modelNgbSev2, what = "nu",
+                      scope = upperFormula,
+                      k = log(length(samp)),
+                      parallel = "multicore", ncpus = 10)
+
+# modelNgbSev3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        nu.formula = ~FlamConif +
+#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+#                          PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        tau.formula = ~isForest + isForest *
+#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+#                          re(random = ~1 | FIRE_NAME), family = BEINF,
+#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+
+upperFormula <- as.formula(paste(
+  paste(as.character(modelNgbSev3$tau.formula), collapse = " "),
+  "+",
+  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+modelNgbSevTau <- add1(modelNgbSev3, what = "tau",
+                       scope = upperFormula,
+                       k = log(length(samp)),
+                       parallel = "multicore", ncpus = 10)
+# modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        nu.formula = ~FlamConif +
+#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+#                          PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME),
+#                        tau.formula = ~isForest + isForest *
+#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+#                          SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+#                          re(random = ~1 | FIRE_NAME), family = BEINF,
+#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+```
+
+#### fit model to full dataset:
+```{r FullburnNgbPropModel, cache = FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+
+modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+Rsq(modelNgbSev4FULL)
+summary(modelNgbSev4FULL)
+
+## remove some interactions that are not significant:
+# modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+#                               CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
+#                               re(random = ~1 | FIRE_NAME),
+#                             sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
+#                               re(random = ~1 | FIRE_NAME),
+#                             nu.formula = ~FlamConif +
+#                               Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+#                               PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+#                               re(random = ~1 | FIRE_NAME),
+#                             tau.formula = ~isForest + isForest *
+#                               UNDERSTOREY + Decid * HEIGHT_LOWER +
+#                               Lari * HEIGHT_LOWER + CTI +
+#                               SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
+#                               re(random = ~1 | FIRE_NAME), family = BEINF,
+#                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+#                             control = gamlss.control(c.crit = 0.1))
+
+summary(modelNgbSev4FULL2)
+```
+
+#### Model validation
+Using k-fold cross validation on `modelNgbSev4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
+Note that simplifying the random effects makes no difference, with regards to the more complex nesting.
+```{r crossValidationBurnNgbProp, message=FALSE}
+crossValidResults3 <- Cache(crossValidFunction,
+                            fullDT = summaryABSK_AllData,
+                            origData = na.omit(modelData),
+                            statsModel = modelNgbSev4,
+                            k = 4, idCol = "pixID",
+                            cacheObj1 = summaryABSK_AllData$pixID,
+                            cacheObj2 = na.omit(modelData)$pixID,
+                            # useCache = "overwrite",
+                            userTags = c("validation", "modelNgbSev4"),
+                            omitArgs = c("fullDT", "origData", "userTags"),
+                            cacheRepo = "analyses/cache")
+
+## collapse results into data.tables
+allValidMetrics3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics3[, sampID := 1:length(crossValidResults3)]
+
+allConfMatrices3 <- rbindlist(lapply(1:length(crossValidResults3), FUN = function(x) {
+  DT <- as.data.table(crossValidResults3[[x]]$confMatrix$table)
+  DT[, sampID := x]
+  DT
+}
+))
+
+allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$Rsquared))))
+allRsquared3[, sampID := 1:length(crossValidResults3)]
+
+## add identifier
+allConfMatrices3[, compareID := paste(Prediction, Reference, sep = "_")]
+
+## average confusion matrix 
+avgAllConfMatrices3 <- allConfMatrices3[, list(avgN = mean(N)), by = compareID]
+avgAllConfMatrices3 <- unique(allConfMatrices3[, .(Prediction, Reference, compareID)])[avgAllConfMatrices3, on = "compareID"]
+avgAllConfMatrices3[, compareID := NULL]
+avgAllConfMatrices3 <- dcast(avgAllConfMatrices3, Prediction ~ Reference)
+
+## ------------------------------------------------------------------------------------------------
+## !!! RESULTS ARE EXACTLY THE SAME BECAUSE FIRE_NAME IS UNIQUE IN THE NESTING
+cols <- c("SEV_PROP", "SEV_CLASS", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID")
+
+crossValidResults4 <- Cache(crossValidFunction,
+                            fullDT = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            statsModel = modelNgbSev4FULL2,
+                            k = 4, idCol = "pixID",
+                            cacheObj1 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
+                            cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
+                            # useCache = "overwrite",
+                            userTags = c("validation", "modelNgbSev4FULL"),
+                            omitArgs = c("fullDT", "origData", "userTags"),
+                            cacheRepo = "analyses/cache")
+
+## collapse results into data.tables
+allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics4[, sampID := 1:length(crossValidResults4)]
+
+allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$table)
+  DT[, sampID := x]
+  DT
+}
+))
+
+## Metrics by class
+allValidMetricsbyClass4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$byClass)
+  DT[, sampID := x]
+  DT[, class := rownames(crossValidResults4[[x]]$confMatrix$byClass)]
+  DT
+}))
+
+## add identifier
+allConfMatrices4[, compareID := paste(Predictioqn, Reference, sep = "_")]
+
+## average confusion matrix 
+avgallConfMatrices4 <- allConfMatrices4[, list(avgN = mean(N)), by = compareID]
+avgallConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compareID)])[avgallConfMatrices4, on = "compareID"]
+avgallConfMatrices4[, compareID := NULL]
+avgallConfMatrices4 <- dcast(avgallConfMatrices4, Prediction ~ Reference)
+
+
+summary(allValidMetrics3)
+summary(allValidMetrics4)
+cols <- grep("sampID|class", names(allValidMetricsbyClass4), invert = TRUE, value = TRUE)
+allValidMetricsbyClass4[, lapply(.SD, mean), .SDcols = cols, by = class]
+```
+
+#### Model overall performance
+Checking the overall performance of the model, when fitted used the full dataset. 
+```{r fullburnNgbPropModelValidation, message=FALSE}
+predictionsDT2 <- predictAll(modelNgbSev4FULL2,
+                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                             type = "response", output = "matrix")
+predictionsDT2 <- as.data.table(predictionsDT2)
+## change name
+setnames(predictionsDT2, "y", "SEV_PROP")
+
+## add severity classes
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+cols <- unique(c("pixID", cols))
+pixIDs <- na.omit(summaryABSK_AllData[, ..cols])$pixID
+predictionsDT2[, pixID := pixIDs]
+cols <- unique(c("pixID", "SEV_CLASS", cols))
+predictionsDT2 <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT2, on = "pixID"]
+
+## predict using rBEINF
+predictionsDT2[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
+
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT2$SEV_CLASS)/nrow(predictionsDT2))
+classRanges <- c(0, quantile(predictionsDT2$predSEV_PROP, probs = quantProbs))
+predictionsDT2[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
+predictionsDT2[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
+
+classes <- as.character(sort(unique(predictionsDT2$SEV_CLASS)))
+predictionsDT2[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
+                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+
+## calculate overall statistics
+validMetrics2 <- caret::multiClassSummary(predictionsDT2[, list(obs = SEV_CLASS,
+                                                                pred = predSEV_CLASS)],
+                                          lev = classes)
+
+## calculate confusion matrix
+confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, reference = predictionsDT2$SEV_CLASS)
+```
 
 
 ## Inspecting the final model and figures
@@ -1187,121 +1739,125 @@ xi1 = tau = p1 / (1 + p0 + p1)
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE}
 ## plot the probabilities at 0 and 1
-plotData <- na.omit(summaryABSK_AllData[, c("SEV_PROP", "CTI", "isForest", "Lari", "Abie", "HEIGHT_LOWER", "FlamConif",
-                                            "SMR_ord", "Elevation", "Decid", "UNDERSTOREY", 
-                                            "PctSlope", "SurfAspectRatio", "SurfReliefRatio", 
-                                            "Czone1",  "NR1", "FIRE_NAME"), with = FALSE])
-plotData$p0 <- fitted(model14_allData, "nu") / (1 + fitted(model14_allData, "nu") + fitted(model14_allData, "tau"))
-plotData$p1 <- fitted(model14_allData, "tau") / (1 + fitted(model14_allData, "nu") + fitted(model14_allData, "tau"))
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
+plotData$p0 <- fitted(modelNgbSev4FULL2, "nu") / (1 + fitted(modelNgbSev4FULL2, "nu") + fitted(modelNgbSev4FULL2, "tau"))
+plotData$p1 <- fitted(modelNgbSev4FULL2, "tau") / (1 + fitted(modelNgbSev4FULL2, "nu") + fitted(modelNgbSev4FULL2, "tau"))
 ```
 
 Plots of probabilities at 0 and 1 vs. covariates
 ```{r p0p1Plots}
 ## 0 probs
-plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0,
-                              colour = as.factor(UNDERSTOREY))) +
+plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() +
-  labs(title = "p0 ~ %FlamConifer * hasUnderstorey\n GAM smoother",
-       x = "% cover", colour = "Understorey?")
+  labs(title = "p0 ~ %FlamConifer\n GAM smoother",
+       x = "% cover")
 
-plot2 <- ggplot(plotData, aes(x = Decid, y = p0,
-                              colour = as.factor(UNDERSTOREY))) +
+plot2 <- ggplot(plotData, aes(x = Decid, y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p0 ~ %Deciduous * hasUnderstorey\n GAM smoother",
-       x = "% cover", colour = "Understorey?")
+  labs(title = "p0 ~ %Deciduous\n GAM smoother",
+       x = "% cover")
 
-plot3 <- ggplot(plotData, aes(x = PctSlope, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ %Slope\n GAM smoother",
-       x = "% slope")
-
-plot4 <- ggplot(plotData, aes(x = SurfAspectRatio, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ Roughness(SAR)\n GAM smoother",
-       x = "% roughness")
-
-plot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  theme_pubr() + 
-  labs(title = "p0 ~ Roughness(SRR)\n GAM smoother",
-       x = "% roughness")
-
-plot6 <- ggplot(plotData, aes(x = SMR_ord, y = p0)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
-  theme_pubr() + 
-  labs(title = "p0 ~ SoilMoisture\n",
-       x = "soil moisture (SMR)")
-
-ggarrange(plot1 + theme(legend.position = "none"), 
-          plot2 + theme(legend.position = "none"), 
-          plot6, plot3, plot4, 
-          plot5, # get_legend(plot1),
-          nrow = 3, ncol = 2)
-ggarrange(get_legend(plot1))
-
-## 1 probs,
-plot7 <- ggplot(plotData, aes(x = as.integer(UNDERSTOREY), y = p1)) +
+plot3 <- ggplot(plotData, aes(x = as.integer(UNDERSTOREY), y = p0)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "p1 ~ hasUnderstorey\n(GLM logit smoother)",
+  labs(title = "p0 ~ hasUnderstorey\n(GLM logit smoother)",
        x = "understorey")
 
-plot8 <- ggplot(plotData, aes(x = FlamConif, y = p1)) +
+plot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p0 ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
+
+plot5 <- ggplot(plotData, 
+                aes(x = PctSlope, y = p0,
+                    colour = cut(SurfAspectRatio, 
+                                 breaks = quantile(plotData$SurfAspectRatio, 
+                                                   probs = c(0, 0.10, 0.25, 0.5, 0.75, 0.90, 1))))) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ %FlamConifer \n GAM smoother",
-       x = "% cover")
+  labs(title = "p0 ~ Slope * Roughness(SAR)\n GAM smoother",
+       colour = "% roughness")
 
-plot9 <- ggplot(plotData, aes(x = Lari, y = p1)) +
+plot6 <- ggplot(plotData, 
+                aes(x = meanngbSEV_PROP_30m, y = p0)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "p0 ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
+
+ggarrange(plot1,plot2, 
+          plot6, plot3, plot4, 
+          # plot5, # get_legend(plot1),
+          nrow = 3, ncol = 2)
+
+## 1 probs,
+plot7 <- ggplot(plotData, aes(x = as.integer(isForest), y = p1,
+                              col = UNDERSTOREY)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ isForest\n(GLM logit smoother)",
+       x = "", y = "understorey")
+
+plot8 <- ggplot(plotData, aes(x = Decid, y = p1,
+                              colour = cut(HEIGHT_LOWER, 
+                                           breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %Deciduous * Height\n GAM smoother",
+       x = "% cover", colour = "height")
+
+plot9 <- ggplot(plotData, aes(x = Lari, y = p1,
+                              colour = cut(HEIGHT_LOWER, 
+                                           breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "p1 ~ %Larch\n GAM smoother",
-       x = "% cover")
+       x = "% cover", colour = "height")
 
-plot10 <- ggplot(plotData, aes(x = Abie, y = p1)) +
+plot10 <- ggplot(plotData, aes(x = CTI, y = p1)) +
   geom_point(alpha = 0.5) +
-  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
-  labs(title = "p1 ~ %Fir\n(GLM logit smoother)",
-       x = "% cover")
+  labs(title = "p1 ~ Wetness\n GAM smoother",
+       x = "CTI", y = "mean")
 
-plot11 <- ggplot(plotData, aes(x = SurfAspectRatio, y = p1)) +
+plot11 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 6, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ Roughness SAR)\n GAM smoother",
+  labs(title = "p1 ~ Roughness (SRR)\n GAM smoother",
        x = "% roughness")
 
-plot12 <- ggplot(plotData, aes(x = HEIGHT_LOWER, y = p1)) +
+plot12 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "p1 ~ Height\n GAM smoother",
-       x = "height")
+  labs(title = "p1 ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
 
-plot13 <- ggplot(plotData, aes(x = SMR_ord, y = p1)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot13 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "p1 ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "p1 ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
 ggarrange(plot7, plot8,
           plot9, plot10, 
@@ -1312,102 +1868,83 @@ ggarrange(plot7, plot8,
 
 Plot of the fitted mean vs covariates
 ```{r fittedMeanPlots}
-plotData[, fittedVals := fitted(model14_allData)]
+plotData[, fittedVals := fitted(modelNgbSev4FULL2)]
 
-plot14 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+
+plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
+                               colour = cut(HEIGHT_LOWER, 
+                                            breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Deciduous * Height \n GAM smoother",
+       x = "% cover", colour = "height")
+
+plot15 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
   labs(title = "Severity ~ Wetness\n GAM smoother",
-       x = "CTI", y = "mean")
+       x = "CTI")
 
-plot15 <- ggplot(plotData, 
-                 aes(x = as.factor(isForest), y = fittedVals,
-                     fill = as.factor(isForest))) +
-  geom_boxplot() +
-  theme_pubr() + theme(legend.position = "none") +
-  scale_x_discrete(labels = c("0" = "not forest", "1" = "forest")) +
-  labs(title = "Severity ~ isForest\n GAM smoother",
-       x = "", y = "mean")
+plot16 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Larch\n GAM smoother",
+       x = "% cover")
 
-plot15v2 <- ggplot(plotData, 
-                   aes(x = isForest, y = fittedVals)) +
+plot17 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
-  theme_pubr() + theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,1),
-                     labels = c("not forest", "forest")) +
-  labs(title = "Severity ~ forest presence\n logit smoother",
-       x = "", y = "mean")
-
-plot16 <- ggplot(plotData, 
-                 aes(x = FlamConif, y = fittedVals,
-                     colour = cut(HEIGHT_LOWER, 
-                                  breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
-  geom_point(alpha = 0.7, position = position_dodge(width = 2)) +
-  geom_smooth(method = "glm", method.args = list(family = "quasibinomial"), 
-              size = 1.3) +
-  scale_color_manual(values = c("coral", "darkturquoise", "limegreen", "orchid")) +
   theme_pubr() + 
-  labs(title = "Severity ~ %FlamConifer\n logit smoother",
-       x = "% cover", y = "mean", colour = "height class")
+  labs(title = "Severity ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
-plot17 <- ggplot(plotData, aes(x = SMR_ord, y = fittedVals)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot18 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = fittedVals)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "Severity ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "Severity ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
 
-ggarrange(plot16,
-          plot17, 
-          plot14, plot15v2,
-          nrow = 2, ncol = 2, 
+ggarrange(plot14, plot15,
+          plot16,plot17, plot18,
+          nrow = 3, ncol = 2, 
           font.label = list(size = 16))
 
 ```
 
-
 Plot of the fitted scale vs covariates
 ```{r fittedScalePlots}
-plotData[, fittedValsScale := fitted(model7_allData, what = "sigma")]
+plotData[, fittedValsScale := fitted(modelNgbSev4FULL2, what = "sigma")]
 
 plot18 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
-                               colour = as.factor(UNDERSTOREY))) +
-  geom_point(alpha = 0.7, position = position_dodge(width = 2)) +
+                               col = UNDERSTOREY)) +
+  geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
-  labs(title = "Severity (scale) ~ %Deciduous * hasUnderstorey\n GAM smoother",
-       x = "% cover", y = "variance", colour = "Understorey?")
+  labs(title = "Severity (scale) ~ %Deciduous\n GAM smoother",
+       x = "% cover", colour = "understorey")
 
-plot19 <- ggplot(plotData, 
-                 aes(x = Elevation, y = fittedValsScale)) +
-  geom_point(aes(colour = as.integer(FIRE_NAME)),alpha = 0.5) +
-  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_text_repel(data = plotData[, list(mean(Elevation), mean(fittedValsScale)), by = "FIRE_NAME"],
-                  mapping = aes(x = V1, y = V2, label = FIRE_NAME, group = FIRE_NAME),
-                  point.padding = 0.5,
-                  segment.color = "grey50", 
-                  force = 50) +
-  scale_color_distiller(palette = "Spectral") +
-  theme_pubr() + theme(legend.position = "none") +
-  labs(title = "Severity (scale) ~ Elevation\n GAM smoother",
-       x = "", y = "variance")
-
-plot20 <- ggplot(plotData, aes(x = SMR_ord, y = fittedVals)) +
-  # geom_point(alpha = 0.5) +
-  # geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
-  geom_violin(draw_quantiles = c(0.25, 0.75)) +
-  stat_summary(fun.y = "median", geom = "point", size = 2) +
+plot19 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedValsScale)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
-  labs(title = "Severity (scale) ~ SoilMoisture\n",
-       x = "soil moisture regime")
+  labs(title = "Severity (scale) ~ SoilMoisture\n(GLM logit smoother)",
+       x = "soil moisture (SMR)")
 
-ggarrange(plot18, plot19 + theme(legend.position = "none"),  
-          plot20,
+plot20 <- ggplot(plotData, 
+                 aes(x = meanngbSEV_PROP_30m, y = fittedValsScale)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ meanNgbSeverity (30m)\n GAM smoother",
+       x = "avg. severity")
+
+ggarrange(plot18, plot19, plot20,
           nrow = 1, ncol = 3,
           font.label = list(size = 16))
 
@@ -1417,7 +1954,8 @@ ggarrange(plot18, plot19 + theme(legend.position = "none"),
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}
 save(list = c("plotData", grep("model", ls(), value = TRUE)),
      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData")
-     file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
+     # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
+     file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbSevApr21.RData")
 
 ## save to GDrive
 # library(googledrive)

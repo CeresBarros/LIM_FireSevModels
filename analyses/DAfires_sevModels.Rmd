@@ -187,10 +187,11 @@ nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   sevColID = "SEV_PROP",
                                   fireColID = "FIRE_NAME",
                                   resolution = 30,
-                                  parallel = FALSE,
+                                  parallel = TRUE,
+                                  cores = 3,
                                   useCache = doCache,
                                   cacheRepo = "analyses/cache",
-                                  userTags = "nbgSev") 
+                                  userTags = "nbgBurns") 
 summaryABSK_AllData <- nbgNoBurns[summaryABSK_AllData, on = .(pixID)]
 ```
 

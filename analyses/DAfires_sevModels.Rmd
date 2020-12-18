@@ -55,7 +55,6 @@ ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     weatherDataPath = "data/fires_Dave/fireWeather",
                                     resolution = 30,
                                     doCache = doCache, bindAllFires = TRUE, 
-                                    cacheRepo = "analyses/cache", 
                                     userTags = "ABSKfires_DataPrep")
 
 ## exclude event perimeter patch type
@@ -166,7 +165,6 @@ nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   parallel = TRUE,
                                   cores = 3,
                                   useCache = doCache,
-                                  cacheRepo = "analyses/cache",
                                   userTags = "nbgBurns") 
 summaryABSK_AllData <- nbgNoBurns[summaryABSK_AllData, on = .(pixID)]
 ```
@@ -1065,8 +1063,7 @@ crossValidResults <- Cache(crossValidFunction,
                            k = 4, idCol = "pixID",
                            cacheObj1 = summaryABSK_AllData$pixID, 
                            cacheObj2 = modelData$pixID,
-                           omitArgs = c("fullDT", "origData"), 
-                           cacheRepo = "analyses/cache")
+                           omitArgs = c("fullDT", "origData"))
 
 ## collapse results into data.tables
 allValidMetrics <- rbindlist(lapply(crossValidResults, FUN = function(x) as.data.table(t(x$validMetrics))))
@@ -1100,8 +1097,7 @@ crossValidResults2 <- Cache(crossValidFunction,
                             k = 4, idCol = "pixID",
                             cacheObj1 = summaryABSK_AllData$pixID, 
                             cacheObj2 = modelData$pixID,
-                            omitArgs = c("fullDT", "origData"), 
-                            cacheRepo = "analyses/cache")
+                            omitArgs = c("fullDT", "origData"))
 
 ## collapse results into data.tables
 allValidMetrics2 <- rbindlist(lapply(crossValidResults2, FUN = function(x) as.data.table(t(x$validMetrics))))
@@ -1316,8 +1312,7 @@ crossValidResults3 <- Cache(crossValidFunction,
                             cacheObj2 = na.omit(modelData)$pixID,
                             # useCache = "overwrite",
                             userTags = c("validation", "modelNgbSev4"),
-                            omitArgs = c("fullDT", "origData", "userTags"),
-                            cacheRepo = "analyses/cache")
+                            omitArgs = c("fullDT", "origData", "userTags"))
 
 ## collapse results into data.tables
 allValidMetrics3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$validMetrics))))
@@ -1357,8 +1352,7 @@ crossValidResults4 <- Cache(crossValidFunction,
                             cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])[, pixID],
                             # useCache = "overwrite",
                             userTags = c("validation", "modelNgbSev4FULL"),
-                            omitArgs = c("fullDT", "origData", "userTags"),
-                            cacheRepo = "analyses/cache")
+                            omitArgs = c("fullDT", "origData", "userTags"))
 
 ## collapse results into data.tables
 allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))

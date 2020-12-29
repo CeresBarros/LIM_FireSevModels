@@ -156,7 +156,8 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i-1] * 2
 }
 
-nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
+
+ngbNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   dists = bufferDists,
                                   sevPoints = SEV_PROPpoints, 
                                   sevColID = "SEV_PROP",
@@ -165,8 +166,13 @@ nbgNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   parallel = TRUE,
                                   cores = 3,
                                   useCache = doCache,
-                                  userTags = "nbgBurns") 
-summaryABSK_AllData <- nbgNoBurns[summaryABSK_AllData, on = .(pixID)]
+                                  userTags = "ngbBurns") 
+ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
+
+cols <- grep("pixID|FIRE_NAME", names(ngbNoBurns), invert = TRUE, value = TRUE)
+setnames(ngbNoBurns, old = cols, new = paste0("buffer_", cols, "m"))
+
+summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
 ```
 
 ## SUMMARY OF PRELIMINARY ANALYSES
@@ -218,7 +224,8 @@ cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
                    "FlamConif|Abie$|Lari$|Decid",
                    "isForest|HEIGHT_LOWER|UNDERSTOREY",
                    "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
-                   "Czone1|NR1|FIRE_NAME|pixID", sep = "|"), names(summaryABSK_AllData),
+                   "Czone1|NR1|FIRE_NAME|pixID|SMR_ord|buffer", sep = "|"), 
+             names(summaryABSK_AllData),
              value = TRUE)
 
 ## sample a forth of the pixels in each fire
@@ -229,6 +236,9 @@ samp <- sampDT[, sample(pixID, size = noPixels/4, replace = FALSE), by = FIRE_NA
 rm(sampDT)
 
 modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
+
+## make a binary soil moisture variable of wet vs everything else (suggested by Dave from past analyses)
+modelData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
 
 ## check we didn't lose fires
 if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME), 
@@ -464,27 +474,6 @@ GAIC(model4, ## best
 Rsq(model4)
 Rsq(model5)  ## best R2 - but only by 0.0003
 Rsq(model6)  ## will keep this model, for parsimony
-```
-
-## Try adding soil moisture from veg. inventories and drought code
-```{r reDO_modelData, include = FALSE, cache = FALSE}
-cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
-                   "FlamConif|Abie$|Lari$|Decid",
-                   "isForest|HEIGHT_LOWER|UNDERSTOREY",
-                   "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
-                   "Czone1|NR1|FIRE_NAME|pixID|SMR_ord", sep = "|"), names(summaryABSK_AllData),
-             value = TRUE)
-
-## sample a forth of the pixels in each fire
-modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
-
-## make a binary soil moisture variable of wet vs everything else (suggested by Dave from past analyses)
-modelData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
-
-## check we didn't lose fires
-if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME), 
-                   unique(modelData$FIRE_NAME))))
-  stop("Fires lost in sampling!")
 ```
 
 ```{r addSM_DC, message=FALSE}
@@ -1042,6 +1031,7 @@ model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                        family = BEINF, control = gamlss.control(c.crit = 0.1),
                        data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 
+saveRDS(model8.4, "analyses/DAfires_sevModels_model8_4.rds")
 
 GAIC(model8,
      model8.4,  ## almost the same.
@@ -1170,10 +1160,12 @@ confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, referen
 ### Proportion of burnt neighbours
 Start from last best model, and find the best buffer sizes to add to each parameter.
 ```{r burnNgbPropModels, cache = FALSE}
+model8.4 <- readRDS("analyses/DAfires_sevModels_model8_4.rds")
+
 upperFormula <- as.formula(paste(
   paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),
   "+",
-  paste(grep("ngbPropBurnsSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
 
 modelNgbSevMu <- add1(model8.4, what = "mu",
                       scope = upperFormula,

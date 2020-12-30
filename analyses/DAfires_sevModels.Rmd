@@ -1030,7 +1030,7 @@ model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                          re(random = ~1 | FIRE_NAME),
                        family = BEINF, control = gamlss.control(c.crit = 0.1),
                        data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
-
+## save chosen model
 saveRDS(model8.4, "analyses/DAfires_sevModels_model8_4.rds")
 
 GAIC(model8,
@@ -1172,92 +1172,92 @@ modelNgbSevMu <- add1(model8.4, what = "mu",
                       k = log(length(samp)),
                       parallel = "multicore", ncpus = 10)
 
-# modelNgbSev1 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME),
-#                        nu.formula = ~FlamConif +
-#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-#                          PctSlope * SurfReliefRatio + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME),
-#                        tau.formula = ~isForest + isForest *
-#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME), family = BEINF,
-#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+modelNgbSev1 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
 
 upperFormula <- as.formula(paste(
   paste(as.character(modelNgbSev1$sigma.formula), collapse = " "),
   "+",
-  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
 modelNgbSevSigma <- add1(modelNgbSev1, what = "sigma",
                          scope = upperFormula,
                          k = log(length(samp)),
                          parallel = "multicore", ncpus = 10)
 
-# modelNgbSev2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        nu.formula = ~FlamConif +
-#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-#                          PctSlope * SurfReliefRatio + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME),
-#                        tau.formula = ~isForest + isForest *
-#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME), family = BEINF,
-#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+modelNgbSev2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
 
 upperFormula <- as.formula(paste(
   paste(as.character(modelNgbSev2$nu.formula), collapse = " "),
   "+",
-  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
 modelNgbSevNu <- add1(modelNgbSev2, what = "nu",
                       scope = upperFormula,
                       k = log(length(samp)),
                       parallel = "multicore", ncpus = 10)
 
-# modelNgbSev3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        nu.formula = ~FlamConif +
-#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-#                          PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        tau.formula = ~isForest + isForest *
-#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-#                          re(random = ~1 | FIRE_NAME), family = BEINF,
-#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+modelNgbSev3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
 
 upperFormula <- as.formula(paste(
   paste(as.character(modelNgbSev3$tau.formula), collapse = " "),
   "+",
-  paste(grep("meanngbSEV_PROP_", names(modelData), value = TRUE), collapse = " + ")))
+  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
 modelNgbSevTau <- add1(modelNgbSev3, what = "tau",
                        scope = upperFormula,
                        k = log(length(samp)),
                        parallel = "multicore", ncpus = 10)
-# modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-#                          CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        nu.formula = ~FlamConif +
-#                          Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-#                          PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME),
-#                        tau.formula = ~isForest + isForest *
-#                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-#                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-#                          SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
-#                          re(random = ~1 | FIRE_NAME), family = BEINF,
-#                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
+modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif +
+                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
+                         PctSlope * SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                         SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
 ```
 
 #### fit model to full dataset:

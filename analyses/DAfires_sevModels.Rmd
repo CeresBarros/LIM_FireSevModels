@@ -224,7 +224,7 @@ cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
                    "FlamConif|Abie$|Lari$|Decid",
                    "isForest|HEIGHT_LOWER|UNDERSTOREY",
                    "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
-                   "Czone1|NR1|FIRE_NAME|pixID|SMR_ord|buffer", sep = "|"), 
+                   "Czone1|NR1|FIRE_NAME|pixID|SMR_ord|SMR_wet|buffer", sep = "|"), 
              names(summaryABSK_AllData),
              value = TRUE)
 

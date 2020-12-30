@@ -1263,7 +1263,7 @@ modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
 #### fit model to full dataset:
 ```{r FullburnNgbPropModel, cache = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 
 modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))

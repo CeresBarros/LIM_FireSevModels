@@ -11,5 +11,8 @@ firesInFMAs
 *.png
 *.tex
 *.RData
+*.rds
+*.txt
+*.tif
 
 !.gitignore

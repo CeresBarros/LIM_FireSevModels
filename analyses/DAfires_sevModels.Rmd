@@ -1155,7 +1155,6 @@ confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, referen
 
 ```
 
-
 ## Include neighbours
 ### Proportion of burnt neighbours
 Start from last best model, and find the best buffer sizes to add to each parameter.
@@ -1260,7 +1259,7 @@ modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
                        data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
 ```
 
-#### fit model to full dataset:
+#### fit model to full dataset (and simplify if need be)
 ```{r FullburnNgbPropModel, cache = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
@@ -1270,40 +1269,70 @@ modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, co
 Rsq(modelNgbSev4FULL)
 summary(modelNgbSev4FULL)
 
-## remove some interactions that are not significant:
-# modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-#                               CTI + Lari + SMR_wet + meanngbSEV_PROP_30m +
-#                               re(random = ~1 | FIRE_NAME),
-#                             sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + meanngbSEV_PROP_120m +
-#                               re(random = ~1 | FIRE_NAME),
-#                             nu.formula = ~FlamConif +
-#                               Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-#                               PctSlope * SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
-#                               re(random = ~1 | FIRE_NAME),
-#                             tau.formula = ~isForest + isForest *
-#                               UNDERSTOREY + Decid * HEIGHT_LOWER +
-#                               Lari * HEIGHT_LOWER + CTI +
-#                               SurfReliefRatio + SMR_wet + meanngbSEV_PROP_30m +
-#                               re(random = ~1 | FIRE_NAME), family = BEINF,
-#                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
-#                             control = gamlss.control(c.crit = 0.1))
+## remove non-significant effects:
+modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif + UNDERSTOREY + SurfReliefRatio +
+                         PctSlope + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                         SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
+                       control = gamlss.control(c.crit = 0.1))
 
 summary(modelNgbSev4FULL2)
+
+modelNgbSev4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                         CTI + Lari + SMR_wet + buffer_960m +
+                         re(random = ~1 | FIRE_NAME),
+                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                         re(random = ~1 | FIRE_NAME),
+                       nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME),
+                       tau.formula = ~isForest + isForest *
+                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                         SurfReliefRatio + SMR_wet + buffer_30m +
+                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
+                       control = gamlss.control(c.crit = 0.1))
+sink("analyses/modelNgbSev4FULL3_SUMMARY.txt")
+summary(modelNgbSev4FULL3)
+sink()
+
+tiff("analyses/modelNgbSev4FULL3_RESIDS.tif")
+plot(modelNgbSev4FULL3)
+graphics.off()
+
+saveRDS(modelNgbSev4FULL3, "analyses/modelNgbSev4FULL3.rds")
+
+GAIC(modelNgbSev4FULL,
+     modelNgbSev4FULL2,
+     modelNgbSev4FULL3,
+     k = log(nrow(na.omit(summaryABSK_AllData[, cols, with = FALSE]))))
 ```
 
 #### Model validation
-Using k-fold cross validation on `modelNgbSev4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
-Note that simplifying the random effects makes no difference, with regards to the more complex nesting.
+Using k-fold cross validation on `modelNgbSev4FULL3` (which was fitted on the full data), with the data partitioned in 4 chunks.
 ```{r crossValidationBurnNgbProp, message=FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 crossValidResults3 <- Cache(crossValidFunction,
                             fullDT = summaryABSK_AllData,
-                            origData = na.omit(modelData),
-                            statsModel = modelNgbSev4,
+                            origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
+                            statsModel = modelNgbSev4FULL3,
                             k = 4, idCol = "pixID",
                             cacheObj1 = summaryABSK_AllData$pixID,
-                            cacheObj2 = na.omit(modelData)$pixID,
+                            cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])$pixID,
                             # useCache = "overwrite",
-                            userTags = c("validation", "modelNgbSev4"),
+                            userTags = c("validation", "modelNgbSev4FULL3"),
                             omitArgs = c("fullDT", "origData", "userTags"))
 
 ## collapse results into data.tables

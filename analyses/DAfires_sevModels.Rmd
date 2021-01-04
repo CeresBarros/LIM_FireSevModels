@@ -1316,6 +1316,10 @@ GAIC(modelNgbSev4FULL,
      modelNgbSev4FULL2,
      modelNgbSev4FULL3,
      k = log(nrow(na.omit(summaryABSK_AllData[, cols, with = FALSE]))))
+#                         df      AIC
+# modelNgbSev4FULL3 172.6552 486027.6
+# modelNgbSev4FULL2 174.6581 486048.1
+# modelNgbSev4FULL  178.6594 486093.9
 ```
 
 #### Model validation

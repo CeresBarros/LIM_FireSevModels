@@ -45,7 +45,6 @@ source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
 doCache = TRUE
 ```
 
-
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## run dataprep:
 ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
@@ -1031,7 +1030,7 @@ model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                        family = BEINF, control = gamlss.control(c.crit = 0.1),
                        data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 ## save chosen model
-saveRDS(model8.4, "analyses/DAfires_sevModels_model8_4.rds")
+saveRDS(model8.4, "analyses/model8_4.rds")
 
 GAIC(model8,
      model8.4,  ## almost the same.
@@ -1053,7 +1052,8 @@ crossValidResults <- Cache(crossValidFunction,
                            k = 4, idCol = "pixID",
                            cacheObj1 = summaryABSK_AllData$pixID, 
                            cacheObj2 = modelData$pixID,
-                           omitArgs = c("fullDT", "origData"))
+                           userTags = c("validation", "model8.4"),
+                           omitArgs = c("fullDT", "origData", "userTags"))
 
 ## collapse results into data.tables
 allValidMetrics <- rbindlist(lapply(crossValidResults, FUN = function(x) as.data.table(t(x$validMetrics))))

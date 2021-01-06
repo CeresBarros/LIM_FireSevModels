@@ -1366,15 +1366,17 @@ allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.t
 allRsquared3[, sampID := 1:length(crossValidResults3)]
 ```
 
-#### Model overall performance
-Checking the overall performance of the model, when fitted used the full dataset. 
-```{r fullburnNgbPropModelValidation, message=FALSE}
-predictionsDT2 <- predictAll(modelNgbSev4FULL2,
-                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
-                             type = "response", output = "matrix")
-predictionsDT2 <- as.data.table(predictionsDT2)
-## change name
-setnames(predictionsDT2, "y", "SEV_PROP")
+## save
+sink("analyses/modelNgbSev4FULL3_crossValidOutputs.txt")
+print("Validation metrics")
+allValidMetrics3
+print("******************")
+print("Averaged confusion matrices")
+avgAllConfMatrices3
+print("******************")
+print("R squared")
+allRsquared3
+sink()
 
 ## add severity classes
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",

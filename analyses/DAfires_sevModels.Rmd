@@ -1364,7 +1364,6 @@ avgAllConfMatrices3 <- dcast(avgAllConfMatrices3, Prediction ~ Reference)
 
 allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$Rsquared))))
 allRsquared3[, sampID := 1:length(crossValidResults3)]
-```
 
 ## save
 sink("analyses/modelNgbSev4FULL3_crossValidOutputs.txt")
@@ -1378,40 +1377,7 @@ print("R squared")
 allRsquared3
 sink()
 
-## add severity classes
-cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "meanngbSEV_PROP_30m", "FIRE_NAME", "UNDERSTOREY", "meanngbSEV_PROP_120m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
-cols <- unique(c("pixID", cols))
-pixIDs <- na.omit(summaryABSK_AllData[, ..cols])$pixID
-predictionsDT2[, pixID := pixIDs]
-cols <- unique(c("pixID", "SEV_CLASS", cols))
-predictionsDT2 <- na.omit(summaryABSK_AllData[, ..cols])[, .(pixID, SEV_CLASS)][predictionsDT2, on = "pixID"]
-
-## predict using rBEINF
-predictionsDT2[, predSEV_PROP := mean(rBEINF(10, mu, sigma, nu, tau)), by = pixID]
-
-## convert to classes, using the quantiles corresponding to the observed class proportions
-## accumulate proportions to get probabilities
-quantProbs <- cumsum(table(predictionsDT2$SEV_CLASS)/nrow(predictionsDT2))
-classRanges <- c(0, quantile(predictionsDT2$predSEV_PROP, probs = quantProbs))
-predictionsDT2[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
-                                      include.lowest = TRUE, right = FALSE)]  ## classify as with intervals as ],]
-predictionsDT2[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
-
-classes <- as.character(sort(unique(predictionsDT2$SEV_CLASS)))
-predictionsDT2[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
-                      predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
-
-## calculate overall statistics
-validMetrics2 <- caret::multiClassSummary(predictionsDT2[, list(obs = SEV_CLASS,
-                                                                pred = predSEV_CLASS)],
-                                          lev = classes)
-
-## calculate confusion matrix
-confMatrix2 <- caret::confusionMatrix(data = predictionsDT2$predSEV_CLASS, reference = predictionsDT2$SEV_CLASS)
 ```
-
 
 ## Inspecting the final model and figures
 Probabilities of 0s and 1s in function of covariates:

@@ -1410,7 +1410,7 @@ plot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "p0 ~ Roughness (SRR)\n GAM smoother",
-       x = "% cover")
+       x = "% roughness")
 
 plot3 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
   geom_point(alpha = 0.5) +
@@ -1425,7 +1425,7 @@ plot4 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "p0 ~ neigh. burns (30m)\n GAM smoother",
-       x = "avg. severity")
+       x = "prop. neigh. burnt")
 
 png(file.path(figDir, "p0Plots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
@@ -1484,7 +1484,7 @@ plot10 <- ggplot(plotData, aes(x = CTI, y = p1)) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
   labs(title = "p1 ~ Wetness\n GAM smoother",
-       x = "CTI", y = "mean")
+       x = "CTI")
 
 plot11 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
   geom_point(alpha = 0.5) +
@@ -1499,7 +1499,7 @@ plot12 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "p1 ~ neigh. burns (30m)\n GAM smoother",
-       x = "avg. severity")
+       x = "prop. neigh. burnt")
 
 plot13 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
   geom_point(alpha = 0.5) +
@@ -1529,7 +1529,7 @@ plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "Severity ~ %Deciduous * Height \n GAM smoother",
-       x = "% cover", colour = "height")
+       x = "% cover", y = "mean sev.", colour = "height")
 
 plot15 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   geom_point(alpha = 0.5) +
@@ -1537,21 +1537,21 @@ plot15 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   theme_pubr() + 
   labs(title = "Severity ~ Wetness\n GAM smoother",
-       x = "CTI")
+       x = "CTI", y = "mean sev.")
 
 plot16 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "Severity ~ %Larch\n GAM smoother",
-       x = "% cover")
+       x = "% cover", y = "mean sev.")
 
 plot17 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
   labs(title = "Severity ~ SoilMoisture\n(GLM logit smoother)",
-       x = "soil moisture (SMR)")
+       x = "soil moisture (SMR)", y = "mean sev.")
 
 plot18 <- ggplot(plotData, 
                  aes(x = buffer_960m, y = fittedVals)) +
@@ -1559,7 +1559,7 @@ plot18 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "Severity ~ neigh, burns (960m)\n GAM smoother",
-       x = "avg. severity")
+       x = "prop. neigh. burnt", y = "mean sev.")
 
 png(file.path(figDir, "meanSevPlots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
@@ -1574,7 +1574,7 @@ Plot of the fitted scale vs covariates
 ```{r fittedScalePlots}
 plotData[, fittedValsScale := fitted(modelNgbSev4FULL3, what = "sigma")]
 
-plot18 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
+plot19 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
                                col = UNDERSTOREY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
@@ -1582,25 +1582,39 @@ plot18 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
   labs(title = "Severity (scale) ~ %Deciduous * understorey\n GAM smoother",
        x = "% cover", colour = "understorey")
 
-plot19 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedValsScale)) +
+plot20 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedValsScale)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   theme_pubr() + 
   labs(title = "Severity (scale) ~ SoilMoisture\n(GLM logit smoother)",
        x = "soil moisture (SMR)")
 
-plot20 <- ggplot(plotData, 
+plot21 <- ggplot(plotData, 
                  aes(x = buffer_1920m, y = fittedValsScale)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   theme_pubr() + 
   labs(title = "Severity (scale) ~ neigh. burns (1920m)\n GAM smoother",
-       x = "avg. severity")
+       x = "prop. neigh. burnt")
 
-png(file.path(figDir, "scaleSevPlots_DAfires_sevModels.png"), height = 7, width = 15,
+plot22 <- ggplot(plotData, 
+                 aes(x = buffer_1920m, y = fittedValsScale)) +
+  geom_point(aes(colour = as.integer(FIRE_NAME)), alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  geom_text_repel(data = plotData[, list(mean(buffer_1920m), mean(fittedValsScale)), by = "FIRE_NAME"],
+                  mapping = aes(x = V1, y = V2, label = FIRE_NAME, group = FIRE_NAME),
+                  point.padding = 0.5,
+                  segment.color = "grey50", 
+                  force = 50) +
+  scale_color_distiller(palette = "Spectral") +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ neigh. burns (1920m)\n GAM smoother",
+       x = "prop. neigh. burnt")
+
+png(file.path(figDir, "scaleSevPlots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
-ggarrange(plot18, plot19, plot20,
-          nrow = 1, ncol = 3,
+ggarrange(plot19, plot20, plot21, plot22,
+          nrow = 2, ncol = 2,
           font.label = list(size = 16))
 dev.off()
 ```

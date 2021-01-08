@@ -1386,10 +1386,12 @@ xi1 = tau = p1 / (1 + p0 + p1)
 
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE}
+modelNgbSev4FULL3 <- readRDS("analyses/modelNgbSev4FULL3.rds")
 ## plot the probabilities at 0 and 1
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+
 plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
 plotData$p0 <- fitted(modelNgbSev4FULL3, "nu") / (1 + fitted(modelNgbSev4FULL3, "nu") + fitted(modelNgbSev4FULL3, "tau"))
 plotData$p1 <- fitted(modelNgbSev4FULL3, "tau") / (1 + fitted(modelNgbSev4FULL3, "nu") + fitted(modelNgbSev4FULL3, "tau"))

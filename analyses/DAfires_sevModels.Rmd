@@ -1520,7 +1520,7 @@ dev.off()
 
 Plot of the fitted mean vs covariates
 ```{r fittedMeanPlots}
-plotData[, fittedVals := fitted(modelNgbSev4FULL3)]
+plotData[, fittedVals := meanBEINF(modelNgbSev4FULL3)]
 
 plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
                                colour = cut(HEIGHT_LOWER, 

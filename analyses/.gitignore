@@ -14,5 +14,5 @@ firesInFMAs
 *.rds
 *.txt
 *.tif
-
+*.rds
 !.gitignore

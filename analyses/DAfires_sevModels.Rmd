@@ -58,7 +58,7 @@ ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
                                     weatherDataPath = "data/fires_Dave/fireWeather",
                                     resolution = 30,
                                     doCache = doCache, bindAllFires = TRUE, 
-                                    userTags = "ABSKfires_DataPrep")
+                                    userTags = "ABSKfires_DataPrep") ## cacheId = "7a41bbf245e246c9"
 
 ## exclude event perimeter patch type
 # memory.limit(size = 64000)
@@ -89,7 +89,7 @@ summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              dim = dim(ABSK_AllData),
                              days = 1:3,
                              omitArgs = c("DT"),
-                             useCache = doCache)
+                             useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
 
 ## collapse species into more generic categories
 summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
@@ -169,7 +169,7 @@ ngbNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   parallel = TRUE,
                                   cores = 3,
                                   useCache = doCache,
-                                  userTags = "ngbBurns") 
+                                  userTags = "ngbBurns") ## cacheId = "0065e04cdc36f3df"
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
 
 cols <- grep("pixID|FIRE_NAME", names(ngbNoBurns), invert = TRUE, value = TRUE)

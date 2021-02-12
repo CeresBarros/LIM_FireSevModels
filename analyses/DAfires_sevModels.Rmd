@@ -1292,18 +1292,19 @@ modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
 
 summary(modelNgbSev4FULL2)
 
+## add level = 0 to get marginal means.
 modelNgbSev4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
                          CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
+                         re(random = ~1 | FIRE_NAME, level = 0),
                        sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME),
+                         re(random = ~1 | FIRE_NAME, level = 0),
                        nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME),
+                         re(random = ~1 | FIRE_NAME, level = 0),
                        tau.formula = ~isForest + isForest *
                          UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                          Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
                          SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
+                         re(random = ~1 | FIRE_NAME, level = 0), family = BEINF,
                        data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
                        control = gamlss.control(c.crit = 0.1))
 sink("analyses/modelNgbSev4FULL3_SUMMARY.txt")
@@ -1394,9 +1395,12 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 
+## use predict(..., level = 0) to get marginal means
 plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
-plotData$p0 <- fitted(modelNgbSev4FULL3, "nu") / (1 + fitted(modelNgbSev4FULL3, "nu") + fitted(modelNgbSev4FULL3, "tau"))
-plotData$p1 <- fitted(modelNgbSev4FULL3, "tau") / (1 + fitted(modelNgbSev4FULL3, "nu") + fitted(modelNgbSev4FULL3, "tau"))
+plotData$nuPred <- predict(modelNgbSev4FULL3, "nu", level = 0)
+plotData$tauPred <- predict(modelNgbSev4FULL3, "tau", level = 0)
+plotData[ , `:=` (p0 = nuPred / (1 + nuPred + tauPred),
+                  p1 = tauPred / (1 + nuPred + tauPred))]
 ```
 
 Plots of probabilities at 0 and 1 vs. covariates
@@ -1524,7 +1528,8 @@ dev.off()
 
 Plot of the fitted mean vs covariates
 ```{r fittedMeanPlots}
-plotData[, fittedVals := meanBEINF(modelNgbSev4FULL3)]
+plotData[, muPred := predict(modelNgbSev4FULL3, "mu", level = 0)]
+plotData[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
 
 plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
                                colour = cut(HEIGHT_LOWER, 

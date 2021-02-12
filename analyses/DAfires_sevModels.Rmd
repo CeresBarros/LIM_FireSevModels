@@ -1333,8 +1333,6 @@ Using k-fold cross validation on `modelNgbSev4FULL3` (which was fitted on the fu
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
-
-modelNgbSev4FULL3 <- readRDS("analyses/modelNgbSev4FULL3.rds")
 crossValidResults3 <- Cache(crossValidFunction,
                             fullDT = summaryABSK_AllData,
                             origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),

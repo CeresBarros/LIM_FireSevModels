@@ -1396,8 +1396,8 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
 
 ## use predict(..., level = 0) to get marginal means
 plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
-plotData$nuPred <- predict(modelNgbSev4FULL3, "nu", level = 0)
-plotData$tauPred <- predict(modelNgbSev4FULL3, "tau", level = 0)
+plotData$nuPred <- predict(modelNgbSev4FULL3, "nu", level = 0, type =  "response")
+plotData$tauPred <- predict(modelNgbSev4FULL3, "tau", level = 0, type =  "response")
 plotData[ , `:=` (p0 = nuPred / (1 + nuPred + tauPred),
                   p1 = tauPred / (1 + nuPred + tauPred))]
 ```
@@ -1527,7 +1527,7 @@ dev.off()
 
 Plot of the fitted mean vs covariates
 ```{r fittedMeanPlots}
-plotData[, muPred := predict(modelNgbSev4FULL3, "mu", level = 0)]
+plotData[, muPred := predict(modelNgbSev4FULL3, "mu", level = 0, type = "response")]
 plotData[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
 
 plot14 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
@@ -1580,7 +1580,7 @@ dev.off()
 
 Plot of the fitted scale vs covariates
 ```{r fittedScalePlots}
-plotData[, fittedValsScale := fitted(modelNgbSev4FULL3, what = "sigma")]
+plotData[, fittedValsScale := predict(modelNgbSev4FULL3, what = "sigma", level = 0, type = "response")]
 
 plot19 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
                                col = UNDERSTOREY)) +

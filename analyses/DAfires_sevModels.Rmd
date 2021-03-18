@@ -9,7 +9,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion/")
+knitr::opts_knit$set(root.dir = "D:/GitHub/LandscapesInMotion/")
 knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
 
 library(data.table)
@@ -26,6 +26,7 @@ library(gamlss)
 library(ggplot2)
 library(ggpubr)
 library(ggrepel)
+library(caret)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,
@@ -109,7 +110,7 @@ if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)
 collapseCols <- function(x) {
   x <- unlist(x)
   names(x) <- NULL
-  if(all(is.na(x)))
+  if (all(is.na(x)))
     "NA"
   else 
     x[!is.na(x)]
@@ -156,7 +157,7 @@ SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
 
 bufferDists <- 30
 for (i in 2:7) {
-  bufferDists[i] <- bufferDists[i-1] * 2
+  bufferDists[i] <- bufferDists[i - 1] * 2
 }
 
 
@@ -1275,39 +1276,39 @@ summary(modelNgbSev4FULL)
 
 ## remove non-significant effects:
 modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME),
-                       nu.formula = ~FlamConif + UNDERSTOREY + SurfReliefRatio +
-                         PctSlope + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                         SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
-                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
-                       control = gamlss.control(c.crit = 0.1))
+                              CTI + Lari + SMR_wet + buffer_960m +
+                              re(random = ~1 | FIRE_NAME),
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                              re(random = ~1 | FIRE_NAME),
+                            nu.formula = ~FlamConif + UNDERSTOREY + SurfReliefRatio +
+                              PctSlope + SMR_wet + buffer_30m +
+                              re(random = ~1 | FIRE_NAME),
+                            tau.formula = ~isForest + isForest *
+                              UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                              Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              re(random = ~1 | FIRE_NAME), family = BEINF,
+                            data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
+                            control = gamlss.control(c.crit = 0.1))
 
 summary(modelNgbSev4FULL2)
 
 ## add level = 0 to get marginal means.
 modelNgbSev4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME, level = 0),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME, level = 0),
-                       nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME, level = 0),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                         SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME, level = 0), family = BEINF,
-                       data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
-                       control = gamlss.control(c.crit = 0.1))
-sink("analyses/modelNgbSev4FULL3_SUMMARY.txt")
+                              CTI + Lari + SMR_wet + buffer_960m +
+                              re(random = ~1 | FIRE_NAME, level = 0),
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                              re(random = ~1 | FIRE_NAME, level = 0),
+                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                              re(random = ~1 | FIRE_NAME, level = 0),
+                            tau.formula = ~isForest + isForest *
+                              UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                              Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              re(random = ~1 | FIRE_NAME, level = 0), family = BEINF,
+                            data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
+                            control = gamlss.control(c.crit = 0.1))
+
 summary(modelNgbSev4FULL3)
 sink()
 
@@ -1388,6 +1389,7 @@ Probabilities of 0s and 1s in function of covariates:
 xi0 = nu = p0 / (1 + p0 + p1)
 xi1 = tau = p1 / (1 + p0 + p1)
 
+### General effects
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE}
 modelNgbSev4FULL3 <- readRDS("analyses/modelNgbSev4FULL3.rds")
@@ -1468,8 +1470,8 @@ plot7 <- ggplot(plotData, aes(x = Decid, y = p1,
   theme_pubr() + 
   labs(title = "p1 ~ %Deciduous * understorey\n GAM smoother",
        x = "% cover", colour = "understorey")
-  
-  
+
+
 plot8 <- ggplot(plotData, aes(x = Lari, y = p1,
                               colour = cut(HEIGHT_LOWER, 
                                            breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER))))) +
@@ -1957,10 +1959,10 @@ dev.off()
 ```
 
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}
-save(list = c("plotData", grep("model", ls(), value = TRUE)),
-     # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData")
-     # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
-     file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbSevApr21.RData")
+# save(list = c("plotData", grep("model", ls(), value = TRUE)),
+#      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData")
+#      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
+#      file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbSevApr21.RData")
 
 ## save to GDrive
 # library(googledrive)

@@ -1629,6 +1629,332 @@ ggarrange(plot19, plot20, plot21, plot22,
 dev.off()
 ```
 
+### Partial effects plots
+```{r PEFwrapper, include = FALSE}
+## wrapper function
+PEFwrapper <- function(DT, term, fixed.at = list()) {
+  DT2 <- copy(DT)
+  DT2$nuPred <- getPEF.own(modelNgbSev4FULL4, parameter = "nu", term = term, fixed.at = fixed.at,
+                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  DT2$tauPred <- getPEF.own(modelNgbSev4FULL4, parameter = "tau", term = term, fixed.at = fixed.at,
+                            type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  DT2[ , `:=`(p0 = nuPred / (1 + nuPred + tauPred),
+              p1 = tauPred / (1 + nuPred + tauPred))]
+  DT2$muPred <- getPEF.own(modelNgbSev4FULL4, parameter = "mu", term = term, fixed.at = fixed.at,
+                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  DT2[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
+  DT2$fittedValsScale <- getPEF.own(modelNgbSev4FULL4, parameter = "sigma", term = term, fixed.at = fixed.at,
+                                    type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  return(DT2)
+}
+```
+
+#### Partial effects on probabilities at 0 and 1
+Showing partial effects in forested pixels only, except when isForest was significant
+```{r p0p1PEFPlots}
+## 0 probs
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() +
+  labs(title = "p0 ~ %FlamConifer (PEF)",
+       x = "% cover", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p0 ~ Roughness (SRR) (PEF)",
+       x = "% roughness", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot3 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p0 ~ SoilMoisture (PEF)",
+       x = "soil moisture (SMR)", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot4 <- ggplot(plotData, aes(x = buffer_30m, y = p0)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p0 ~ neigh. burns (30m) (PEF)",
+       x = "prop. neigh. burnt", colour = "understorey")
+
+png(file.path(figDir, "p0PEFPlots_DAfires_sevModels.png"), height = 10, width = 10,
+    units = "in", res = 300)
+ggarrange(plot1,plot2, 
+          plot3, plot4,
+          nrow = 2, ncol = 2)
+dev.off()
+
+## 1 probs
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+                       fixed.at = list("UNDERSTOREY" = FALSE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+                        fixed.at = list("UNDERSTOREY" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
+  geom_point(aes(colour = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ isForest * understorey (PEF)",
+       x = "", colour = "understorey")
+
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+plotData <- mapply(FUN = function(x, y) {
+  DT <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+                   fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
+  DT$UNDERSTOREY <- x
+  DT$HEIGHT_LOWER <- y
+  DT
+},
+x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
+plotData <- rbindlist(plotData)
+
+plot6 <- ggplot(plotData, aes(x = Decid, y = p1)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ %Deciduous * Height (PEF)",
+       x = "% cover", linetype = "understorey", colour = "height")
+
+plotData <- mapply(FUN = function(x, y) {
+  DT <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+                   fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
+  DT$UNDERSTOREY <- x
+  DT$HEIGHT_LOWER <- y
+  DT
+},
+x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
+plotData <- rbindlist(plotData)
+
+plot7 <- ggplot(plotData, aes(x = Lari, y = p1)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), 
+                colour = as.factor(HEIGHT_LOWER)), size = 1.5) +  
+  theme_pubr() + 
+  labs(title = "p1 ~ %Larch * Height (PEF)",
+       x = "% cover", linetype = "understorey", colour = "height")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot8 <- ggplot(plotData, aes(x = CTI, y = p1)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ Wetness (PEF)",
+       x = "CTI", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot9 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ Roughness (SRR) (PEF)",
+       x = "% roughness", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot10 <- ggplot(plotData, 
+                 aes(x = buffer_30m, y = p1)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ neigh. burns (30m) (PEF)",
+       x = "prop. neigh. burnt", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot11 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
+  geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "p1 ~ SoilMoisture (PEF)",
+       x = "soil moisture (SMR)", colour = "understorey")
+
+png(file.path(figDir, "p1PEFPlots_DAfires_sevModels.png"), height = 13, width = 13,
+    units = "in", res = 300)
+ggarrange(plot7, plot8,
+          plot9, plot10, 
+          plot11,
+          nrow = 3, ncol = 3)
+dev.off()
+```
+
+#### Partial effects on mean
+```{r fittedMeanPEFPPlots}
+## 0 probs
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+plotData <- mapply(FUN = function(x, y) {
+  DT <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+                   fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
+  DT$UNDERSTOREY <- x
+  DT$HEIGHT_LOWER <- y
+  DT
+},
+x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
+plotData <- rbindlist(plotData)
+
+plot12 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
+geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Deciduous * Height (PEF)",
+       x = "% cover", y = "mean sev.", colour = "height")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot13 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+    geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity ~ Wetness (PEF)",
+       x = "CTI", y = "mean sev.", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot14 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
+   geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity ~ %Larch (PEF)",
+       x = "% cover", y = "mean sev.", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot15 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
+    geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity ~ SoilMoisture (PEF)",
+       x = "soil moisture (SMR)", y = "mean sev.", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot16 <- ggplot(plotData, 
+                 aes(x = buffer_960m, y = fittedVals)) +
+    geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity ~ neigh, burns (960m) (PEF)",
+       x = "prop. neigh. burnt", y = "mean sev.", colour = "understorey")
+
+png(file.path(figDir, "meanSevPEFPlots_DAfires_sevModels.png"), height = 10, width = 10,
+    units = "in", res = 300)
+ggarrange(plot12, plot13,
+          plot14,plot15, plot16,
+          nrow = 3, ncol = 2, 
+          font.label = list(size = 16))
+dev.off()
+```
+
+#### Partial effects on scale
+```{r fittedScalePEFPlots}
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot17 <- ggplot(plotData, aes(x = Decid, y = fittedValsScale,
+                               col = UNDERSTOREY)) +
+   geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ %Deciduous * understorey (PEF)",
+       x = "% cover", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot18 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedValsScale)) +
+   geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ SoilMoisture (PEF)",
+       x = "soil moisture (SMR)", colour = "understorey")
+
+plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
+plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m",
+                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+plot19 <- ggplot(plotData, 
+                 aes(x = buffer_1920m, y = fittedValsScale)) +
+   geom_line(aes(col = UNDERSTOREY), size = 1.5) +
+  theme_pubr() + 
+  labs(title = "Severity (scale) ~ neigh. burns (1920m) (PEF)",
+       x = "prop. neigh. burnt", colour = "understorey")
+
+
+png(file.path(figDir, "scaleSevPlots_DAfires_sevModels.png"), height = 10, width = 10,
+    units = "in", res = 300)
+ggarrange(plot17, plot18, plot19,
+          nrow = 2, ncol = 2,
+          font.label = list(size = 16))
+dev.off()
+```
 
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}
 save(list = c("plotData", grep("model", ls(), value = TRUE)),

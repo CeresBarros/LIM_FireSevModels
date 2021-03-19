@@ -1545,10 +1545,9 @@ plot13 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
 
 png(file.path(figDir, "p1Plots_DAfires_sevModels.png"), height = 13, width = 13,
     units = "in", res = 300)
-ggarrange(plot7, plot8,
-          plot9, plot10, 
-          plot11, plot12, 
-          plot13,
+ggarrange(plot5, plot6, plot7, 
+          plot8, plot9, plot10, 
+          plot11, plot12, plot13,
           nrow = 3, ncol = 3)
 dev.off()
 ```
@@ -1730,7 +1729,10 @@ png(file.path(figDir, "p0PEFPlots_DAfires_sevModels.png"), height = 10, width = 
     units = "in", res = 300)
 ggarrange(plot1,plot2, 
           plot3, plot4,
-          nrow = 2, ncol = 2)
+          nrow = 2, ncol = 2,
+          font.label = list(size = 16),
+          common.legend = TRUE,
+          legend = "bottom")
 dev.off()
 
 ## 1 probs
@@ -1743,6 +1745,7 @@ plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 plot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
   geom_point(aes(colour = UNDERSTOREY), size = 1.5) +
+  scale_x_discrete(labels = c("0" = "not forest", "1" = "forest")) +
   theme_pubr() + 
   labs(title = "p1 ~ isForest * understorey (PEF)",
        x = "", colour = "understorey")
@@ -1764,6 +1767,7 @@ plot6 <- ggplot(plotData, aes(x = Decid, y = p1)) +
   labs(title = "p1 ~ %Deciduous * Height (PEF)",
        x = "% cover", linetype = "understorey", colour = "height")
 
+  
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
@@ -1834,18 +1838,20 @@ plot11 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
   labs(title = "p1 ~ SoilMoisture (PEF)",
        x = "soil moisture (SMR)", colour = "understorey")
 
-png(file.path(figDir, "p1PEFPlots_DAfires_sevModels.png"), height = 13, width = 13,
+png(file.path(figDir, "p1PEFPlots_DAfires_sevModels.png"), height = 15, width = 15,
     units = "in", res = 300)
-ggarrange(plot7, plot8,
-          plot9, plot10, 
-          plot11,
-          nrow = 3, ncol = 3)
+ggarrange(plot5, plot6, plot7, 
+          plot8, plot9, plot10, 
+          plot11, as_ggplot(get_legend(plot6 + theme(legend.box = "vertical"))),
+          nrow = 3, ncol = 3,
+          font.label = list(size = 16),
+          legend = "none")
 dev.off()
 ```
 
 #### Partial effects on mean
 ```{r fittedMeanPEFPPlots}
-## 0 probs
+## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
@@ -1861,7 +1867,8 @@ plot12 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
 geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), size = 1.5) +
   theme_pubr() + 
   labs(title = "Severity ~ %Deciduous * Height (PEF)",
-       x = "% cover", y = "mean sev.", colour = "height")
+       x = "% cover", y = "mean sev.", 
+       linetype = "understorey", colour = "height")
 
 plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
@@ -1919,14 +1926,17 @@ plot16 <- ggplot(plotData,
 png(file.path(figDir, "meanSevPEFPlots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
 ggarrange(plot12, plot13,
-          plot14,plot15, plot16,
+          plot14,plot15, 
+          plot16, as_ggplot(get_legend(plot12 + theme(legend.box = "vertical"))),
           nrow = 3, ncol = 2, 
-          font.label = list(size = 16))
+          font.label = list(size = 16), 
+          legend = "none")
 dev.off()
 ```
 
 #### Partial effects on scale
 ```{r fittedScalePEFPlots}
+## scale
 plotData <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
 plotData2 <- PEFwrapper(na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid",
@@ -1969,10 +1979,12 @@ plot19 <- ggplot(plotData,
        x = "prop. neigh. burnt", colour = "understorey")
 
 
-png(file.path(figDir, "scaleSevPlots_DAfires_sevModels.png"), height = 10, width = 10,
+png(file.path(figDir, "scaleSevPEFPlots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
-ggarrange(plot17, plot18, plot19,
-          nrow = 2, ncol = 2,
+ggarrange(plot17, plot18,
+          plot19, as_ggplot(get_legend(plot17)),
+          nrow = 2, ncol = 2, 
+          legend = "none",
           font.label = list(size = 16))
 dev.off()
 ```

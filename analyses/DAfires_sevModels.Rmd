@@ -193,6 +193,7 @@ Variables selected for models (when using all fire weather days):
 + cvFFMC	0.13*** - highly correlated with minFFMC
 + minDMC	-0.13*** - highly correlated with cvDMC
 + minBUI	-0.13*** - - highly correlated with min/cvDMC
+
 * Topography
 + PctSlope	0.08***
 + SurfAspectRatio	0.08*** - Ratio of the centerline-to-centerline spacing between dimples to the height of the dimple (https://arxiv.org/ftp/arxiv/papers/1305/1305.4705.pdf) / Surface Relief Ratio - describes rugosity in an continuous raster surface within a specified window (https://evansmurphy.wixsite.com/evansspatial/arcgis-gradient-metrics-toolbox)
@@ -200,6 +201,7 @@ Variables selected for models (when using all fire weather days):
 + CTI	-0.07*** ([Compound Topographic Index (CTI) (Moore et al. 1991) or "soil wetness" transformation can be used to models aspects of hydrologic systems. CTI is strongly correlated with soil moisture](https://wikispaces.psu.edu/display/AnthSpace/Compound+Topographic+Index))
 + SurfReliefRatio	0.04*** ([Describes rugosity. Ratio between relief and length in a particular window](https://en.wikipedia.org/wiki/Relief_ratio))
 + Elevation	-0.03***
+
 * Vegetation - Spearmand correlations with severity
 + Group flammable conifers 0.10 ***
 + Pinu bank	0.15***
@@ -219,6 +221,7 @@ Variables selected for models (when using all fire weather days):
 
 + UNDERSTOREY
 + ORIGIN_UPPER 0.10***
+
 * Landcover type
 + isForest
 
@@ -254,7 +257,7 @@ if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME),
 
 ## GAMLSS models
 Selection of variables going "in".
-Start with a high covergence criterion to speed up model fitting for now
+Start with a high convergence criterion to speed up model fitting for now
 ```{r gamlssModels, results = "asis", message=FALSE}
 modelNULL <- gamlss(SEV_PROP ~ 1 + re(random = ~ 1|Czone1/NR1/FIRE_NAME),
                     family = BEINF, control = gamlss.control(c.crit = 0.1),
@@ -1339,9 +1342,9 @@ saveRDS(modelNgbSev4FULL4, "analyses/modelNgbSev4FULL4.rds")
 
 GAIC(modelNgbSev4FULL,
      modelNgbSev4FULL2,
-  modelNgbSev4FULL3,
-  modelNgbSev4FULL4,
-  k = log(nrow(na.omit(summaryABSK_AllData[, cols, with = FALSE]))))
+     modelNgbSev4FULL3,
+     modelNgbSev4FULL4,
+     k = log(nrow(na.omit(summaryABSK_AllData[, cols, with = FALSE]))))
 #                         df      AIC
 # modelNgbSev4FULL3 172.6552 486027.6
 # modelNgbSev4FULL2 174.6581 486048.1
@@ -1464,8 +1467,9 @@ plot4 <- ggplot(plotData,
 
 png(file.path(figDir, "p0Plots_DAfires_sevModels.png"), height = 10, width = 10,
     units = "in", res = 300)
-ggarrange(plot1,plot2, 
+ggarrange(plot1, plot2, 
           plot3, plot4,
+          font.label = list(size = 16),
           nrow = 2, ncol = 2)
 dev.off()
 
@@ -1548,6 +1552,7 @@ png(file.path(figDir, "p1Plots_DAfires_sevModels.png"), height = 13, width = 13,
 ggarrange(plot5, plot6, plot7, 
           plot8, plot9, plot10, 
           plot11, plot12, plot13,
+          font.label = list(size = 16),
           nrow = 3, ncol = 3)
 dev.off()
 ```
@@ -1669,7 +1674,7 @@ PEFwrapper <- function(DT, term, fixed.at = list()) {
 }
 ```
 
-#### Partial effects on probabilities at 0 and 1
+#### Partial effects on probabilities at 0 and 1 - forest pixels
 Showing partial effects in forested pixels only, except when isForest was significant
 ```{r p0p1PEFPlots}
 ## 0 probs
@@ -1849,7 +1854,8 @@ ggarrange(plot5, plot6, plot7,
 dev.off()
 ```
 
-#### Partial effects on mean
+#### Partial effects on mean - forest pixels
+Showing partial effects in forested pixels only, except when isForest was significant
 ```{r fittedMeanPEFPPlots}
 ## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))

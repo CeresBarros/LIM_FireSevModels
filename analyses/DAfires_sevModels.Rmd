@@ -1422,15 +1422,15 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 
-## use predict(..., level = 0) to get marginal means
-plotData <- na.omit(summaryABSK_AllData[, ..cols, with = FALSE])
-plotData$nuPred <- predict(modelNgbSev4FULL4, "nu", level = 0, type =  "response")
-plotData$tauPred <- predict(modelNgbSev4FULL4, "tau", level = 0, type =  "response")
+## need to provide "newdata" to get marginal means
+plotData <-  na.omit(summaryABSK_AllData[, cols, with = FALSE])
+plotData$nuPred <- predict(modelNgbSev4FULL4, "nu", type = "response", newdata = plotData[, cols, with = FALSE])
+plotData$tauPred <- predict(modelNgbSev4FULL4, "tau", type = "response", newdata = plotData[, cols, with = FALSE])
 plotData[ , `:=`(p0 = nuPred / (1 + nuPred + tauPred),
                  p1 = tauPred / (1 + nuPred + tauPred))]
-plotData[, muPred := predict(modelNgbSev4FULL4, "mu", level = 0, type = "response")]
+plotData[, muPred := predict(modelNgbSev4FULL4, "mu", type = "response", newdata = plotData[, cols, with = FALSE])]
 plotData[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
-plotData[, fittedValsScale := predict(modelNgbSev4FULL4, what = "sigma", level = 0, type = "response")]
+plotData[, fittedValsScale := predict(modelNgbSev4FULL4, what = "sigma", type = "response", newdata = plotData[, cols, with = FALSE])]
 ```
 
 Plots of probabilities at 0 and 1 vs. covariates

@@ -160,7 +160,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   firesABSK <- rbind(albertafires1_postfire, albertafires2_postfire, saskatchewanfires_postfire)
 
   ## Use Alberta 1 post fire data only for now, as severity classes on other datasets and not yet comparable.
-  ABSK_fireEvents <- reproducible::Cache(defineFireEvents,
+  ABSK_fireEvents <- Cache(defineFireEvents,
                                          sfObj = firesABSK, fireNAMES = "FIRE_NAME",
                                          # fireVARS = c("FIRE_ID", "FIRE_YEAR", "SEV_CLASS"),   ## this makes the output object huge
                                          buff.dist = 200L,
@@ -250,7 +250,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                "SP5_PER", "SP5", "STRUC", "STRUC_VAL", "TPR")
   allVars <- c(allVars, paste0("U", allVars))
 
-  albertafires1_prefireMelt <- reproducible::Cache(meltPreFireABInv,
+  albertafires1_prefireMelt <- Cache(meltPreFireABInv,
                                                    inv = albertafires1_prefire,
                                                    invName = "albertafires1_prefire",
                                                    allVars = allVars,
@@ -260,7 +260,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                                    userTags = "meltABprefire_1",
                                                    useCache = doCache, omitArgs = c("inv"))
 
-  albertafires2_prefireMelt <- reproducible::Cache(meltPreFireABInv,
+  albertafires2_prefireMelt <- Cache(meltPreFireABInv,
                                                    inv = albertafires2_prefire,
                                                    invName = "albertafires2_prefire",
                                                    allVars = allVars,
@@ -273,7 +273,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   ## Saskatchewan - melting has to come before renaming
   ## note: for SK these names are not the same as the names accepted by CASFRI,
   ##    because CASFRI is not using the "official" field names
-  saskatchewanfires_prefireMelt <- reproducible::Cache(meltPreFireSKInv,
+  saskatchewanfires_prefireMelt <- Cache(meltPreFireSKInv,
                                                        inv = saskatchewanfires_prefire,
                                                        invName = "saskatchewanfires_prefire",
                                                        folder = vegDataPath,
@@ -309,7 +309,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   ## AVI AND SFVI TO CASFRI
   tablesDir <- "data/VegInventories/CASFRIConvTables.xlsx"
-  albertafires1_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI,
+  albertafires1_prefireMeltCASFRI <- Cache(ABToCASFRI,
                                                          inv = albertafires1_prefireMelt,
                                                          tablesDir = tablesDir,
                                                          folder = vegDataPath,
@@ -318,7 +318,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                                          userTags = "AB2CASFRI_1",
                                                          useCache = doCache, omitArgs = c("inv"))
 
-  albertafires2_prefireMeltCASFRI <- reproducible::Cache(ABToCASFRI,
+  albertafires2_prefireMeltCASFRI <- Cache(ABToCASFRI,
                                                          inv = albertafires2_prefireMelt,
                                                          tablesDir = tablesDir,
                                                          folder = vegDataPath,
@@ -327,7 +327,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                                                          userTags = "AB2CASFRI_2",
                                                          useCache = doCache, omitArgs = c("inv"))
 
-  saskatchewanfires_prefireMeltCASFRI <- reproducible::Cache(SKToCASFRI,
+  saskatchewanfires_prefireMeltCASFRI <- Cache(SKToCASFRI,
                                                              inv = saskatchewanfires_prefireMelt,
                                                              tablesDir = tablesDir,
                                                              folder = vegDataPath,
@@ -394,7 +394,7 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   DEM <- st_transform(DEM, st_crs(ABSK_fireEventsSev))
 
   ## WEATHER DATA ----------
-  fireWeatherLs <- reproducible::Cache(prepFireWeather,
+  fireWeatherLs <- Cache(prepFireWeather,
                                        folder = weatherDataPath,
                                        userTags = "fireWeatherLs",
                                        cacheRepo = "analyses/cache",

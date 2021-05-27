@@ -9,24 +9,12 @@ editor_options:
 ---
 
 ```{r setup, include = FALSE, cache = FALSE}
-## using - as of January 14th, 2019
-# loading reproducible     0.2.5.9000
-# loading quickPlot        0.1.6
-# loading SpaDES.core      0.2.3.9003
-# loading SpaDES.tools     0.3.0.9000
-# loading SpaDES.addins    0.1.1
-# devtools::install_github("PredictiveEcology/quickPlot@development")
-# devtools::install_github("PredictiveEcology/reproducible@development")
-# devtools::install_github("PredictiveEcology/SpaDES.core@development")
-# devtools::install_github("PredictiveEcology/SpaDES.tools@development")
-
-
-knitr::opts_knit$set(root.dir = "~/GitHub/LandscapesInMotion")
+knitr::opts_knit$set(root.dir = "D:/GitHub/LandscapesInMotion/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache = 2)
 library(ggplot2)
-library(factoextra, lib.loc = "~/R/x86_64-pc-linux-gnu-library/3.5")
-library(permute, lib.loc = "~/R/x86_64-pc-linux-gnu-library/3.5")
-library(vegan, lib.loc = "~/R/x86_64-pc-linux-gnu-library/3.5")
+library(factoextra)
+library(permute)
+library(vegan)
 library(reshape2)
 library(sf)
 library(data.table)
@@ -41,7 +29,9 @@ library(xtable)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,
-        "reproducible.cachePath" = "analyses/cache") 
+        "reproducible.cachePath" = "analyses/cache",
+        "future.globals.maxSize" = +Inf)
+
 source("analyses/R_tools/summarizeABSK_AllData.R")
 source("R/R_tools/prepCorrTable.R")
 source("R/R_tools/Useful_functions.R")
@@ -53,26 +43,26 @@ source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
 doCache = TRUE
 ```
 
-
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## source dataprep:
-ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
-                                    fireDataPath = "data/fires_Dave/fireSev",
-                                    vegDataPath = "data/fires_Dave/prefireVeg",
-                                    topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
-                                    weatherDataPath = "data/fires_Dave/fireWeather",
-                                    doCache = doCache, bindAllFires = FALSE, 
-                                    userTags = "ABSKfires_DataPrep")
+ABSK_AllData <- Cache(ABSKfires_DataPrep,
+                      fireDataPath = "data/fires_Dave/fireSev",
+                      vegDataPath = "data/fires_Dave/prefireVeg",
+                      topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+                      weatherDataPath = "data/fires_Dave/fireWeather",
+                      resolution = 30,  ## cacheId = "7a41bbf245e246c9"
+                      doCache = doCache, bindAllFires = TRUE, 
+                      userTags = "ABSKfires_DataPrep")
 
 ## exclude event perimeter patch type
-memory.limit(size = 64000)
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
 amc::.gc()
 
 ## remove columns with no data
 NAcols <- sapply(ABSK_AllData, FUN = function(x) all(is.na(x))) 
 ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
-rm(NAcols)
+zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE)) 
+ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
 
 ## calculate stand age at fire year by subtracting fire year.
 ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]
@@ -510,8 +500,8 @@ summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              DT = ABSK_AllData,
                              dim = dim(ABSK_AllData),
                              days = 1:3,
-                             saveDir = "analyses/fireDataSummary/",
-                             overwrite = FALSE, omitArgs = c("DT"))
+                             omitArgs = c("DT"),
+                             useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
 amc::.gc()
 ```
 

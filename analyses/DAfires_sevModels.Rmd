@@ -20,7 +20,6 @@ library(xlsx)
 library(foreign)
 library(fasterize)
 library(prioritizr)
-library(reproducible)
 library(gamlss.inf)
 library(gamlss)
 library(ggplot2)
@@ -28,10 +27,14 @@ library(ggpubr)
 library(ggrepel)
 library(LandR.CS)
 library(caret)
+library(future)
+library(future.apply)
+library(reproducible)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,
-        "reproducible.cachePath" = "analyses/cache")
+        "reproducible.cachePath" = "analyses/cache",
+        "future.globals.maxSize" = +Inf)
 
 source("R/R_tools/prepCorrTable.R")
 source("R/R_tools/Useful_functions.R")
@@ -54,14 +57,15 @@ if (!dir.exists(figDir))
 
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## run dataprep:
-ABSK_AllData <- reproducible::Cache(ABSKfires_DataPrep,
-                                    fireDataPath = "data/fires_Dave/fireSev",
-                                    vegDataPath = "data/fires_Dave/prefireVeg",
-                                    topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
-                                    weatherDataPath = "data/fires_Dave/fireWeather",
-                                    resolution = 30,
-                                    doCache = doCache, bindAllFires = TRUE, 
-                                    userTags = "ABSKfires_DataPrep") ## cacheId = "7a41bbf245e246c9"
+ABSK_AllData <- Cache(ABSKfires_DataPrep,
+                      fireDataPath = "data/fires_Dave/fireSev",
+                      vegDataPath = "data/fires_Dave/prefireVeg",
+                      topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+                      weatherDataPath = "data/fires_Dave/fireWeather",
+                      resolution = 30, ## cacheId = "7a41bbf245e246c9"
+                      doCache = doCache, bindAllFires = TRUE,
+                      # useCache = FALSE,
+                      userTags = "ABSKfires_DataPrep")
 
 ## exclude event perimeter patch type
 # memory.limit(size = 64000)
@@ -225,7 +229,7 @@ Variables selected for models (when using all fire weather days):
 * Landcover type
 + isForest
 
-```{r modelData, include = FALSE}
+```{r modelData, include = FALSE, eval=FALSE}
 ## variables for analysis when considering all weather (first 3 days) - dropping range
 ## due to lack of data in some fires, dropping:
 ## crown closure, SMR (which has a proxy- CTI), cvRain, ORIGIN_*
@@ -258,7 +262,7 @@ if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME),
 ## GAMLSS models
 Selection of variables going "in".
 Start with a high convergence criterion to speed up model fitting for now
-```{r gamlssModels, results = "asis", message=FALSE}
+```{r gamlssModels, results = "asis", message=FALSE, eval=FALSE}
 modelNULL <- gamlss(SEV_PROP ~ 1 + re(random = ~ 1|Czone1/NR1/FIRE_NAME),
                     family = BEINF, control = gamlss.control(c.crit = 0.1),
                     data = modelData)
@@ -399,7 +403,7 @@ Let's try with the GAMLSS INF (probabilities at 0s and 1s have more direct inter
 Note that \code{gamlssInf0to1} doesn't seem to like \code{re} in this case.
 `nu` and `tau` are replaced by `xi0` and `xi1`, respectively, which in the case of 0 and 1 inflation are the same between `gamlss` and `gamlssInf0to1`. GAMLSS Inf fits a log-linear multinomial model to the 0s 1s and everything in between  (0 becomes 1, 1 becomes 2 and everything else becomes 3).
 Note that when the sampling was corrected and more random effects added, using gamlss.inf offered no improvement
-```{r gamlssinfModels, results = "asis", message=FALSE}
+```{r gamlssinfModels, results = "asis", message=FALSE, eval=FALSE}
 modelInf <- gamlssInf0to1(y = SEV_PROP,
                           mu.formula = ~ Decid + CTI + Lari + HEIGHT_LOWER +
                             random(Czone1) + random(NR1) + random(FIRE_NAME),
@@ -439,7 +443,7 @@ p1 = xi1 / (1 + xi0 + xi1) = tau / (1 + nu + tau)
 Start by adding interactions within covariate groups (vegetation, topography, climate).
 Not all possible 2-way interations were added because that made the model not converge.
 
-```{r addInteractions, message=FALSE}
+```{r addInteractions, message=FALSE, eval=FALSE}
 model5 <- gamlss(formula = SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari*HEIGHT_LOWER +
                    re(random = ~1 | Czone1/NR1/FIRE_NAME),
                  sigma.formula = ~ Decid*UNDERSTOREY + re(random = ~1 | Czone1/NR1/FIRE_NAME),
@@ -485,7 +489,7 @@ Rsq(model5)  ## best R2 - but only by 0.0003
 Rsq(model6)  ## will keep this model, for parsimony
 ```
 
-```{r addSM_DC, message=FALSE}
+```{r addSM_DC, message=FALSE, eval=FALSE}
 ## add full SMR variable first - this was not possible at 30m res
 ## 20 res
 # model7 <- gamlss(SEV_PROP ~ CTI + isForest + Lari*HEIGHT_LOWER +   ## Lari*Height no longer significant
@@ -756,7 +760,7 @@ Will try removing them - going from `model7`
 I see no reason to keep DC variables in the models. They make AIC worse and lower the r2.
 Keeping SMR_ord and CTI, however may be a good idea.
 
-```{r addSM_DC2, message=FALSE}
+```{r addSM_DC2, message=FALSE, eval=FALSE}
 ## RES 20M -------------------------------------
 ## hit singularity when non significant variables in model13 were removed, 
 ## so I removed DC vars one at a time, from tau->mu
@@ -837,7 +841,7 @@ Keeping SMR_ord and CTI, however may be a good idea.
 Adding the DC variables didn't change the r2, but lowered AIC.
 I will now try to remove one of the roughtness variables, then CTI and see.
 
-```{r rmSAR_CTI, message = FALSE}
+```{r rmSAR_CTI, message = FALSE, eval=FALSE}
 ## RES 30M -------------------------------------
 ## removing SAR - this model fails
 model15 <- gamlss(formula = SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
@@ -926,7 +930,7 @@ The model didn't improve by removing SAR/CTI, and adding DC variables decreased 
 So, for this resolution `model8` was the best model.
 **However**, `model8` failed when using the whole dataset, or different subsets of data. So, I fit simpler models to see if I could get a more generic one. In the end, the next best model was one with a simpler random effects structure, using only "FIRE_NAME", while keeping SMR_wet and CTI - `model8.4`. This model will be submitted to validation. 
 
-```{r fullDataModel, cache = FALSE, message=FALSE}
+```{r fullDataModel, cache = FALSE, message=FALSE, eval=FALSE}
 ## not being able to fit model to another subset
 # crossValidFunction(fullDT = summaryABSK_AllData, origData = modelData,
 #                    statsModel = model8, k = 4, idCol = "pixID")
@@ -1054,7 +1058,7 @@ Rsq(model8.4FULL)  ## a bit lower with all the data
 ## Model validation
 Using k-fold cross validation on `model8.4` (which was fitted on a 1/4 of the data), with the data partioned in 4 chunks (so the size of the validation chunk is the same as the one used to fit the model).
 Note that simplifying the random effects makes no differenc, with regards to the more complex nesting.
-```{r crossValidation, cache = FALSE, message=FALSE}
+```{r crossValidation, cache = FALSE, message=FALSE, eval=FALSE}
 crossValidResults <- Cache(crossValidFunction,
                            fullDT = summaryABSK_AllData, 
                            origData = modelData, 
@@ -1126,7 +1130,7 @@ summary(allValidMetrics2)
 
 ## Model overall performance
 Checking the overall performance of the model, when fitted used the full dataset. 
-```{r fullModelValidation, cache = FALSE, message=FALSE}
+```{r fullModelValidation, cache = FALSE, message=FALSE, eval=FALSE}
 predictionsDT <- predictAll(model8.4FULL,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
                             type = "response", output = "matrix")
@@ -1168,7 +1172,7 @@ confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, referen
 ## Include neighbours
 ### Proportion of burnt neighbours
 Start from last best model, and find the best buffer sizes to add to each parameter.
-```{r burnNgbPropModels, cache = FALSE}
+```{r burnNgbPropModels, cache = FALSE, eval=FALSE}
 model8.4 <- readRDS("analyses/DAfires_sevModels_model8_4.rds")
 
 upperFormula <- as.formula(paste(
@@ -1270,7 +1274,7 @@ modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
 ```
 
 #### fit model to full dataset (and simplify if need be)
-```{r FullburnNgbPropModel, cache = FALSE}
+```{r FullburnNgbPropModel, cache = FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
@@ -1353,7 +1357,7 @@ GAIC(modelNgbSev4FULL,
 
 #### Model validation
 Using k-fold cross validation on `modelNgbSev4FULL4` (which was fitted on the full data), with the data partitioned in 4 chunks.
-```{r crossValidationBurnNgbProp, message=FALSE}
+```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")

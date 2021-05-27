@@ -1321,16 +1321,16 @@ modelNgbSev4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
 ## try the above with Ian's custom function (given to us by Dr Stasinopolous)
 modelNgbSev4FULL4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
                               CTI + Lari + SMR_wet + buffer_960m +
-                              LandR.CS::own(random = ~1|FIRE_NAME, level = 0),
+                              re(random = ~1|FIRE_NAME, level = 0),
                             sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                              LandR.CS::own(random = ~1|FIRE_NAME, level = 0),
+                              re(random = ~1|FIRE_NAME, level = 0),
                             nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
-                              LandR.CS::own(random = ~1|FIRE_NAME, level = 0),
+                              re(random = ~1|FIRE_NAME, level = 0),
                             tau.formula = ~isForest + isForest *
                               UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                               Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
                               SurfReliefRatio + SMR_wet + buffer_30m +
-                              LandR.CS::own(random = ~1|FIRE_NAME, level = 0), family = BEINF,
+                              re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
                             control = gamlss.control(c.crit = 0.1))
 

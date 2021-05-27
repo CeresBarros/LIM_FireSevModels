@@ -201,7 +201,7 @@ Variables selected for models (when using all fire weather days):
 
 * Topography
 + PctSlope	0.08***
-+ SurfAspectRatio	0.08*** - Ratio of the centerline-to-centerline spacing between dimples to the height of the dimple (https://arxiv.org/ftp/arxiv/papers/1305/1305.4705.pdf) / Surface Relief Ratio - describes rugosity in an continuous raster surface within a specified window (https://evansmurphy.wixsite.com/evansspatial/arcgis-gradient-metrics-toolbox)
++ SurfAspectRatio	0.08*** - **SHOULD BE CALLED SURFACE AREA RATIO** - 
 + Aspect	0.07***
 + CTI	-0.07*** ([Compound Topographic Index (CTI) (Moore et al. 1991) or "soil wetness" transformation can be used to models aspects of hydrologic systems. CTI is strongly correlated with soil moisture](https://wikispaces.psu.edu/display/AnthSpace/Compound+Topographic+Index))
 + SurfReliefRatio	0.04*** ([Describes rugosity. Ratio between relief and length in a particular window](https://en.wikipedia.org/wiki/Relief_ratio))
@@ -1372,10 +1372,14 @@ crossValidResults3 <- Cache(crossValidFunction,
                             level = 0, 
                             cacheObj1 = summaryABSK_AllData$pixID,
                             cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])$pixID,
-                            # useCache = "overwrite",
+                            parallel = FALSE,
+                            workers = 2,
+                            # useCache = "overwrite",   ## cacheId = 85b6d427b43ff53d
+                            # showSimilar = TRUE,
                             userTags = c("validation", "modelNgbSev4FULL4"),
-                            omitArgs = c("fullDT", "origData", "userTags"))
+                            omitArgs = c("fullDT", "origData", "userTags", "parallel", "workers"))
 
+# crossValidResults3 <- loadFromCache(cacheId="85b6d427b43ff53d")
 ## collapse results into data.tables
 allValidMetrics3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$validMetrics))))
 allValidMetrics3[, sampID := 1:length(crossValidResults3)]
@@ -1399,7 +1403,6 @@ allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.t
 allRsquared3[, sampID := 1:length(crossValidResults3)]
 
 ## save
-# sink("analyses/modelNgbSev4FULL3_crossValidOutputs.txt")
 sink("analyses/modelNgbSev4FULL4_crossValidOutputs.txt")
 print("Validation metrics")
 allValidMetrics3

@@ -1399,8 +1399,25 @@ avgAllConfMatrices3 <- unique(allConfMatrices3[, .(Prediction, Reference, compar
 avgAllConfMatrices3[, compareID := NULL]
 avgAllConfMatrices3 <- dcast(avgAllConfMatrices3, Prediction ~ Reference)
 
-allRsquared3 <- rbindlist(lapply(crossValidResults3, FUN = function(x) as.data.table(t(x$Rsquared))))
-allRsquared3[, sampID := 1:length(crossValidResults3)]
+allRsquared3 <- rbindlist(sapply(crossValidResults3, FUN = function(x) as.data.table(t(x$Rsquared)),
+                                 simplify = FALSE), idcol = "sampID")
+
+allRsquared3GAMLSS <- rbindlist(sapply(crossValidResults3, FUN = function(x) as.data.table(t(x$RsqGAMLSS)),
+                                       simplify = FALSE), idcol = "sampID")
+
+allTGD <- rbindlist(sapply(crossValidResults3, FUN = function(x) as.data.table(t(x$TGD)),
+                           simplify = FALSE), idcol = "sampID")
+
+allCoefs <- rbindlist(sapply(crossValidResults3, FUN = function(x) {
+  mu <- as.data.table(t(x$coefs$mu))
+  sigma <- as.data.table(t(x$coefs$sigma))
+  nu <- as.data.table(t(x$coefs$nu))
+  tau <- as.data.table(t(x$coefs$tau))
+  coefsDT <- data.table(rbindlist(list(mu, sigma, nu, tau), fill = TRUE), 
+                        param = c("mu", "sigma", "nu", "tau"))
+  coefsDT
+},
+simplify = FALSE), idcol = "sampID")
 
 ## save
 sink("analyses/modelNgbSev4FULL4_crossValidOutputs.txt")
@@ -1412,8 +1429,46 @@ avgAllConfMatrices3
 print("******************")
 print("R squared")
 allRsquared3
+print("******************")
+print("R squared GAMLSS")
+allRsquared3GAMLSS
+print("******************")
+print("TGD")
+allTGD
+print("******************")
+print("Coefficients mean")
+allCoefs[, lapply(.SD, mean), by = .(param),
+         .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
+print("Coefficients SD")
+allCoefs[, lapply(.SD, mean), by = .(param),
+         .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
 sink()
+```
 
+Plot cross-validation results against model metrics
+```{r crossValidPlots}
+## don't compare TGD between full model and folds.
+# tgdObj <- getTGD(modelNgbSev4FULL4, newdata = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+# allTGD[, fullModel := TGD(tgdObj)]
+allRsquared3GAMLSS[, fullModel := Rsq(modelNgbSev4FULL4)]
+
+plotData <- rbindlist(list(allRsquared3GAMLSS, allTGD), idcol = "metric", fill = TRUE)
+
+crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
+  geom_boxplot() +
+  geom_point(aes(y = fullModel),
+             position = position_dodge(width = 0), size = 4, 
+             colour = "darkred", show.legend = FALSE) +
+  theme_pubr(base_size = 16) +
+  theme(strip.text = element_blank()) +
+  scale_x_discrete(labels = c("1" = "R-squared", "2" = "TGD")) +
+  labs(y = "value", x = "") +
+  facet_wrap(~ metric, scales = "free")
+
+png(file.path(figDir, "crossValidPlot_DAfires_sevModels.png"), height = 5, width = 8,
+    units = "in", res = 300)
+crossValidplot
+dev.off()
 ```
 
 ## Inspecting the final model and figures

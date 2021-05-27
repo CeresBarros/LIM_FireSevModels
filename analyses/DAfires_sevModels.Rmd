@@ -128,6 +128,7 @@ summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by
 
 summaryABSK_AllData[, isForest := 0]
 summaryABSK_AllData[NonForestValue == "NA", isForest := 1]
+summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
 
 ## change Lari lari to simpler name
 setnames(summaryABSK_AllData, "Lari lari", "Lari")

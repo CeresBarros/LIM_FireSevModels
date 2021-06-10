@@ -55,9 +55,10 @@ ABSK_AllData <- Cache(ABSKfires_DataPrep,
                       vegDataPath = "data/fires_Dave/prefireVeg",
                       topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
                       weatherDataPath = "data/fires_Dave/fireWeather",
-                      resolution = 30,  ## cacheId = "7a41bbf245e246c9"
-                      doCache = doCache, bindAllFires = TRUE, 
-                      userTags = "ABSKfires_DataPrep")
+                      resolution = 30,  ## cacheId = "468b1d728b735352"
+                      doCache = doCache, bindAllFires = FALSE, 
+                      userTags = "ABSKfires_DataPrep", 
+                      omitArgs = c("bindAllFires", "doCache", "userTags"))
 
 ## exclude event perimeter patch type
 ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")

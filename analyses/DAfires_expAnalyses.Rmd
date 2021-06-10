@@ -13,6 +13,7 @@ knitr::opts_knit$set(root.dir = "D:/GitHub/LandscapesInMotion/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache = 2)
 library(ggplot2)
 library(factoextra)
+library(ggpubr)
 library(permute)
 library(vegan)
 library(reshape2)
@@ -41,6 +42,10 @@ source("R/R_tools/joinSevVegTopoWeatherData.R")
 source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
 
 doCache = TRUE
+
+figDir <- "analyses/Figs"
+if (!dir.exists(figDir))
+  dir.create(figDir)
 ```
 
 ```{r dataprep, include = FALSE, cache = FALSE}
@@ -502,13 +507,67 @@ summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                              days = 1:3,
                              omitArgs = c("DT"),
                              useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
+## collapse species into more generic categories
+summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
+                                       `Pinu cont`, `Pinu bank`, na.rm = TRUE), 
+                    by = pixID] 
+summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+                    by = pixID] 
+summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
+                    by = pixID] 
+
+## collapse non-forested variables
+if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
+    dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
+    dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
+  warning("> 1 non-forest class type present")
+
+collapseCols <- function(x) {
+  x <- unlist(x)
+  names(x) <- NULL
+  if (all(is.na(x)))
+    "NA"
+  else 
+    x[!is.na(x)]
+}
+
+cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
+summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+
+summaryABSK_AllData[, isForest := 0]
+summaryABSK_AllData[NonForestValue == "NA", isForest := 1]
+summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
+
+## change Lari lari to simpler name
+setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
+## rescale severity from 0-1
+summaryABSK_AllData[, SEV_PROP := SEV_CONT/100]
+## convert the highest fire severity to 1
+summaryABSK_AllData[SEV_PROP == 0.9750, SEV_PROP := 1.0]
+
+## change some columns to numeric
+cols <- grep("mean|max|min|cv|range|pixID|P_ID|Duration|ORIGIN|HEIGHT|isForest|SEV_PROP|Aspect|^CTI$|PctSlope|SurfReliefRatio|SurfAspectRatio|Elevation", names(summaryABSK_AllData), value = TRUE)
+str(summaryABSK_AllData[, ..cols])
+summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+## calculate SMR_wet
+summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+
+## make some columns factors
+cols <- c("FIRE_NAME", "Czone1", "NR1")
+summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
+
+
 amc::.gc()
 ```
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data
-Including elevation, slope, presence/absence of understory in PCA then fitting environmental vectors (mean and cv of temp, rain, rh, ffmc, fwi) and severity
+Including elevation, slope, presence/absence of understorey and CTI, crown closure and heightin PCA then fitting environmental vectors (mean and cv of fire weather indices) and severity. Species are still separate
 
-```{r summaryData_PCA_plotClosure, cache = FALSE, fig.height=8, fig.show = "hold"}
+Coloured by FIRE_NAME
+```{r summaryData_PCA_plotFIRE_NAME, cache = FALSE, fig.height=8, fig.show = "hold"}
 ## check if any spp has >100 cover - good
 # cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
 #              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
@@ -518,29 +577,143 @@ Including elevation, slope, presence/absence of understory in PCA then fitting e
 cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR$|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range|Czone|NR1|NR2", 
              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
 
-summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
-summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+cols <- c(grep("^(Popu|Pinu|Lari|Pice|Abie |Betu)", names(summaryABSK_AllData), value = TRUE),
+          grep("isForest|NonForestValue|pixID", names(summaryABSK_AllData), value = TRUE),
+          grep("SMR_ord|CROWN.*UPPER|HEIGHT.*UPPER|UNDERSTOREY", names(summaryABSK_AllData), value = TRUE),
+          grep("SEV_CONT|FIRE_NAME|Czone|NR1", names(summaryABSK_AllData), value = TRUE),
+          grep("^mean(DMC|DC|ISI|FFMC|BUI|FWI)", names(summaryABSK_AllData), value = TRUE),
+          grep("^cv(DMC|DC|ISI|FFMC|BUI|FWI)", names(summaryABSK_AllData), value = TRUE),
+          grep("PctSlope|Elevation|^CTI$", names(summaryABSK_AllData), value = TRUE))
 
+
+summaryABSK_AllData2 <- na.omit(summaryABSK_AllData[, ..cols])
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+summaryABSK_AllData2[, isForest := as.factor(as.character(isForest))] ## convert to factor for dudi.mix
+summaryABSK_AllData2[, NonForestValue := as.factor(as.character(NonForestValue))] ## convert to factor for dudi.mix
+
+## make a PCA without climate/severity/pixID
 ## exclude also P. banksiana, because it has no data
-cols2 <- grep("SEV_CONT|bank|mean|cv", cols, value = TRUE, invert = TRUE)
+cols2 <- grep("SEV_CONT|bank|mean|cv|pixID|NonForestValue|isForest|FIRE_NAME|Czone|NR1", 
+              cols, value = TRUE, invert = TRUE)
 summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
                               , nf = 3
                               , scannf = FALSE)
 
-cols2 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
-env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, ..cols2]))
+## superimpose severity and climate
+cols3 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, ..cols3]))
 
-# dev()
-PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closure")
-points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]]))
-text(PCAplot, "species", arrows = TRUE)
-plot(env.fit, labels = cols2)
-unique(as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]])) %>%
-  legend(x = "bottomright", legend = ., col = ., pch = 19)
+plotDataPCApoints <- data.table(summDataPCA$li)[, 1:2]
+setnames(plotDataPCApoints, new = c("x", "y"))
+plotDataPCApoints$isForest <- summaryABSK_AllData2$isForest
+plotDataPCApoints$NonForestValue <- summaryABSK_AllData2$NonForestValue
+plotDataPCApoints$FIRE_NAME <- summaryABSK_AllData2$FIRE_NAME
+plotDataPCApoints$Czone1 <- summaryABSK_AllData2$Czone1
+plotDataPCApoints$NR1 <- summaryABSK_AllData2$NR1
+
+plotDataPCAvect <- summDataPCA$co[, 1:2]
+plotDataPCAvect$labels <- rownames(plotDataPCAvect)
+plotDataPCAvect <- data.table(plotDataPCAvect)
+setnames(plotDataPCAvect, new = c("x", "y", "labels"))
+
+plotDataEnvFitvect <- data.frame(env.fit$vectors$arrows)[, 1:2]
+plotDataEnvFitvect$labels <- rownames(plotDataEnvFitvect)
+plotDataEnvFitvect <- data.table(plotDataEnvFitvect)
+setnames(plotDataEnvFitvect, new = c("x", "y", "labels"))
+
+colLabs <- sort(unique(plotDataPCApoints$FIRE_NAME))
+names(colLabs) <- as.numeric(as.factor(colLabs))
+
+plot1 <- ggplot() +
+  geom_point(data = plotDataPCApoints[isForest == 1], 
+             aes(x = x, y = y, color = as.numeric(as.factor(FIRE_NAME))),
+             alpha = 0.5, size = 1) +
+  geom_segment(data = plotDataPCAvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1) +
+  geom_text(data = plotDataPCAvect,
+            aes(x = x, y = y, label = labels), 
+            size = 5, vjust = 1.2, color = "black") +
+  geom_segment(data = plotDataEnvFitvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1, linetype = "dashed") +
+  geom_text(data = plotDataEnvFitvect,
+            aes(x = x, y = y, label = labels),
+            size = 5, vjust = 1.2, color = "black") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) +
+  scale_colour_distiller(palette = "Spectral", 
+                         breaks = as.numeric(names(colLabs)), 
+                         labels = colLabs, guide = "legend") +
+  theme_pubr(base_size = 12) + 
+  theme(legend.direction = "vertical") +
+  labs(x = "PC 1", y = "PC 2", colour = "") +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+plot1Zoom <- plot1 +
+  scale_x_continuous(limits = c(-1.1,1.1)) +
+  scale_y_continuous(limits = c(-1.1,1.1))
+
+ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
+
 ```
 
+Coloured by Czone1 and NR1
+```{r summaryData_PCA_plotCzone1NR1}
+plot2 <- ggplot() +
+  geom_point(data = plotDataPCApoints[isForest == 1], 
+             aes(x = x, y = y, color = paste(Czone1, NR1, sep = " - ")),
+             alpha = 0.5, size = 1) +
+  geom_segment(data = plotDataPCAvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", 
+               size = 1) +
+  geom_text(data = plotDataPCAvect,
+            aes(x = x, y = y, label = labels), 
+            size = 5, vjust = 1.2, 
+            color =  "black") +
+  geom_segment(data = plotDataEnvFitvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color =  "black", linetype = "dashed", size = 1) +
+  geom_text(data = plotDataEnvFitvect,
+            aes(x = x, y = y, label = labels),
+            size = 5, vjust = 1.2, 
+            color =  "black") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_pubr(base_size = 12) + 
+  theme(legend.direction = "vertical") +
+  labs(x = "PC 1", y = "PC 2", colour = "") +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+plot2Zoom <- plot2 +
+  scale_x_continuous(limits = c(-1.1,1.1)) +
+  scale_y_continuous(limits = c(-1.1,1.1))
+
+ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
+```
+
+```{r savePlots, include = FALSE}
+png(filename = file.path(figDir, "PCAforestComp_climate_byFire.png"), res = 300, 
+    width = 14, height = 6, units = "in")
+ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
+dev.off()
+
+png(filename = file.path(figDir, "PCAforestComp_climate_byCzoneNR.png"), res = 300, 
+    width = 14, height = 6, units = "in")
+ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
+dev.off()
+```
+
+
 ### Now separating Foothills + Rocky Mountain from Boreal Forest + Canadian Shield
+Including elevation, slope, presence/absence of understorey in PCA then fitting environmental vectors (mean and cv of temp, rain, rh, ffmc, fwi) and severity. Species are still separate
+
 Foothills and Rocky Mountain collapsed
 Boreal Forest and Canadian Shield collapsed
 
@@ -652,6 +825,172 @@ plot(env.fit, labels = colsD)
 unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
+
+## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data AND collapsed species
+Including elevation, slope, presence/absence of understorey and CTI, crown closure and height in PCA then fitting environmental vectors (mean and cv of fire weather indices) and severity. Species were collapsed as:
+
+* Group fire resistant conifers
++ Pinu cont
++ Pinu bank
++ Pice enge
+* Group fire sensitive conifers
++ Abie lasi	
++ Abie bals
++ Pice glau
+* Group Larix
++ Lari lari	
+* Group Pice mari
++ Pice mari	
+* Group deciduous
++ Betu papy	
++ Popu trem	
++ Popu balb
+
+
+Coloured by FIRE_NAME
+```{r summaryData_PCA_plotFIRE_NAME, cache = FALSE, fig.height=8, fig.show = "hold"}
+## check if any spp has >100 cover - good
+# cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
+#              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+# summary(summaryABSK_AllData[, ..cols])
+
+## select community structure/composition variables for PCA + severity + topo + some climate variables
+cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR$|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range|Czone|NR1|NR2", 
+             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
+
+cols <- c(grep("FlamConif|Decid|Lari|Abie$", names(summaryABSK_AllData), value = TRUE),
+          grep("isForest|NonForestValue|pixID", names(summaryABSK_AllData), value = TRUE),
+          grep("SMR_ord|CROWN.*UPPER|HEIGHT.*UPPER|UNDERSTOREY", names(summaryABSK_AllData), value = TRUE),
+          grep("SEV_CONT|FIRE_NAME|Czone|NR1", names(summaryABSK_AllData), value = TRUE),
+          grep("^mean(DMC|DC|ISI|FFMC|BUI|FWI)", names(summaryABSK_AllData), value = TRUE),
+          grep("^cv(DMC|DC|ISI|FFMC|BUI|FWI)", names(summaryABSK_AllData), value = TRUE),
+          grep("PctSlope|Elevation|^CTI$", names(summaryABSK_AllData), value = TRUE))
+
+
+summaryABSK_AllData2 <- na.omit(summaryABSK_AllData[, ..cols])
+summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
+summaryABSK_AllData2[, isForest := as.factor(as.character(isForest))] ## convert to factor for dudi.mix
+summaryABSK_AllData2[, NonForestValue := as.factor(as.character(NonForestValue))] ## convert to factor for dudi.mix
+
+## make a PCA without climate/severity/pixID
+## exclude also P. banksiana, because it has no data
+cols2 <- grep("SEV_CONT|bank|mean|cv|pixID|NonForestValue|isForest|FIRE_NAME|Czone|NR1", 
+              cols, value = TRUE, invert = TRUE)
+summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
+                              , nf = 3
+                              , scannf = FALSE)
+
+## superimpose severity and climate
+cols3 <- grep("SEV_CONT|mean|cv", cols, value = TRUE)
+env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, ..cols3]))
+
+plotDataPCApoints <- data.table(summDataPCA$li)[, 1:2]
+setnames(plotDataPCApoints, new = c("x", "y"))
+plotDataPCApoints$isForest <- summaryABSK_AllData2$isForest
+plotDataPCApoints$NonForestValue <- summaryABSK_AllData2$NonForestValue
+plotDataPCApoints$FIRE_NAME <- summaryABSK_AllData2$FIRE_NAME
+plotDataPCApoints$Czone1 <- summaryABSK_AllData2$Czone1
+plotDataPCApoints$NR1 <- summaryABSK_AllData2$NR1
+
+plotDataPCAvect <- summDataPCA$co[, 1:2]
+plotDataPCAvect$labels <- rownames(plotDataPCAvect)
+plotDataPCAvect <- data.table(plotDataPCAvect)
+setnames(plotDataPCAvect, new = c("x", "y", "labels"))
+
+plotDataEnvFitvect <- data.frame(env.fit$vectors$arrows)[, 1:2]
+plotDataEnvFitvect$labels <- rownames(plotDataEnvFitvect)
+plotDataEnvFitvect <- data.table(plotDataEnvFitvect)
+setnames(plotDataEnvFitvect, new = c("x", "y", "labels"))
+
+colLabs <- sort(unique(plotDataPCApoints$FIRE_NAME))
+names(colLabs) <- as.numeric(as.factor(colLabs))
+
+plot1 <- ggplot() +
+  geom_point(data = plotDataPCApoints[isForest == 1], 
+             aes(x = x, y = y, color = as.numeric(as.factor(FIRE_NAME))),
+             alpha = 0.5, size = 1) +
+  geom_segment(data = plotDataPCAvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1) +
+  geom_text(data = plotDataPCAvect,
+            aes(x = x, y = y, label = labels), 
+            size = 5, vjust = 1.2, color = "black") +
+  geom_segment(data = plotDataEnvFitvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1, linetype = "dashed") +
+  geom_text(data = plotDataEnvFitvect,
+            aes(x = x, y = y, label = labels),
+            size = 5, vjust = 1.2, color = "black") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) +
+  scale_colour_distiller(palette = "Spectral", 
+                         breaks = as.numeric(names(colLabs)), 
+                         labels = colLabs, guide = "legend") +
+  theme_pubr(base_size = 12) + 
+  theme(legend.direction = "vertical") +
+  labs(x = "PC 1", y = "PC 2", colour = "") +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+plot1Zoom <- plot1 +
+  scale_x_continuous(limits = c(-1.1,1.1)) +
+  scale_y_continuous(limits = c(-1.1,1.1))
+
+ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
+
+```
+
+Coloured by Czone1 and NR1
+```{r summaryData_PCA_plotCzone1NR1}
+plot2 <- ggplot() +
+  geom_point(data = plotDataPCApoints[isForest == 1], 
+             aes(x = x, y = y, color = paste(Czone1, NR1, sep = " - ")),
+             alpha = 0.5, size = 1) +
+  geom_segment(data = plotDataPCAvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", 
+               size = 1) +
+  geom_text(data = plotDataPCAvect,
+            aes(x = x, y = y, label = labels), 
+            size = 5, vjust = 1.2, 
+            color =  "black") +
+  geom_segment(data = plotDataEnvFitvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color =  "black", linetype = "dashed", size = 1) +
+  geom_text(data = plotDataEnvFitvect,
+            aes(x = x, y = y, label = labels),
+            size = 5, vjust = 1.2, 
+            color =  "black") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_pubr(base_size = 12) + 
+  theme(legend.direction = "vertical") +
+  labs(x = "PC 1", y = "PC 2", colour = "") +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+plot2Zoom <- plot2 +
+  scale_x_continuous(limits = c(-1.1,1.1)) +
+  scale_y_continuous(limits = c(-1.1,1.1))
+
+ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
+```
+
+```{r savePlots, include = FALSE}
+png(filename = file.path(figDir, "PCAforestCompSppcollapse_climate_byFire.png"), res = 300, 
+    width = 14, height = 6, units = "in")
+ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
+dev.off()
+
+png(filename = file.path(figDir, "PCAforestCompSppcollapse_climate_byCzoneNR.png"), res = 300, 
+    width = 14, height = 6, units = "in")
+ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
+dev.off()
+```
+
 
 ## COMMUNITY COMPOSITION/STRUCTURE + FIRE WEATHER PCAs - simplified data
 PCAs calculated on variables of vegetation composition **and** average and covariance of temp, rain, rh, ffmc, fwi

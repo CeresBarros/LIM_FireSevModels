@@ -121,8 +121,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE_YEAR|pixID|SMR$|Elevation|Aspect|temp|rh|rai
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|Pice mari_3|Popu balb_1", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -141,8 +141,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE_YEAR|pixID|SMR$|Elevation|Aspect|temp|rh|rai
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|Pice mari_3|Popu balb_1", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -186,8 +186,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR$|Elevation|Aspect|temp|rh|rain|dmc
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|balb", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -244,8 +244,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|Elevation|Aspect|temp|rh|rain|dmc|dc|b
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|balb_1", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -294,8 +294,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|Elevation|Aspect|temp|rh|rain|dmc|dc|b
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|balb_1", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -342,8 +342,8 @@ colsA <- grep("SEV_CLASS|Patch|FIRE|pixID|Elevation|Aspect|temp|rh|rain|dmc|dc|b
 ## columns to use for PCA
 colsB <- grep("SEV_CONT|FIRE|bank|balb_1", colsA, invert = TRUE, value = TRUE)
 vegCompPCA <- ade4::dudi.mix(unique(na.omit(commCompStruc[, ..colsA]))[, ..colsB]
-                       , nf = 3
-                       , scannf = FALSE)
+                             , nf = 3
+                             , scannf = FALSE)
 env.fit <- envfit(vegCompPCA, env = unique(na.omit(commCompStruc[, ..colsA]))$SEV_CONT)
 
 # dev()
@@ -1178,8 +1178,8 @@ summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
 ## exclude also P. banksiana, because it has no data
 cols2 <- grep("mean|cv|Elev|Slope", cols, value = TRUE)
 summDataPCA <- ade4::dudi.mix(as.data.frame(summaryABSK_AllData2[, ..cols2])
-                 , nf = 3
-                 , scannf = FALSE)
+                              , nf = 3
+                              , scannf = FALSE)
 env.fit <- envfit(summDataPCA, env = as.data.frame(summaryABSK_AllData2[, SEV_CONT]))
 
 # dev()
@@ -1426,7 +1426,7 @@ cols <- grep("Aspect|^CTI$|SurfReliefRatio|PctSlope|Elevation|SEV_CONT",
 
 tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
 tablePlot$valueCuts <- cut(tablePlot$value, breaks = seq(min(tablePlot$value), max(tablePlot$value),
-                                              length.out = 10))
+                                                         length.out = 10))
 plot1 <- ggplot(tablePlot, aes(x = valueCuts, y = SEV_CONT)) +
   geom_boxplot() +
   facet_wrap(~ variable, scales = "free")
@@ -1444,7 +1444,7 @@ cols <- grep("SEV_CONT|meanFFMC|cvDMC|cvBUI|minFFMC",
 
 tablePlot <- melt(summaryABSK_AllData[, ..cols], id.vars = "SEV_CONT")
 tablePlot$valueCuts <- cut(tablePlot$value, breaks = seq(min(tablePlot$value), max(tablePlot$value),
-                                              length.out = 10))
+                                                         length.out = 10))
 plot1 <- ggplot(tablePlot, aes(x = valueCuts, y = SEV_CONT)) +
   geom_boxplot() +
   facet_wrap(~ variable, scales = "free")
@@ -1479,22 +1479,22 @@ Make variable with non forested classes:
 
 Group species as:
 * Group fire resistant conifers
-  + Pinu cont
-  + Pinu bank
-  + Pice enge
++ Pinu cont
++ Pinu bank
++ Pice enge
 * Group fire sensitive conifers
-  + Abie lasi	
-  + Abie bals
-  + Pice glau
++ Abie lasi	
++ Abie bals
++ Pice glau
 * Group Larix
-  + Lari lari	
++ Lari lari	
 * Group Pice mari
-  + Pice mari	
++ Pice mari	
 * Group deciduous
-  + Betu papy	
-  + Popu trem	
-  + Popu balb
-  
++ Betu papy	
++ Popu trem	
++ Popu balb
+
 ```{r summaryDataVeg, cache = FALSE}
 # summarise weather data - faster if not cached
 summaryABSK_AllData[, FireResConif := sum(`Pice enge`,
@@ -1511,7 +1511,7 @@ if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)
     dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
     dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
   warning("> 1 non-forest class type present")
-  
+
 collapseCols <- function(x) {
   x <- unlist(x)
   names(x) <- NULL

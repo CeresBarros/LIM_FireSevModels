@@ -281,7 +281,7 @@ rm(sampDT)
 modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
 
 ## make a binary soil moisture variable of wet vs everything else (suggested by Dave from past analyses)
-modelData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+modelData[, SMR_wet := grepl("4|5", SMR_ord)]
 
 ## check we didn't lose fires
 if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME), 

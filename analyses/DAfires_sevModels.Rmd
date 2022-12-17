@@ -163,9 +163,21 @@ summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), 
 ## calculate SMR_wet
 summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
 
+## fix Area column (not used but still)
+summaryABSK_AllData[, Area := as.integer(sub(",", "", Area))]
+
+## disturbance years and percentages should be integer
+cols <- grep("YEAR|_PER$", names(summaryABSK_AllData), value = TRUE)
+summaryABSK_AllData[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
+
+
 ## make some columns factors
-cols <- c("FIRE_NAME", "Czone1", "NR1")
+cols <- unique(c("FIRE_NAME", "Czone1", "NR1"), names(which(sapply(summaryABSK_AllData, is.character))))
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
+
+## make some columns others boolean
+cols <- c("UNDERSTOREY", "isForest", "SMR_wet")
+summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.logical), .SDcols = cols]
 
 rm(NAcols, zeroCols, ABSK_AllData, cols)
 amc::.gc()

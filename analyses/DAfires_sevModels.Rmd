@@ -70,6 +70,7 @@ if (!dir.exists(figDir))
   dir.create(figDir)
 ```
 
+
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## run dataprep:
 ABSK_AllData <- Cache(ABSKfires_DataPrep,
@@ -458,7 +459,7 @@ p0 = xi0 / (1 + xi0 + xi1) = nu / (1 + nu + tau)
 p1 = xi1 / (1 + xi0 + xi1) = tau / (1 + nu + tau)
 
 Start by adding interactions within covariate groups (vegetation, topography, climate).
-Not all possible 2-way interations were added because that made the model not converge.
+Not all possible 2-way interactions were added because that made the model not converge.
 
 ```{r addInteractions, message=FALSE, eval=FALSE}
 model5 <- gamlss(formula = SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari*HEIGHT_LOWER +
@@ -777,6 +778,8 @@ Will try removing them - going from `model7`
 I see no reason to keep DC variables in the models. They make AIC worse and lower the r2.
 Keeping SMR_ord and CTI, however may be a good idea.
 
+NOTE: 20m res analyses are no longer used.
+
 ```{r addSM_DC2, message=FALSE, eval=FALSE}
 ## RES 20M -------------------------------------
 ## hit singularity when non significant variables in model13 were removed, 
@@ -942,12 +945,14 @@ Rsq(model16)  ## worse
 ### 20 res
 The final model is `model14`.
 
+NOTE: 20m res analyses are no longer used.
+
 ### 30 res
 The model didn't improve by removing SAR/CTI, and adding DC variables decreased AIC while not improving R2.
 So, for this resolution `model8` was the best model.
 **However**, `model8` failed when using the whole dataset, or different subsets of data. So, I fit simpler models to see if I could get a more generic one. In the end, the next best model was one with a simpler random effects structure, using only "FIRE_NAME", while keeping SMR_wet and CTI - `model8.4`. This model will be submitted to validation. 
 
-```{r fullDataModel, cache = FALSE, message=FALSE, eval=FALSE}
+```{r finalModel30res, cache = FALSE, message=FALSE, eval=FALSE}
 ## not being able to fit model to another subset
 # crossValidFunction(fullDT = summaryABSK_AllData, origData = modelData,
 #                    statsModel = model8, k = 4, idCol = "pixID")

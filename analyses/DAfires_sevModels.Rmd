@@ -9,8 +9,23 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "D:/GitHub/LandscapesInMotion/")
+knitr::opts_knit$set(root.dir = normalizePath(getwd()))
 knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
+```
+
+```{r setup2, include=FALSE}
+if (!exists("pkgDir")) {
+  pkgDir <- file.path(
+    if (Sys.info()[["user"]] == "rstudio") "packages_docker" else "packages",
+    version$platform,
+    paste0(version$major, ".", strsplit(version$minor, "[.]")[[1]][1])
+  )
+  
+  if (!dir.exists(pkgDir)) {
+    dir.create(pkgDir, recursive = TRUE)
+  }
+  .libPaths(pkgDir)
+}
 
 library(data.table)
 library(reshape2)

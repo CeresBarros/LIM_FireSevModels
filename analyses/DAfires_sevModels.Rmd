@@ -1207,7 +1207,7 @@ confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, referen
 ### Proportion of burnt neighbours
 Start from last best model, and find the best buffer sizes to add to each parameter.
 ```{r burnNgbPropModels, cache = FALSE, eval=FALSE}
-model8.4 <- readRDS("analyses/DAfires_sevModels_model8_4.rds")
+model8.4 <- readRDS("analyses/model8_4.rds")
 
 upperFormula <- as.formula(paste(
   paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),

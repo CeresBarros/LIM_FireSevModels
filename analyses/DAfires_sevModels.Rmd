@@ -1389,6 +1389,47 @@ GAIC(modelNgbSev4FULL,
 # modelNgbSev4FULL  178.6594 486093.9
 ```
 
+```{r FullburnNgbPropModelScaledPreds, cache = FALSE, eval = FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+modelNgbSev4FULL4_Scaled <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                              CTI + Lari + SMR_wet + buffer_960m +
+                              re(random = ~1|FIRE_NAME, level = 0),
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                              re(random = ~1|FIRE_NAME, level = 0),
+                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                              re(random = ~1|FIRE_NAME, level = 0),
+                            tau.formula = ~isForest + isForest *
+                              UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                              Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
+                            data = na.omit(modelDataFULLScaled), 
+                            control = gamlss.control(c.crit = 0.1))
+GAIC(modelNgbSev4FULL4,
+     modelNgbSev4FULL4_Scaled,
+     k = log(nrow(na.omit(modelDataFULLScaled))))
+
+sink("analyses/modelNgbSev4FULL4Scaled_SUMMARY.txt")
+summary(modelNgbSev4FULL4_Scaled)
+sink()
+
+tiff("analyses/modelNgbSev4FULL4Scaled_RESIDS.tif")
+plot(modelNgbSev4FULL4_Scaled)
+graphics.off()
+
+saveRDS(modelNgbSev4FULL4_Scaled, "analyses/modelNgbSev4FULL4Scaled.rds")
+
+```
+
+
 #### Model validation
 Using k-fold cross validation on `modelNgbSev4FULL4` (which was fitted on the full data), with the data partitioned in 4 chunks.
 ```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
@@ -1477,6 +1518,103 @@ allCoefs[, lapply(.SD, mean), by = .(param),
          .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
 sink()
 ```
+
+On model with standardized predictors 
+HERE!!!
+```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID")
+
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+
+crossValidResults4 <- Cache(crossValidFunction,
+                            fullDT = modelDataFULLScaled,
+                            origData = na.omit(modelDataFULLScaled),
+                            statsModel = modelNgbSev4FULL4_Scaled,
+                            k = 10, idCol = "pixID",
+                            level = 0, 
+                            cacheObj1 = modelDataFULLScaled$pixID,
+                            cacheObj2 = na.omit(modelDataFULLScaled)$pixID,
+                            parallel = FALSE,
+                            workers = 2,
+                            # useCache = "overwrite", 
+                            # showSimilar = TRUE,
+                            userTags = c("validation", "modelNgbSev4FULL4_Scaled"),
+                            omitArgs = c("fullDT", "origData", "userTags", "parallel", "workers"))
+
+# crossValidResults3 <- loadFromCache(cacheId="85b6d427b43ff53d")
+## collapse results into data.tables
+allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
+allValidMetrics4[, sampID := 1:length(crossValidResults4)]
+
+allConfMatrices4 <- rbindlist(lapply(1:length(crossValidResults4), FUN = function(x) {
+  DT <- as.data.table(crossValidResults4[[x]]$confMatrix$table)
+  DT[, sampID := x]
+  DT
+}
+))
+## add identifier
+allConfMatrices4[, compareID := paste(Prediction, Reference, sep = "_")]
+
+## average confusion matrix 
+avgAllConfMatrices4 <- allConfMatrices4[, list(avgN = mean(N)), by = compareID]
+avgAllConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compareID)])[avgAllConfMatrices4, on = "compareID"]
+avgAllConfMatrices4[, compareID := NULL]
+avgAllConfMatrices4 <- dcast(avgAllConfMatrices4, Prediction ~ Reference)
+
+allRsquared4 <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$Rsquared)),
+                                 simplify = FALSE), idcol = "sampID")
+
+allRsquared4GAMLSS <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$RsqGAMLSS)),
+                                       simplify = FALSE), idcol = "sampID")
+
+allTGD <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$TGD)),
+                           simplify = FALSE), idcol = "sampID")
+
+allCoefs <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
+  mu <- as.data.table(t(x$coefs$mu))
+  sigma <- as.data.table(t(x$coefs$sigma))
+  nu <- as.data.table(t(x$coefs$nu))
+  tau <- as.data.table(t(x$coefs$tau))
+  coefsDT <- data.table(rbindlist(list(mu, sigma, nu, tau), fill = TRUE), 
+                        param = c("mu", "sigma", "nu", "tau"))
+  coefsDT
+},
+simplify = FALSE), idcol = "sampID")
+
+## save
+sink("analyses/modelNgbSev4FULL4Scaled_crossValidOutputs.txt")
+print("Validation metrics")
+allValidMetrics4
+print("******************")
+print("Averaged confusion matrices")
+avgAllConfMatrices4
+print("******************")
+print("R squared")
+allRsquared4
+print("******************")
+print("R squared GAMLSS")
+allRsquared4GAMLSS
+print("******************")
+print("TGD")
+allTGD
+print("******************")
+print("Coefficients mean")
+allCoefs[, lapply(.SD, mean), by = .(param),
+         .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
+print("Coefficients SD")
+allCoefs[, lapply(.SD, mean), by = .(param),
+         .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
+sink()
+```
+
 
 Plot cross-validation results against model metrics
 ```{r crossValidPlots}

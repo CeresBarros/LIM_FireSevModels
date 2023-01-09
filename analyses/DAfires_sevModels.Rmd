@@ -70,7 +70,6 @@ if (!dir.exists(figDir))
   dir.create(figDir)
 ```
 
-
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## run dataprep:
 ABSK_AllData <- Cache(ABSKfires_DataPrep,
@@ -460,7 +459,7 @@ GAIC(modelNULL,
 Go back to "standard" GAMLSS, since GAMLSS Inf did not improve models. The advantage of using GAMLSS is that more methods are available. Also, because we are using a beta inflates distribution there's not much gain in using `gamlssInf0to1`.
 We can use re() again.
 
-The coefficients are pratically the same (between GAMLSS and GAMLSSInf)
+The coefficients are practically the same (between GAMLSS and GAMLSSInf)
 
 We can get the fitted probabilities at 0 (p0) and 1 (p1) by reversing the following equations:
 xi0 = nu = p0 / (1 + p0 + p1)

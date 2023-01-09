@@ -1647,7 +1647,7 @@ crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
              colour = "darkred", show.legend = FALSE) +
   theme_pubr(base_size = 16) +
   theme(strip.text = element_blank()) +
-  scale_x_discrete(labels = c("1" = "R-squared", "2" = "TGD")) +
+  scale_x_discrete(labels = c("1" = "R-squared", "2" = "Global deviance")) +
   labs(y = "value", x = "") +
   facet_wrap(~ metric, scales = "free")
 

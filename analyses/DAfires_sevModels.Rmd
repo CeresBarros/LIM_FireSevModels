@@ -1535,10 +1535,11 @@ sink()
 
 On model with standardized predictors 
 HERE!!!
-```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
+```{r crossValidationBurnNgbPropScaled, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID")
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
 cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",

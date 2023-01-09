@@ -461,9 +461,9 @@ We can use re() again.
 
 The coefficients are practically the same (between GAMLSS and GAMLSSInf)
 
-We can get the fitted probabilities at 0 (p0) and 1 (p1) by reversing the following equations:
-xi0 = nu = p0 / (1 + p0 + p1)
-xi1 = tau = p1 / (1 + p0 + p1)
+We can get the fitted probabilities at 0 [P(Y=0) = p0] and 1 [P(Y=1) 0 p1] by reversing the following equations:
+$$xi0 = \nu = \frac{p0}{1 + p0 + p1}$$
+$$xi1 = \tau = \frac{p1}{1 + p0 + p1}$$
 
 hence,
 p0 = xi0 / (1 + xi0 + xi1) = nu / (1 + nu + tau)

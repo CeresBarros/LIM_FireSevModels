@@ -466,8 +466,23 @@ $$xi0 = \nu = \frac{p0}{1 + p0 + p1}$$
 $$xi1 = \tau = \frac{p1}{1 + p0 + p1}$$
 
 hence,
-p0 = xi0 / (1 + xi0 + xi1) = nu / (1 + nu + tau)
-p1 = xi1 / (1 + xi0 + xi1) = tau / (1 + nu + tau)
+$$xi0 = \nu = \frac{p0}{1 + p0 + p1}$$
+
+and 
+$$p0 = \frac{xi0}{1 + xi0 + xi1} = \frac{\nu}{1 + \nu + \tau}$$
+$$p1 = \frac{xi1}{1 + xi0 + xi1} = \frac{\tau}{1 + \nu + \tau}$$
+
+To calculate the expected variance of the full BEINF (see Distributions for Modeling Location, Scale, and Shape: Using GAMLSS in R, and Ospina and Ferrari 2010 Statistical Papers):
+
+$$Var(Y) = \alpha * V_1 + (1 - \alpha) * V_2 + \alpha * (1 - \alpha) * (\gamma - \mu)^2$$
+where,
+$$ V_1 = \gamma * (1 - \gamma)$$
+$$V_2 = \frac{V(\mu)}{\sigma + 1}$$
+$$V(\mu) = \mu * (1 - \mu)$$
+and,
+
+$$\gamma = \frac{p1}{\alpha} = \frac{\tau * (1 + \nu + \tau)}{(\nu + \tau) * (1 + \nu + \tau)}$$
+$$\alpha = p0 + p1 = \frac{\nu + \tau}{1 + \nu + \tau}$$
 
 Start by adding interactions within covariate groups (vegetation, topography, climate).
 Not all possible 2-way interactions were added because that made the model not converge.
@@ -1647,6 +1662,7 @@ Probabilities of 0s and 1s in function of covariates:
 $$xi0 = \nu = \frac{p0}{1 + p0 + p1}$$
 $$xi1 = \tau = \frac{p1}{1 + p0 + p1}$$
 where *xi0* and *xi1* are the `gamlssInf0to1` equivalents of $\nu$ and $\tau$.
+See above for variance (Var(Y)) of the zero- and one-inflated Beta regression.
 
 ### General effects
 Only significant covariates are plotted

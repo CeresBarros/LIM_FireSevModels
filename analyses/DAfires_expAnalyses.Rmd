@@ -9,7 +9,7 @@ editor_options:
 ---
 
 ```{r setup, include = FALSE, cache = FALSE}
-knitr::opts_knit$set(root.dir = "D:/GitHub/LandscapesInMotion/")
+knitr::opts_knit$set(root.dir = "~/LandscapesInMotion")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, cache = 2)
 library(ggplot2)
 library(factoextra)

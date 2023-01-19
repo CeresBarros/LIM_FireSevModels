@@ -1677,14 +1677,14 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
 
 ## need to provide "newdata" to get marginal means
 plotData <-  na.omit(summaryABSK_AllData[, cols, with = FALSE])
-plotData$nuPred <- predict(modelNgbSev4FULL4, "nu", type = "response", newdata = plotData[, cols, with = FALSE])
-plotData$tauPred <- predict(modelNgbSev4FULL4, "tau", type = "response", newdata = plotData[, cols, with = FALSE])
-plotData[ , `:=`(p0 = nuPred / (1 + nuPred + tauPred),
-                 p1 = tauPred / (1 + nuPred + tauPred))]
 plotData[, muPred := predict(modelNgbSev4FULL4, "mu", type = "response", newdata = plotData[, cols, with = FALSE])]
-plotData[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
-plotData[, fittedValsScale := predict(modelNgbSev4FULL4, what = "sigma", type = "response", newdata = plotData[, cols, with = FALSE])]
-plotData[, varY := (muPred*(1 - muPred))/(1 + fittedValsScale)]
+plotData[, sigmaPred := predict(modelNgbSev4FULL4, "sigma", type = "response", newdata = plotData[, cols, with = FALSE])]
+plotData[, nuPred := predict(modelNgbSev4FULL4, "nu", type = "response", newdata = plotData[, cols, with = FALSE])]
+plotData[, tauPred := predict(modelNgbSev4FULL4, "tau", type = "response", newdata = plotData[, cols, with = FALSE])]
+plotData[ , `:=`(p0 = calcP0BEINF(nuPred, tauPred),
+                 p1 = calcP1BEINF(nuPred, tauPred),
+                 fittedVals = calcMeanBEINF(muPred, nuPred, tauPred),
+                 varY = calcVarBEINF(muPred, sigmaPred, nuPred, tauPred))]
 ```
 
 #### Plots of probabilities at 0 and 1 vs. covariates
@@ -2048,8 +2048,8 @@ varplot1 <- ggplot(plotData, aes(x = Decid, y = varY,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Deciduous * understorey\n GAM smoother",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), 
+  labs(title = "Var(Severity) ~ %Deciduous * understorey\n GAM smoother",
+       y = "Expected variance", 
        x = "% cover", colour = "height", 
        linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -2060,8 +2060,8 @@ varplot2 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = varY)) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ SoilMoisture\n(GLM logit smoother)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), x = "soil moisture (SMR)")
+  labs(title = "Var(Severity) ~ SoilMoisture\n(GLM logit smoother)",
+       y = "Expected variance", x = "soil moisture (SMR)")
 
 varplot3 <- ggplot(plotData, 
                    aes(x = buffer_1920m, y = varY)) +
@@ -2069,8 +2069,8 @@ varplot3 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh. burns (1920m)\n GAM smoother",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), x = "prop. neigh. burnt")
+  labs(title = "Var(Severity) ~ neigh. burns (1920m)\n GAM smoother",
+       y = "Expected variance", x = "prop. neigh. burnt")
 
 varplot4 <- ggplot(plotData, 
                    aes(x = buffer_1920m, y = varY)) +
@@ -2084,8 +2084,8 @@ varplot4 <- ggplot(plotData,
                   force = 50) +
   scale_color_distiller(palette = "Spectral") +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh. burns (1920m)\n GAM smoother",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), x = "prop. neigh. burnt")
+  labs(title = "Var(Severity) ~ neigh. burns (1920m)\n GAM smoother",
+       y = "Expected variance", x = "prop. neigh. burnt")
 
 ## effects via mu:
 varplot5 <- ggplot(plotData, aes(x = CTI, y = varY)) +
@@ -2094,16 +2094,19 @@ varplot5 <- ggplot(plotData, aes(x = CTI, y = varY)) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ Wetness\n GAM smoother",
-       x = "CTI", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))))
+  labs(title = "Var(Severity) ~ Wetness\n GAM smoother",
+       x = "CTI", y = "Expected variance")
 
-varplot6 <- ggplot(plotData, aes(x = Lari, y = varY)) +
+## includes effects of understorey and eight via tau
+varplot6 <- ggplot(plotData, aes(x = Lari, y = varY,
+                                 linetype = as.factor(UNDERSTOREY),
+                                colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Larch\n GAM smoother",
-       x = "% cover", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))))
+  labs(title = "Var(Severity) ~ %Larch * Height\n GAM smoother",
+       x = "Expected variance", colour = "height", linetype = "understorey")
 
 varplot7 <- ggplot(plotData, 
                    aes(x = buffer_960m, y = varY)) +
@@ -2111,16 +2114,66 @@ varplot7 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh, burns (960m)\n GAM smoother",
-       x = "prop. neigh. burnt", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))))
+  labs(title = "Var(Severity) ~ neigh, burns (960m)\n GAM smoother",
+       x = "prop. neigh. burnt", y = "Expected variance")
 
-png(file.path(figDir, "varSevPlots_DAfires_sevModels.png"), height = 15, width = 15,
+## effects via nu:
+varplot8 <- ggplot(plotData, 
+                   aes(x = FlamConif, y = varY)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ %FlamConifer\n GAM smoother",
+       x = "% cover", y = "Expected variance")
+
+varplot9 <- ggplot(plotData, 
+                   aes(x = SurfReliefRatio, y = varY)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ Roughness (SRR)\n GAM smoother",
+       x = "% roughness", y = "Expected variance")
+
+varplot10 <- ggplot(plotData, 
+                   aes(x = buffer_30m, y = varY)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
+  scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ neigh. burns (30m)\n GAM smoother",
+       x = "prop. neigh. burnt", y = "Expected variance")
+
+varplot11 <- ggplot(plotData, 
+                   aes(x = as.integer(isForest), y = varY, 
+                       linetype = as.factor(UNDERSTOREY))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
+  scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
+  scale_x_continuous(breaks = c(0,1), labels = c("0" = "not forest", "1" = "forest")) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ isForest * understorey\n(GLM logit smoother)",
+       x = "", y = "Expected variance", linetype = "understorey") +
+  guides(linetype = guide_legend(override.aes = list(colour = "black")))
+
+## order follows veg, moisture, forest, topo and neighbourhood
+png(file.path(figDir, "varSevPlots_DAfires_sevModels.png"), height = 20, width = 15,
     units = "in", res = 300)
-ggarrange(varplot1, varplot2, varplot3, 
-          varplot4, varplot5, varplot6,
-          varplot7,
-          nrow = 3, ncol = 3,
-          font.label = list(size = 16))
+ggarrange(
+  varplot1, #Decid
+  varplot2, #SMR
+  varplot3, #buffer_1920m
+  varplot4, #buffer_1920m (with fireID)
+  varplot5, #CTI
+  varplot6, #Lari
+  varplot7, #buffer_960
+  varplot8, #Flamconif
+  varplot9, #SRR
+  varplot10, #buffer_30m
+  varplot11, #isForest
+  nrow = 4, ncol = 3,
+  font.label = list(size = 16))
 dev.off()
 ```
 
@@ -2129,18 +2182,18 @@ dev.off()
 ## wrapper function
 PEFwrapper <- function(obj, DT, term, fixed.at = list()) {
   DT2 <- copy(DT)
+  DT2$muPred <- getPEF.own(obj, parameter = "mu", term = term, fixed.at = fixed.at,
+                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  DT2$sigmaPred <- getPEF.own(obj, parameter = "sigma", term = term, fixed.at = fixed.at,
+                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
   DT2$nuPred <- getPEF.own(obj, parameter = "nu", term = term, fixed.at = fixed.at,
                            type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
   DT2$tauPred <- getPEF.own(obj, parameter = "tau", term = term, fixed.at = fixed.at,
                             type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2[ , `:=`(p0 = nuPred / (1 + nuPred + tauPred),
-              p1 = tauPred / (1 + nuPred + tauPred))]
-  DT2$muPred <- getPEF.own(obj, parameter = "mu", term = term, fixed.at = fixed.at,
-                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2[, fittedVals := calcMeanBEINF(muPred, nuPred, tauPred)]
-  DT2$fittedValsScale <- getPEF.own(obj, parameter = "sigma", term = term, fixed.at = fixed.at,
-                                    type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2[, varY := (muPred*(1 - muPred))/(1 + fittedValsScale)]
+  DT2[, `:=`(fittedVals = calcMeanBEINF(muPred, nuPred, tauPred),
+             p0 = calcP0BEINF(nuPred, tauPred),
+             p1 = calcP1BEINF(nuPred, tauPred),
+             varY = calcVarBEINF(muPred, sigmaPred, nuPred, tauPred))]
   return(DT2)
 }
 ```
@@ -2780,12 +2833,12 @@ varPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   scale_linetype_manual(values = c("FALSE" = "dotted", "TRUE" = "solid")) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Deciduous * Height (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))),
+  labs(title = "Var(Severity) ~ %Deciduous * Height (PEF)",
+       y = "Expected variance",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-
+## the following also includes effect via nu
 plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
 plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
@@ -2794,11 +2847,11 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot2 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ SoilMoisture (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))),
+  labs(title = "Var(Severity) ~ SoilMoisture (PEF)",
+       y = "Expected variance",
        x = "soil moisture (SMR)", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -2811,11 +2864,11 @@ plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot3 <- ggplot(plotData, 
                       aes(x = buffer_1920m, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh. burns (1920m) (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), 
+  labs(title = "Var(Severity) ~ neigh. burns (1920m) (PEF)",
+       y = "Expected variance", 
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -2828,26 +2881,32 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ Wetness (PEF)",
-       x = "CTI", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ Wetness (PEF)",
+       x = "CTI", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
-                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari",
-                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
-plotData$UNDERSTOREY <- FALSE
-plotData2$UNDERSTOREY <- TRUE
-plotData <- rbind(plotData, plotData2)
+## includes effect of height from tau
+plotData <- mapply(FUN = function(x, y) {
+  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+                   fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
+  DT$UNDERSTOREY <- x
+  DT$HEIGHT_LOWER <- y
+  DT
+},
+x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
+plotData <- rbindlist(plotData)
+
 varPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
-  scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), 
+                colour = as.factor(HEIGHT_LOWER)), size = 1.5) +  
+  scale_y_continuous(limits = c(0,1)) +
+  scale_linetype_manual(values = c("FALSE" = "dotted", "TRUE" = "solid")) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Larch (PEF)",
-       x = "% cover", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ %Larch * Height (PEF)", y = "Expected variance",
+       x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
@@ -2859,24 +2918,116 @@ plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot6 <- ggplot(plotData, 
                       aes(x = buffer_960m, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh, burns (960m) (PEF)",
-       x = "prop. neigh. burnt", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ neigh, burns (960m) (PEF)",
+       x = "prop. neigh. burnt", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-png(file.path(figDir, "varSevPEFPlots_DAfires_sevModels.png"), height = 10, width = 10,
+## variance - nu covariates
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() +
+  labs(title = "Var(Severity) ~ %FlamConifer (PEF)",
+       x = "% cover", y = "Expected variance", linetype = "understorey") +
+  guides(linetype = guide_legend(override.aes = list(colour = "black")))
+
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ Roughness (SRR) (PEF)",
+       x = "% roughness", y = "Expected variance", linetype = "understorey")
+
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ neigh. burns (30m) (PEF)",
+       x = "prop. neigh. burnt", y = "Expected variance",
+       linetype = "understorey") +
+  guides(linetype = guide_legend(override.aes = list(colour = "black")))
+
+## variance - tau covariates
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+                       fixed.at = list("UNDERSTOREY" = FALSE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+                        fixed.at = list("UNDERSTOREY" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varPEFplot10 <- ggplot(plotData, aes(x = as.factor(isForest), y = varY)) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
+  scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ isForest (PEF)",
+       x = "", y = "Expected variance", shape = "understorey")
+
+legPlot <- get_legend(varPEFplot1 + 
+                        geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
+                        theme(legend.box = "vertical") +
+                        labs(shape = "understorey") +
+                        guides(linetype = guide_legend(order = 1),
+                               shape = guide_legend(order = 2)))
+
+## order follows veg, moisture, forest, topo and neighbourhood
+png(file.path(figDir, "varSevPEFPlots_DAfires_sevModels1.png"), height = 10, width = 10,
     units = "in", res = 300)
-ggarrange(varPEFplot1 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varPEFplot5 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varPEFplot2 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varPEFplot4 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varPEFplot3 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varPEFplot6 + scale_y_continuous(limits = c(0.15, 0.2)),
-          nrow = 3, ncol = 2,  
-          common.legend = TRUE, legend = "bottom",
-          font.label = list(size = 16))
+ggarrange(
+  varPEFplot1 + scale_y_continuous(limits = c(0, 0.25)), #Decid
+  varPEFplot7 + scale_y_continuous(limits = c(0, 0.25)), #FlamConif
+  varPEFplot5 + scale_y_continuous(limits = c(0, 0.25)), #Lari
+  varPEFplot2 + scale_y_continuous(limits = c(0, 0.25)), #smr
+  varPEFplot10 + scale_y_continuous(limits = c(0, 0.25)), #isForest
+  as_ggplot(legPlot),
+  nrow = 3, ncol = 2,  
+  common.legend = TRUE, legend = "none",
+  font.label = list(size = 16)
+)
+dev.off()
+
+legPlot <- get_legend(varPEFplot4 + 
+                        theme(legend.box = "vertical") +
+                        labs(shape = "understorey") +
+                        guides(linetype = guide_legend(order = 1),
+                               shape = guide_legend(order = 2)))
+png(file.path(figDir, "varSevPEFPlots_DAfires_sevModels2.png"), height = 10, width = 10,
+    units = "in", res = 300)
+ggarrange(
+  varPEFplot4 + scale_y_continuous(limits = c(0, 0.25)), #cti
+  varPEFplot8 + scale_y_continuous(limits = c(0, 0.25)), #SurfReliefRatio
+  varPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #buffer_30m
+  varPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #buffer_960m
+  varPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #buffer_1920m
+  as_ggplot(legPlot),
+  nrow = 3, ncol = 2,  
+  common.legend = TRUE, legend = "none",
+  font.label = list(size = 16)
+)
 dev.off()
 ```
 
@@ -3493,7 +3644,7 @@ dev.off()
 #### Partial effects on variance - non-forest pixels
 Showing partial effects in non-forested pixels only, except when isForest was significant
 Note that because $\mu$ and $\sigma$ both influence the variance, we need to plot it against all $\mu$ and $\sigma$ covariates.
-```{r fittedScalePEFPlotsNonForest}
+```{r VarYPEFPlotsNonForest}
 ## variance - sigma covariates
 ## this plot includes the effect of height from mu
 plotData <- mapply(FUN = function(x, y) {
@@ -3512,8 +3663,8 @@ varNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   scale_linetype_manual(values = c("FALSE" = "dotted", "TRUE" = "solid")) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Deciduous * Height (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))),
+  labs(title = "Var(Severity) ~ %Deciduous * Height (PEF)",
+       y = "Expected variance",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -3526,11 +3677,11 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot2 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ SoilMoisture (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))),
+  labs(title = "Var(Severity) ~ SoilMoisture (PEF)",
+       y = "Expected variance",
        x = "soil moisture (SMR)", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -3543,11 +3694,11 @@ plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot3 <- ggplot(plotData, 
                         aes(x = buffer_1920m, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh. burns (1920m) (PEF)",
-       y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), 
+  labs(title = "Var(Severity) ~ neigh. burns (1920m) (PEF)",
+       y = "Expected variance", 
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -3560,26 +3711,30 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ Wetness (PEF)",
-       x = "CTI", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ Wetness (PEF)",
+       x = "CTI", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
-                       fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari",
-                        fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
-plotData$UNDERSTOREY <- FALSE
-plotData2$UNDERSTOREY <- TRUE
-plotData <- rbind(plotData, plotData2)
+plotData <- mapply(FUN = function(x, y) {
+  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+                   fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
+  DT$UNDERSTOREY <- x
+  DT$HEIGHT_LOWER <- y
+  DT
+},
+x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
+plotData <- rbindlist(plotData)
+
 varNFPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), 
+                colour = as.factor(HEIGHT_LOWER)), size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ %Larch (PEF)",
-       x = "% cover", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ %Larch (PEF)",
+       x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
@@ -3591,24 +3746,116 @@ plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot6 <- ggplot(plotData, 
                         aes(x = buffer_960m, y = varY)) +
-  geom_line(aes(linetype = UNDERSTOREY), size = 1.5) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "var(Severity) ~ neigh, burns (960m) (PEF)",
-       x = "prop. neigh. burnt", y = expression(atop("Variance", over(mu*(1-mu), 1+sigma))), linetype = "understorey") +
+  labs(title = "Var(Severity) ~ neigh, burns (960m) (PEF)",
+       x = "prop. neigh. burnt", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-png(file.path(figDir, "varSevPEFPlotsNotForest_DAfires_sevModels.png"), height = 10, width = 10,
+## variance - nu covariates
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varNFPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() +
+  labs(title = "Var(Severity) ~ %FlamConifer (PEF)",
+       x = "% cover", y = "Expected variance", linetype = "understorey") +
+  guides(linetype = guide_legend(override.aes = list(colour = "black")))
+
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varNFPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ Roughness (SRR) (PEF)",
+       x = "% roughness", y = "Expected variance", linetype = "understorey")
+
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                       fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+                        fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1.5) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ neigh. burns (30m) (PEF)",
+       x = "prop. neigh. burnt", y = "Expected variance",
+       linetype = "understorey") +
+  guides(linetype = guide_legend(override.aes = list(colour = "black")))
+
+## variance - tau covariates
+plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+                       fixed.at = list("UNDERSTOREY" = FALSE))
+plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+                        fixed.at = list("UNDERSTOREY" = TRUE))
+plotData$UNDERSTOREY <- FALSE
+plotData2$UNDERSTOREY <- TRUE
+plotData <- rbind(plotData, plotData2)
+varNFPEFplot10 <- ggplot(plotData, aes(x = as.factor(isForest), y = varY)) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
+  scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr() + 
+  labs(title = "Var(Severity) ~ isForest (PEF)",
+       x = "", y = "Expected variance", shape = "understorey")
+
+legPlot <- get_legend(varNFPEFplot1 + 
+                        geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
+                        theme(legend.box = "vertical") +
+                        labs(shape = "understorey") +
+                        guides(linetype = guide_legend(order = 1),
+                               shape = guide_legend(order = 2)))
+
+## order follows veg, moisture, forest, topo and neighbourhood
+png(file.path(figDir, "varSevPEFPlotsNotForest_DAfires_sevModels1.png"), height = 10, width = 10,
     units = "in", res = 300)
-ggarrange(varNFPEFplot1 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varNFPEFplot5 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varNFPEFplot2 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varNFPEFplot3 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varNFPEFplot4 + scale_y_continuous(limits = c(0.15, 0.2)), 
-          varNFPEFplot6 + scale_y_continuous(limits = c(0.15, 0.2)),
-          nrow = 3, ncol = 2,  
-          common.legend = TRUE, legend = "bottom",
-          font.label = list(size = 16))
+ggarrange(
+  varNFPEFplot1 + scale_y_continuous(limits = c(0, 0.25)), #Decid
+  varNFPEFplot7 + scale_y_continuous(limits = c(0, 0.25)), #FlamConif
+  varNFPEFplot5 + scale_y_continuous(limits = c(0, 0.25)), #Lari
+  varNFPEFplot2 + scale_y_continuous(limits = c(0, 0.25)), #smr
+  varNFPEFplot10 + scale_y_continuous(limits = c(0, 0.25)), #isForest
+  as_ggplot(legPlot),
+  nrow = 3, ncol = 2,  
+  common.legend = TRUE, legend = "none",
+  font.label = list(size = 16)
+)
+dev.off()
+
+legPlot <- get_legend(varNFPEFplot4 + 
+                        theme(legend.box = "vertical") +
+                        labs(shape = "understorey") +
+                        guides(linetype = guide_legend(order = 1),
+                               shape = guide_legend(order = 2)))
+png(file.path(figDir, "varSevPEFPlotsNotForest_DAfires_sevModels2.png"), height = 10, width = 10,
+    units = "in", res = 300)
+ggarrange(
+  varNFPEFplot4 + scale_y_continuous(limits = c(0, 0.25)), #cti
+  varNFPEFplot8 + scale_y_continuous(limits = c(0, 0.25)), #SurfReliefRatio
+  varNFPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #buffer_30m
+  varNFPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #buffer_960m
+  varNFPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #buffer_1920m
+  as_ggplot(legPlot),
+  nrow = 3, ncol = 2,  
+  common.legend = TRUE, legend = "none",
+  font.label = list(size = 16)
+)
 dev.off()
 ```
 

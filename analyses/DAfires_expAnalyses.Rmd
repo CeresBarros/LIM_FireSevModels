@@ -55,9 +55,10 @@ ABSK_AllData <- Cache(ABSKfires_DataPrep,
                       vegDataPath = "data/fires_Dave/prefireVeg",
                       topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
                       weatherDataPath = "data/fires_Dave/fireWeather",
-                      resolution = 30,  ## cacheId = "468b1d728b735352"
-                      doCache = doCache, bindAllFires = FALSE, 
-                      userTags = "ABSKfires_DataPrep", 
+                      resolution = 30, ## cacheId = "468b1d728b735352"
+                      doCache = doCache, bindAllFires = FALSE,
+                      # useCache = FALSE,
+                      userTags = "ABSKfires_DataPrep",
                       omitArgs = c("bindAllFires", "doCache", "userTags"))
 
 ## exclude event perimeter patch type
@@ -83,9 +84,9 @@ ABSK_AllData[SMR == "A", SMR_ord := 5]
 ABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
 ```
 
-## NOTES - meeting with Dave Dec 6th
-Carefull with no. of variables and sample size
-Weather variables: how to look at it? Weather at the begining, middle, end? Only averages like Colin did? Averages, variation?
+## NOTES - meeting with Dave Dec 6th 2018
+Careful with no. of variables and sample size
+Weather variables: how to look at it? Weather at the beginning, middle, end? Only averages like Colin did? Averages, variation?
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs
 PCA of dominant species percentage cover and height across all fire event patch types. 
@@ -557,15 +558,13 @@ summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), 
 summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
 
 ## make some columns factors
-cols <- c("FIRE_NAME", "Czone1", "NR1")
+cols <- c("FIRE_NAME", "Czone1", "NR1", "NonForestValue")
 summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
-
-
 amc::.gc()
 ```
 
 ## COMMUNITY COMPOSITION/STRUCTURE PCAs - simplified data
-Including elevation, slope, presence/absence of understorey and CTI, crown closure and heightin PCA then fitting environmental vectors (mean and cv of fire weather indices) and severity. Species are still separate
+Including elevation, slope, presence/absence of understorey and CTI, crown closure and height in PCA then fitting environmental vectors (mean and cv of fire weather indices) and severity. Species are still separate
 
 Coloured by FIRE_NAME
 ```{r summaryData_PCA_plotFIRE_NAME, cache = FALSE, fig.height=8, fig.show = "hold"}
@@ -575,9 +574,6 @@ Coloured by FIRE_NAME
 # summary(summaryABSK_AllData[, ..cols])
 
 ## select community structure/composition variables for PCA + severity + topo + some climate variables
-cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR$|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range|Czone|NR1|NR2", 
-             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-
 cols <- c(grep("^(Popu|Pinu|Lari|Pice|Abie |Betu)", names(summaryABSK_AllData), value = TRUE),
           grep("isForest|NonForestValue|pixID", names(summaryABSK_AllData), value = TRUE),
           grep("SMR_ord|CROWN.*UPPER|HEIGHT.*UPPER|UNDERSTOREY", names(summaryABSK_AllData), value = TRUE),
@@ -856,9 +852,6 @@ Coloured by FIRE_NAME
 # summary(summaryABSK_AllData[, ..cols])
 
 ## select community structure/composition variables for PCA + severity + topo + some climate variables
-cols <- grep("SEV_CLASS|Patch|FIRE|pixID|SMR$|Aspect|DMC|DC|BUI|WS|JulDay|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre\\.|CTI|Curv|SCOS|SSIN|Surf|TRASP|DegSlope|SlopePosition|Prov|Long|Lat|SPEC|STAND|SITE|min|max|range|Czone|NR1|NR2", 
-             names(summaryABSK_AllData), invert = TRUE, value = TRUE)
-
 cols <- c(grep("FlamConif|Decid|Lari|Abie$", names(summaryABSK_AllData), value = TRUE),
           grep("isForest|NonForestValue|pixID", names(summaryABSK_AllData), value = TRUE),
           grep("SMR_ord|CROWN.*UPPER|HEIGHT.*UPPER|UNDERSTOREY", names(summaryABSK_AllData), value = TRUE),

@@ -973,6 +973,66 @@ plot2Zoom <- plot2 +
 ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
 ```
 
+Coloured by SMR
+```{r summaryData2_PCA_plotSMR, fig.height=8, fig.show = "hold"}
+plotDataPCApoints <- data.table(summDataPCA$li)[, 1:2]
+setnames(plotDataPCApoints, new = c("x", "y"))
+plotDataPCApoints$isForest <- summaryABSK_AllData2$isForest
+plotDataPCApoints$NonForestValue <- summaryABSK_AllData2$NonForestValue
+plotDataPCApoints$FIRE_NAME <- summaryABSK_AllData2$FIRE_NAME
+plotDataPCApoints$Czone1 <- summaryABSK_AllData2$Czone1
+plotDataPCApoints$NR1 <- summaryABSK_AllData2$NR1
+plotDataPCApoints$SMR_ord <- summaryABSK_AllData2$SMR_ord
+
+plotDataPCAvect <- summDataPCA$co[, 1:2]
+plotDataPCAvect$labels <- rownames(plotDataPCAvect)
+plotDataPCAvect <- data.table(plotDataPCAvect)
+setnames(plotDataPCAvect, new = c("x", "y", "labels"))
+
+plotDataEnvFitvect <- data.frame(env.fit$vectors$arrows)[, 1:2]
+plotDataEnvFitvect$labels <- rownames(plotDataEnvFitvect)
+plotDataEnvFitvect <- data.table(plotDataEnvFitvect)
+setnames(plotDataEnvFitvect, new = c("x", "y", "labels"))
+
+colLabs <- sort(unique(plotDataPCApoints$SMR_ord))
+names(colLabs) <- as.numeric(as.factor(colLabs))
+
+plot3 <- ggplot() +
+  geom_point(data = plotDataPCApoints[isForest == 1], 
+             aes(x = x, y = y, color = SMR_ord),
+             alpha = 0.5, size = 1) +
+  geom_segment(data = plotDataPCAvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1) +
+  geom_text(data = plotDataPCAvect,
+            aes(x = x, y = y, label = labels), 
+            size = 5, vjust = 1.2, color = "black") +
+  geom_segment(data = plotDataEnvFitvect,
+               aes(x = 0, y = 0, xend = x, yend = y),
+               arrow = arrow(length = unit(0.2, "cm")), 
+               color = "black", size = 1, linetype = "dashed") +
+  geom_text(data = plotDataEnvFitvect,
+            aes(x = x, y = y, label = labels),
+            size = 5, vjust = 1.2, color = "black") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) +
+  scale_colour_brewer(palette = "Spectral", 
+                      breaks = as.numeric(names(colLabs)), 
+                      labels = colLabs, guide = "legend") +
+  theme_pubr(base_size = 12) + 
+  theme(legend.direction = "vertical") +
+  labs(x = "PC 1", y = "PC 2", colour = "SMR") +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+plot3Zoom <- plot3 +
+  scale_x_continuous(limits = c(-1.1,1.1)) +
+  scale_y_continuous(limits = c(-1.1,1.1))
+
+ggarrange(plot3, plot3Zoom, common.legend = TRUE, legend = "right")
+```
+
+
 ```{r savePlots, include = FALSE}
 png(filename = file.path(figDir, "PCAforestCompSppcollapse_climate_byFire.png"), res = 300, 
     width = 14, height = 6, units = "in")
@@ -982,6 +1042,11 @@ dev.off()
 png(filename = file.path(figDir, "PCAforestCompSppcollapse_climate_byCzoneNR.png"), res = 300, 
     width = 14, height = 6, units = "in")
 ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
+dev.off()
+
+png(filename = file.path(figDir, "PCAforestCompSppcollapse_climate_bySMR.png"), res = 300, 
+    width = 14, height = 6, units = "in")
+ggarrange(plot3, plot3Zoom, common.legend = TRUE, legend = "right")
 dev.off()
 ```
 

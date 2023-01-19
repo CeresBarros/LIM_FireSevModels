@@ -695,7 +695,7 @@ plot2Zoom <- plot2 +
 ggarrange(plot2, plot2Zoom, common.legend = TRUE, legend = "right")
 ```
 
-```{r savePlots, include = FALSE}
+```{r savePlots2, include = FALSE}
 png(filename = file.path(figDir, "PCAforestComp_climate_byFire.png"), res = 300, 
     width = 14, height = 6, units = "in")
 ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
@@ -845,7 +845,7 @@ Including elevation, slope, presence/absence of understorey and CTI, crown closu
 
 
 Coloured by FIRE_NAME
-```{r summaryData_PCA_plotFIRE_NAME, cache = FALSE, fig.height=8, fig.show = "hold"}
+```{r summaryData2_PCA_plotFIRE_NAME, fig.height=8, fig.show = "hold"}
 ## check if any spp has >100 cover - good
 # cols <- grep("SEV|Patch|FIRE|pixID|SMR|Elevation|Aspect|Temp|RH|Rain|DMC|DC|BUI|FWI|WS|JulDay|FFMC|ISI|DIST|NON|LAYER|WET|ORIG|PROD|Duration|Area|fire|ID|Pre.|CTI|Curv|Slope|SCOS|SSIN|Surf|TRASP|Prov|Long|Lat|SPEC|STAND|SITE|CROWN|HEIGHT|UNDER", 
 #              names(summaryABSK_AllData), invert = TRUE, value = TRUE)
@@ -936,7 +936,7 @@ ggarrange(plot1, plot1Zoom, common.legend = TRUE, legend = "right")
 ```
 
 Coloured by Czone1 and NR1
-```{r summaryData_PCA_plotCzone1NR1}
+```{r summaryData2_PCA_plotCzone1NR1, fig.height=8, fig.show = "hold"}
 plot2 <- ggplot() +
   geom_point(data = plotDataPCApoints[isForest == 1], 
              aes(x = x, y = y, color = paste(Czone1, NR1, sep = " - ")),
@@ -1521,7 +1521,7 @@ summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by
 
 ### COMMUNITY COMPOSITION/STRUCTURE PCAs - FOOTHILLS AND BOREAL SEPARATED
 
-```{r FootVsBoreal_summaryData_PCA_prep, cache = FALSE}
+```{r FootVsBoreal_summaryData2_PCA_prep, cache = FALSE}
 ## select community structure/composition variables for PCA + severity + topo + some climate variables
 cols <- grep("UNDER|SEV_CONT|FIRE_NAME|Conif|Decid|Lari|Pice mari|HEIGHT_LOWER|CROWN_CLOSURE_LOWER|SMR_ord|NR1|mean|cv", names(summaryABSK_AllData), value = TRUE)
 
@@ -1529,7 +1529,7 @@ summaryABSK_AllData2 <- unique(na.omit(summaryABSK_AllData[, ..cols]))
 summaryABSK_AllData2[, UNDERSTOREY := as.factor(as.character(UNDERSTOREY))] ## convert to factor for dudi.mix
 ```
 
-```{r Foot_summaryData_PCA_plotClosure, fig.height=8, fig.show = "hold"}
+```{r Foot_summaryData2_PCA_plotClosure, fig.height=8, fig.show = "hold"}
 ## FOOTHILLS + ROCKY MOUNTAIN
 ## exclude also P. banksiana, because it has no data
 colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
@@ -1555,7 +1555,7 @@ unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$CROWN_CLOSUR
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
-```{r Foot_summaryData_PCA_plotFireName, fig.height=8, fig.show = "hold"}
+```{r Foot_summaryData2_PCA_plotFireName, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nFoothills + Rocky Mountain")
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$FIRE_NAME))
@@ -1566,18 +1566,18 @@ plot(env.fit, labels = colsD)
 #   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
-```{r Foot_summaryData_PCA_plotSMR, fig.height=8, fig.show = "hold"}
+```{r Foot_summaryData2_PCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR \nFoothills + Rocky Mountain")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord))
+       col = summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)
 text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = colsD)
-unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)) %>%
+sort(unique(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
-```{r Boreal_summaryData_PCA_plotClosure, fig.height=8, fig.show = "hold"}
+```{r Boreal_summaryData2_PCA_plotClosure, fig.height=8, fig.show = "hold"}
 ## BOREAL FOREST + CANADIAN SHIELD
 ## exclude also P. banksiana, P. engelmann and A. lasiocarpa because they have no data
 colsA <- grep("SEV_CONT|FIRE_NAME", cols, value = TRUE, invert = TRUE)
@@ -1603,7 +1603,7 @@ unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$CROWN_CLOSUR
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
-```{r Boreal_summaryData_PCA_plotFireName, fig.height=8, fig.show = "hold"}
+```{r Boreal_summaryData2_PCA_plotFireName, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nBoreal Forest + Canadian Shield")
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$FIRE_NAME))
@@ -1614,7 +1614,7 @@ plot(env.fit, labels = colsD)
 #   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
-```{r Boreal_summaryData_PCA_plotSMR, fig.height=8, fig.show = "hold"}
+```{r Boreal_summaryData2_PCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR\nBoreal Forest + Canadian Shield")
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord))

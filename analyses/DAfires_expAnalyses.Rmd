@@ -1081,7 +1081,7 @@ PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by crown closur
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]]))
 text(PCAplot, "species", arrows = TRUE)
-plot(env.fit, labels = "SEV_CONT")
+plot(env.fit, labels = "SEVERITY")
 unique( as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]])) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
@@ -1089,10 +1089,10 @@ unique( as.factor(summaryABSK_AllData2[["CROWN_CLOSURE_LOWER"]])) %>%
 ```{r summaryData_VegWeatherPCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[["SMR_ord"]]))
+       col = summaryABSK_AllData2[["SMR_ord"]])
 text(PCAplot, "species", arrows = TRUE)
-plot(env.fit, labels = "SEV_CONT")
-unique( as.factor(summaryABSK_AllData2[["SMR_ord"]])) %>%
+plot(env.fit, labels = "SEVERITY")
+sort(unique(summaryABSK_AllData2[["SMR_ord"]])) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
@@ -1101,7 +1101,7 @@ PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name")
 points(PCAplot, "sites", pch = 19, 
        col = as.factor(summaryABSK_AllData2[["FIRE_NAME"]]))
 text(PCAplot, "species", arrows = TRUE)
-plot(env.fit, labels = "SEV_CONT")
+plot(env.fit, labels = "SEVERITY")
 # unique(as.factor(summaryABSK_AllData2[["FIRE_NAME"]])) %>%
 #   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
@@ -1162,11 +1162,11 @@ plot(env.fit, labels = "SEVERITY")
 ```{r Foot_summaryData_VegWeatherPCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR\nFoothills + Rocky Mountain")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord))
+       col = summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)
 text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
-unique(as.factor(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)) %>%
+sort(unique(summaryABSK_AllData2[grep("Foothills|Rocky", NR1)]$SMR_ord)) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
@@ -1207,11 +1207,11 @@ plot(env.fit, labels = "SEVERITY")
 ```{r Boreal_summaryData_VegWeatherPCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by fire name\nBoreal Forest + Canadian Shield")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord))
+       col = summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)
 text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = "SEVERITY")
-unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>%
+sort(unique(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>%
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 
@@ -1682,11 +1682,11 @@ plot(env.fit, labels = colsD)
 ```{r Boreal_summaryData2_PCA_plotSMR, fig.height=8, fig.show = "hold"}
 PCAplot <- ordiplot(summDataPCA, type = "none", main = "Coloured by SMR\nBoreal Forest + Canadian Shield")
 points(PCAplot, "sites", pch = 19, 
-       col = as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord))
+       col = summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)
 text(PCAplot, "species", labels = rep("", nrow(summDataPCA$co)), arrows = TRUE)
 text(PCAplot, "species", arrows = FALSE)
 plot(env.fit, labels = colsD)
-unique(as.factor(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>%
+sort(unique(summaryABSK_AllData2[grep("Boreal|Canadian", NR1)]$SMR_ord)) %>
   legend(x = "bottomright", legend = ., col = ., pch = 19)
 ```
 

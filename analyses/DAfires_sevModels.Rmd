@@ -1632,13 +1632,14 @@ sink()
 
 
 Plot cross-validation results against model metrics
-```{r crossValidPlots}
+```{r crossValidPlots_ScaledModel}
 ## don't compare TGD between full model and folds.
 # tgdObj <- getTGD(modelNgbSev4FULL4, newdata = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 # allTGD[, fullModel := TGD(tgdObj)]
-allRsquared3GAMLSS[, fullModel := Rsq(modelNgbSev4FULL4)]
+allRsquared4GAMLSS[, fullModel := Rsq(modelNgbSev4FULL4_Scaled)]
 
-plotData <- rbindlist(list(allRsquared3GAMLSS, allTGD), idcol = "metric", fill = TRUE)
+plotData <- rbindlist(list(Rsq = allRsquared4GAMLSS, TGD = allTGD), idcol = "metric", fill = TRUE)
+plotData[metric == "TGD", fullModel := modelNgbSev4FULL4_Scaled$G.deviance]
 
 crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
   geom_boxplot() +
@@ -1647,7 +1648,7 @@ crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
              colour = "darkred", show.legend = FALSE) +
   theme_pubr(base_size = 16) +
   theme(strip.text = element_blank()) +
-  scale_x_discrete(labels = c("1" = "R-squared", "2" = "Global deviance")) +
+  scale_x_discrete(labels = c("Rsq" = "R-squared", "TGD" = "Global deviance")) +
   labs(y = "value", x = "") +
   facet_wrap(~ metric, scales = "free")
 

@@ -2181,14 +2181,13 @@ dev.off()
 ## wrapper function
 PEFwrapper <- function(obj, DT, term, fixed.at = list()) {
   DT2 <- copy(DT)
-  DT2$muPred <- getPEF.own(obj, parameter = "mu", term = term, fixed.at = fixed.at,
-                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2$sigmaPred <- getPEF.own(obj, parameter = "sigma", term = term, fixed.at = fixed.at,
-                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2$nuPred <- getPEF.own(obj, parameter = "nu", term = term, fixed.at = fixed.at,
-                           type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
-  DT2$tauPred <- getPEF.own(obj, parameter = "tau", term = term, fixed.at = fixed.at,
-                            type = "response", how = "mean", plot = FALSE, level = 0)(DT2[[term]])
+  PEFFunctions <- getPEF.own(obj, parameter = "all", term = term, fixed.at = fixed.at,
+                           type = "response", how = "mean", plot = FALSE, level = 0)
+  
+  DT2$muPred <- PEFFunctions$mu(DT2[[term]])
+  DT2$sigmaPred <- PEFFunctions$sigma(DT2[[term]])
+  DT2$nuPred <- PEFFunctions$nu(DT2[[term]])
+  DT2$tauPred <- PEFFunctions$tau(DT2[[term]])
   DT2[, `:=`(fittedVals = calcMeanBEINF(muPred, nuPred, tauPred),
              p0 = calcP0BEINF(nuPred, tauPred),
              p1 = calcP1BEINF(nuPred, tauPred),

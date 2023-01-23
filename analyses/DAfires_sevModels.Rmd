@@ -1682,15 +1682,18 @@ cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 ## need to provide "newdata" to get marginal means
-plotData <-  na.omit(summaryABSK_AllData[, cols, with = FALSE])
-plotData[, muPred := predict(modelNgbSev4FULL4, "mu", type = "response", newdata = plotData[, cols, with = FALSE])]
-plotData[, sigmaPred := predict(modelNgbSev4FULL4, "sigma", type = "response", newdata = plotData[, cols, with = FALSE])]
-plotData[, nuPred := predict(modelNgbSev4FULL4, "nu", type = "response", newdata = plotData[, cols, with = FALSE])]
-plotData[, tauPred := predict(modelNgbSev4FULL4, "tau", type = "response", newdata = plotData[, cols, with = FALSE])]
+plotData <-  na.omit(modelDataFULLScaled)
+predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response", newdata = plotData[, cols, with = FALSE])
+
+plotData[, `:=`(muPred = predData$mu, 
+                sigmaPred = predData$sigma, 
+                nuPred = predData$nu,
+                tauPred = predData$tau)]
 plotData[ , `:=`(p0 = calcP0BEINF(nuPred, tauPred),
                  p1 = calcP1BEINF(nuPred, tauPred),
                  fittedVals = calcMeanBEINF(muPred, nuPred, tauPred),
                  varY = calcVarBEINF(muPred, sigmaPred, nuPred, tauPred))]
+rm(predData)
 ```
 
 #### Plots of probabilities at 0 and 1 vs. covariates

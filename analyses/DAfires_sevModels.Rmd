@@ -1593,7 +1593,7 @@ crossValidResults4 <- Cache(crossValidFunction,
                             userTags = c("validation", "modelNgbSev4FULL4_Scaled"),
                             omitArgs = c("fullDT", "origData", "userTags", "parallel", "workers"))
 
-# crossValidResults3 <- loadFromCache(cacheId="85b6d427b43ff53d")
+# crossValidResults4 <- loadFromCache(cacheId="85b6d427b43ff53d")
 ## collapse results into data.tables
 allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
 allValidMetrics4[, sampID := 1:length(crossValidResults4)]
@@ -1658,7 +1658,6 @@ allCoefs[, lapply(.SD, mean), by = .(param),
          .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
 sink()
 ```
-
 
 Plot cross-validation results against model metrics
 ```{r crossValidPlots_ScaledModel}

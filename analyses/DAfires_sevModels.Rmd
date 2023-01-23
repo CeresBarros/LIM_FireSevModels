@@ -1407,11 +1407,11 @@ GAIC(modelNgbSev4FULL,
 ```{r FullburnNgbPropModelScaledPreds, cache = FALSE, eval = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+          "FlamConif", "SurfReliefRatio", "isForest")
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
 cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
                 "buffer_1920m", "buffer_30m", "FlamConif", 
-                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+                "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 modelNgbSev4FULL4_Scaled <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
@@ -1448,13 +1448,13 @@ saveRDS(modelNgbSev4FULL4_Scaled, "analyses/modelNgbSev4FULL4Scaled.rds")
 ```{r confMatrixFullModelScaled, cache = FALSE, eval = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "FlamConif", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
 cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
                 "buffer_1920m", "buffer_30m", "FlamConif", 
-                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+                "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
@@ -1722,13 +1722,13 @@ modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
 ## plot the probabilities at 0 and 1
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "FlamConif", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
 cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
                 "buffer_1920m", "buffer_30m", "FlamConif", 
-                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+                "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 ## need to provide "newdata" to get marginal means

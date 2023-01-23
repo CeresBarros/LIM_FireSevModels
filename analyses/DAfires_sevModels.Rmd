@@ -1403,6 +1403,7 @@ GAIC(modelNgbSev4FULL,
 # modelNgbSev4FULL  178.6594 486093.9
 ```
 
+#### fit model to full dataset with scaled covariates
 ```{r FullburnNgbPropModelScaledPreds, cache = FALSE, eval = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
@@ -1440,6 +1441,35 @@ plot(modelNgbSev4FULL4_Scaled)
 graphics.off()
 
 saveRDS(modelNgbSev4FULL4_Scaled, "analyses/modelNgbSev4FULL4Scaled.rds")
+
+```
+
+#### confusion matrix with full model
+```{r confMatrixFullModelScaled, cache = FALSE, eval = FALSE}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "SEV_CLASS")
+
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+
+predictionsDT <- modelDataFullScaled[, .(SEV_PROP, SEV_CLASS)]
+predictionsDT[, predSEV_PROP := calcMeanBEINF(mu, nu, tau)]
+
+## convert to classes, using the quantiles corresponding to the observed class proportions
+## accumulate proportions to get probabilities
+quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
+classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
+predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
+                                         include.lowest = TRUE, right = FALSE)] 
+
+confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, reference = predictionsDT$SEV_CLASS)
 
 ```
 

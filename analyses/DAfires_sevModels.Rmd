@@ -1668,11 +1668,18 @@ See above for variance (Var(Y)) of the zero- and one-inflated Beta regression.
 ### General effects - model with original variables.
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE, eval=FALSE}
-modelNgbSev4FULL4 <- readRDS("analyses/modelNgbSev4FULL4.rds")
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
 ## plot the probabilities at 0 and 1
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "SEV_CLASS")
+
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 ## need to provide "newdata" to get marginal means
 plotData <-  na.omit(summaryABSK_AllData[, cols, with = FALSE])
@@ -2204,9 +2211,9 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 ## 0 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2219,9 +2226,9 @@ p0PEFplot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
        x = "% cover", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2233,9 +2240,9 @@ p0PEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
   labs(title = "p0 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2248,9 +2255,9 @@ p0PEFplot3 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p0)) +
   labs(title = "p0 ~ moisture (SMR)",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2264,9 +2271,9 @@ p0PEFplot4 <- ggplot(plotData, aes(x = buffer_30m, y = p0)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## 0 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2281,7 +2288,7 @@ p0PEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2300,7 +2307,7 @@ p0PEFplot6 <- ggplot(plotData, aes(x = Decid, y = p0)) +
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2318,9 +2325,9 @@ p0PEFplot7 <- ggplot(plotData, aes(x = Lari, y = p0)) +
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2362,15 +2369,15 @@ ggarrange(
 dev.off()
 
 ## 1 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1PEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
-  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 1.5) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
   scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2380,7 +2387,7 @@ p1PEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2399,7 +2406,7 @@ p1PEFplot2 <- ggplot(plotData, aes(x = Decid, y = p1)) +
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2417,9 +2424,9 @@ p1PEFplot3 <- ggplot(plotData, aes(x = Lari, y = p1)) +
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2432,9 +2439,9 @@ p1PEFplot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
        x = "CTI", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2446,9 +2453,9 @@ p1PEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
   labs(title = "p1 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2462,9 +2469,9 @@ p1PEFplot6 <- ggplot(plotData,
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2479,9 +2486,9 @@ p1PEFplot7 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p1)) +
 
 
 ## 1 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2529,7 +2536,7 @@ Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to
 ## mean - mu covariates
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2547,9 +2554,9 @@ meanPEFplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2563,7 +2570,7 @@ meanPEFplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2580,9 +2587,9 @@ meanPEFplot3 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2595,9 +2602,9 @@ meanPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = fittedVals)) +
   labs(title = "Severity ~ moisture (SMR)", y = "mean sev.",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2612,9 +2619,9 @@ meanPEFplot5 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## these affect via nu/tau
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2627,9 +2634,9 @@ meanPEFplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2641,9 +2648,9 @@ meanPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
   labs(title = "Severity ~ roughness (SRR)",
        x = "% roughness", y = "mean sev.", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2656,15 +2663,15 @@ meanPEFplot8 <- ggplot(plotData, aes(x = buffer_30m, y = fittedVals)) +
        x = "prop. neigh. burnt", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanPEFplot9 <- ggplot(plotData, aes(x = as.factor(isForest), y = fittedVals)) +
-  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 1.5) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
   scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2706,7 +2713,7 @@ Showing partial effects in forested pixels only, except when isForest was signif
 ## mu
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2724,9 +2731,9 @@ muPEFplot1 <- ggplot(plotData, aes(x = Decid, y = muPred)) +
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2739,9 +2746,9 @@ muPEFplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
        x = "CTI", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2754,9 +2761,9 @@ muPEFplot3 <- ggplot(plotData, aes(x = Lari, y = muPred)) +
        x = "% cover", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2769,9 +2776,9 @@ muPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = muPred)) +
   labs(title = "Severity ~ moisture (SMR)", y = expression(mu), 
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2810,7 +2817,7 @@ Note that because $\mu$ and $\sigma$ both influence the variance, we need to plo
 ## variance - sigma covariates
 ## this plot includes the effect of height from mu and tau
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2830,9 +2837,9 @@ varPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## the following also includes effect via nu
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2846,9 +2853,9 @@ varPEFplot2 <-  ggplot(plotData, aes(x = as.factor(SMR_wet), y = varY)) +
        y = "Expected variance",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2864,9 +2871,9 @@ varPEFplot3 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - mu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2881,7 +2888,7 @@ varPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
 
 ## includes effect of height from tau
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2899,9 +2906,9 @@ varPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2916,9 +2923,9 @@ varPEFplot6 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2931,9 +2938,9 @@ varPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2945,9 +2952,9 @@ varPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
   labs(title = "Var(Severity) ~ roughness (SRR)",
        x = "% roughness", y = "Expected variance", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2962,9 +2969,9 @@ varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3029,9 +3036,9 @@ cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 ## 0 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3044,9 +3051,9 @@ p0NFPEFplot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
        x = "% cover", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3058,9 +3065,9 @@ p0NFPEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
   labs(title = "p0 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3073,9 +3080,9 @@ p0NFPEFplot3 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p0)) +
   labs(title = "p0 ~ moisture (SMR)",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3089,15 +3096,15 @@ p0NFPEFplot4 <- ggplot(plotData, aes(x = buffer_30m, y = p0)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## 0 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p0NFPEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
-  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 1.5) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
   scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3107,7 +3114,7 @@ p0NFPEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3126,7 +3133,7 @@ p0NFPEFplot6 <- ggplot(plotData, aes(x = Decid, y = p0)) +
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3144,9 +3151,9 @@ p0NFPEFplot7 <- ggplot(plotData, aes(x = Lari, y = p0)) +
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3186,15 +3193,15 @@ ggarrange(
 dev.off()
 
 ## 1 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1NFPEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
-  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 1.5) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
   scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3204,7 +3211,7 @@ p1NFPEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3223,7 +3230,7 @@ p1NFPEFplot2 <- ggplot(plotData, aes(x = Decid, y = p1)) +
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3241,9 +3248,9 @@ p1NFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = p1)) +
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3256,9 +3263,9 @@ p1NFPEFplot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
        x = "CTI", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3270,9 +3277,9 @@ p1NFPEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
   labs(title = "p1 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3286,9 +3293,9 @@ p1NFPEFplot6 <- ggplot(plotData,
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3303,9 +3310,9 @@ p1NFPEFplot7 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p1)) +
 
 
 ## 1 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3351,7 +3358,7 @@ Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to
 ## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3369,9 +3376,9 @@ meanNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3385,7 +3392,7 @@ meanNFPEFplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3402,9 +3409,9 @@ meanNFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3417,9 +3424,9 @@ meanNFPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = fittedVals)) 
   labs(title = "Severity ~ moisture (SMR)", y = "mean sev.",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3434,9 +3441,9 @@ meanNFPEFplot5 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## these affect via nu/tau
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3449,9 +3456,9 @@ meanNFPEFplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3463,9 +3470,9 @@ meanNFPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
   labs(title = "Severity ~ roughness (SRR)",
        x = "% roughness", y = "mean sev.", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3478,15 +3485,15 @@ meanNFPEFplot8 <- ggplot(plotData, aes(x = buffer_30m, y = fittedVals)) +
        x = "prop. neigh. burnt", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanNFPEFplot9 <- ggplot(plotData, aes(x = as.factor(isForest), y = fittedVals)) +
-  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 1.5) +
+  geom_point(aes(shape = as.factor(UNDERSTOREY)), size = 2) +
   scale_x_discrete(labels = c("FALSE" = "not forest", "TRUE" = "forest")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3528,7 +3535,7 @@ Showing partial effects in non-forested pixels only, except when isForest was si
 ## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3546,9 +3553,9 @@ muNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = muPred)) +
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3561,9 +3568,9 @@ muNFPEFplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
        x = "CTI", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3576,9 +3583,9 @@ muNFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = muPred)) +
        x = "% cover", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3591,9 +3598,9 @@ muNFPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = muPred)) +
   labs(title = "Severity ~ moisture (SMR)", y = expression(mu),
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3632,7 +3639,7 @@ Note that because $\mu$ and $\sigma$ both influence the variance, we need to plo
 ## variance - sigma covariates
 ## this plot includes the effect of height from mu
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Decid", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3652,9 +3659,9 @@ varNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3667,9 +3674,9 @@ varNFPEFplot2 <-  gggplot(plotData, aes(x = as.factor(SMR_wet), y = varY)) +
   labs(title = "Var(Severity) ~ moisture (SMR)", y = "Expected variance",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_1920m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3685,9 +3692,9 @@ varNFPEFplot3 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - mu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "CTI",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3701,7 +3708,7 @@ varNFPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "Lari", 
+  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -3719,9 +3726,9 @@ varNFPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3736,9 +3743,9 @@ varNFPEFplot6 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3751,9 +3758,9 @@ varNFPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3765,9 +3772,9 @@ varNFPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
   labs(title = "Var(Severity) ~ roughness (SRR)",
        x = "% roughness", y = "Expected variance", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -3782,9 +3789,9 @@ varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest", 
+plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4, na.omit(summaryABSK_AllData[, ..cols, with = FALSE]), term = "isForest",
+plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE

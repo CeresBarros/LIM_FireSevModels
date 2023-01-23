@@ -1750,7 +1750,7 @@ rm(predData)
 Note that because $\nu$ and $\tau$ influence both *p0* and *p1* we need to plot them against all $\nu$ and $\tau$ covariates.
 ```{r p0p1Plots}
 ## 0 probs - nu covariates
-p0plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
+p0plot1 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1758,7 +1758,7 @@ p0plot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
   labs(title = "p0 ~ FlamConif\n GAM smoother",
        x = "% cover")
 
-p0plot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
+p0plot2 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p0)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1775,7 +1775,7 @@ p0plot3 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
        x = "soil moisture (SMR)")
 
 p0plot4 <- ggplot(plotData, 
-                  aes(x = buffer_30m, y = p0)) +
+                  aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1798,7 +1798,7 @@ p0plot5 <- ggplot(plotData, aes(x = as.integer(isForest), y = p0,
 plotData[, HEIGHT_LOWER2 := cut(HEIGHT_LOWER, 
                                 breaks = c(0, 5, 10, 20, max(plotData$HEIGHT_LOWER)))]
 p0plot6 <- ggplot(plotData, 
-                  aes(x = Decid, y = p0,
+                  aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p0,
                       linetype = as.factor(UNDERSTOREY),
                       colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -1810,7 +1810,7 @@ p0plot6 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-p0plot7 <- ggplot(plotData, aes(x = Lari, y = p0,
+p0plot7 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p0,
                                 linetype = as.factor(UNDERSTOREY),
                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -1822,7 +1822,7 @@ p0plot7 <- ggplot(plotData, aes(x = Lari, y = p0,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-p0plot8 <- ggplot(plotData, aes(x = CTI, y = p0)) +
+p0plot8 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p0)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
@@ -1852,7 +1852,7 @@ p1plot1 <- ggplot(plotData, aes(x = as.integer(isForest), y = p1,
        x = "", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-p1plot2 <- ggplot(plotData, aes(x = Decid, y = p1,
+p1plot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p1,
                                 linetype = as.factor(UNDERSTOREY),
                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -1864,7 +1864,7 @@ p1plot2 <- ggplot(plotData, aes(x = Decid, y = p1,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-p1plot3 <- ggplot(plotData, aes(x = Lari, y = p1,
+p1plot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p1,
                                 linetype = as.factor(UNDERSTOREY),
                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -1876,7 +1876,7 @@ p1plot3 <- ggplot(plotData, aes(x = Lari, y = p1,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-p1plot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
+p1plot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
@@ -1885,7 +1885,7 @@ p1plot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
   labs(title = "p1 ~ moisture (CTI)\n GAM smoother",
        x = "CTI")
 
-p1plot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
+p1plot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 6, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1894,7 +1894,7 @@ p1plot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
        x = "% roughness")
 
 p1plot6 <- ggplot(plotData, 
-                  aes(x = buffer_30m, y = p1)) +
+                  aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1911,7 +1911,7 @@ p1plot7 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p1)) +
        x = "soil moisture (SMR)")
 
 ## 1 probs - nu covariates
-p1plot8  <- ggplot(plotData, aes(x = FlamConif, y = p1)) +
+p1plot8  <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p1)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1939,7 +1939,7 @@ dev.off()
 #### Plot of the expected mean vs covariates
 Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to be plot against all $\mu$, $\nu$ and $\tau$ covariates.
 ```{r fittedMeanPlots}
-meanplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
+meanplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = fittedVals,
                                   colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
@@ -1948,7 +1948,7 @@ meanplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals,
   labs(title = "Severity ~ Decid * Height \n GAM smoother",
        x = "% cover", y = "mean sev.", colour = "height")
 
-meanplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+meanplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
@@ -1957,7 +1957,7 @@ meanplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
   labs(title = "Severity ~ moisture (CTI)\n GAM smoother",
        x = "CTI", y = "mean sev.")
 
-meanplot3 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
+meanplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
@@ -1974,7 +1974,7 @@ meanplot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
        x = "soil moisture (SMR)", y = "mean sev.")
 
 meanplot5 <- ggplot(plotData, 
-                    aes(x = buffer_960m, y = fittedVals)) +
+                    aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
@@ -1983,7 +1983,7 @@ meanplot5 <- ggplot(plotData,
        x = "prop. neigh. burnt", y = "mean sev.")
 
 ## effects via nu and/or tau:
-meanplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
+meanplot6 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1991,7 +1991,7 @@ meanplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
   labs(title = "Severity ~ FlamConif\n GAM smoother",
        x = "% cover", y = "mean sev.")
 
-meanplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
+meanplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -2000,7 +2000,7 @@ meanplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
        x = "% roughness", y = "mean sev.")
 
 meanplot8 <- ggplot(plotData, 
-                    aes(x = buffer_30m, y = fittedVals)) +
+                    aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -2039,7 +2039,7 @@ dev.off()
 
 #### Plot of fitted mean (mu) vs covariates
 ```{r fittedMuPlots}
-muplot1 <- ggplot(plotData, aes(x = Decid, y = muPred,
+muplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = muPred,
                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
@@ -2048,7 +2048,7 @@ muplot1 <- ggplot(plotData, aes(x = Decid, y = muPred,
   labs(title = "Severity ~ Decid * Height \n GAM smoother",
        x = "% cover", y = expression(mu), colour = "height")
 
-muplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
+muplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = muPred)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
@@ -2057,7 +2057,7 @@ muplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
   labs(title = "Severity ~ moisture (CTI)\n GAM smoother",
        x = "CTI", y = expression(mu))
 
-muplot3 <- ggplot(plotData, aes(x = Lari, y = muPred)) +
+muplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = muPred)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
@@ -2074,7 +2074,7 @@ muplot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = muPred)) +
        x = "soil moisture (SMR)", y = expression(mu))
 
 muplot5 <- ggplot(plotData, 
-                  aes(x = buffer_960m, y = muPred)) +
+                  aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
@@ -2100,7 +2100,7 @@ Note that because all parameters influence the variance, we need to plot it agai
 ```{r VarYPlots}
 ## effects via sigma
 ## this plot also includes height (an effect via mu)
-varplot1 <- ggplot(plotData, aes(x = Decid, y = varY,
+varplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = varY,
                                  linetype = as.factor(UNDERSTOREY),
                                  colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -2123,7 +2123,7 @@ varplot2 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = varY)) +
        y = "Expected variance", x = "soil moisture (SMR)")
 
 varplot3 <- ggplot(plotData, 
-                   aes(x = buffer_1920m, y = varY)) +
+                   aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2132,7 +2132,7 @@ varplot3 <- ggplot(plotData,
        y = "Expected variance", x = "prop. neigh. burnt")
 
 varplot4 <- ggplot(plotData, 
-                   aes(x = buffer_1920m, y = varY)) +
+                   aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
   geom_point(aes(colour = as.integer(FIRE_NAME)), alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2147,7 +2147,7 @@ varplot4 <- ggplot(plotData,
        y = "Expected variance", x = "prop. neigh. burnt")
 
 ## effects via mu:
-varplot5 <- ggplot(plotData, aes(x = CTI, y = varY)) +
+varplot5 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   # geom_smooth(method = "gam", formula = y ~ s(x, k = 4)) + ## weird curve
@@ -2157,7 +2157,7 @@ varplot5 <- ggplot(plotData, aes(x = CTI, y = varY)) +
        x = "CTI", y = "Expected variance")
 
 ## includes effects of understorey and eight via tau
-varplot6 <- ggplot(plotData, aes(x = Lari, y = varY,
+varplot6 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = varY,
                                  linetype = as.factor(UNDERSTOREY),
                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
@@ -2168,7 +2168,7 @@ varplot6 <- ggplot(plotData, aes(x = Lari, y = varY,
        x = "Expected variance", colour = "height", linetype = "understorey")
 
 varplot7 <- ggplot(plotData, 
-                   aes(x = buffer_960m, y = varY)) +
+                   aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2178,7 +2178,7 @@ varplot7 <- ggplot(plotData,
 
 ## effects via nu:
 varplot8 <- ggplot(plotData, 
-                   aes(x = FlamConif, y = varY)) +
+                   aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2187,7 +2187,7 @@ varplot8 <- ggplot(plotData,
        x = "% cover", y = "Expected variance")
 
 varplot9 <- ggplot(plotData, 
-                   aes(x = SurfReliefRatio, y = varY)) +
+                   aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2196,7 +2196,7 @@ varplot9 <- ggplot(plotData,
        x = "% roughness", y = "Expected variance")
 
 varplot10 <- ggplot(plotData, 
-                   aes(x = buffer_30m, y = varY)) +
+                   aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2271,7 +2271,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0PEFplot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
+p0PEFplot1 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -2286,7 +2286,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0PEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
+p0PEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2315,7 +2315,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0PEFplot4 <- ggplot(plotData, aes(x = buffer_30m, y = p0)) +
+p0PEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2350,8 +2350,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p0PEFplot6 <- ggplot(plotData, aes(x = Decid, y = p0)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+p0PEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p0)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p0 ~ Decid * Height",
@@ -2369,9 +2369,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p0PEFplot7 <- ggplot(plotData, aes(x = Lari, y = p0)) +
+p0PEFplot7 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p0 ~ Lari * Height",
@@ -2385,7 +2385,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0PEFplot8 <- ggplot(plotData, aes(x = CTI, y = p0)) +
+p0PEFplot8 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2449,8 +2449,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p1PEFplot2 <- ggplot(plotData, aes(x = Decid, y = p1)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+p1PEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p1)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p1 ~ Decid * Height",
@@ -2468,9 +2468,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p1PEFplot3 <- ggplot(plotData, aes(x = Lari, y = p1)) +
+p1PEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p1 ~ Lari * Height",
@@ -2484,7 +2484,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1PEFplot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
+p1PEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2499,7 +2499,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1PEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
+p1PEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2514,7 +2514,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1PEFplot6 <- ggplot(plotData, 
-                     aes(x = buffer_30m, y = p1)) +
+                     aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2546,7 +2546,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1PEFplot8 <- ggplot(plotData, aes(x = FlamConif, y = p1)) +
+p1PEFplot8 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -2598,8 +2598,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-meanPEFplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+meanPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = fittedVals)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
   labs(title = "Severity ~ Decid * Height",
@@ -2614,7 +2614,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanPEFplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+meanPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -2632,8 +2632,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-meanPEFplot3 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+meanPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = fittedVals)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
   labs(title = "Severity ~ Lari",
@@ -2663,7 +2663,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanPEFplot5 <- ggplot(plotData, 
-                       aes(x = buffer_960m, y = fittedVals)) +
+                       aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -2679,7 +2679,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanPEFplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
+meanPEFplot6 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -2694,7 +2694,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
+meanPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2708,7 +2708,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanPEFplot8 <- ggplot(plotData, aes(x = buffer_30m, y = fittedVals)) +
+meanPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2775,8 +2775,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-muPEFplot1 <- ggplot(plotData, aes(x = Decid, y = muPred)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+muPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = muPred)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
   labs(title = "Severity ~ Decid * Height",
@@ -2791,7 +2791,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-muPEFplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
+muPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -2806,7 +2806,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "L
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-muPEFplot3 <- ggplot(plotData, aes(x = Lari, y = muPred)) +
+muPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -2837,7 +2837,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 muPEFplot5 <- ggplot(plotData, 
-                     aes(x = buffer_960m, y = muPred)) +
+                     aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -2879,9 +2879,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-varPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
+varPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
   labs(title = "Var(Severity) ~ Decid * Height",
@@ -2914,7 +2914,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot3 <- ggplot(plotData, 
-                      aes(x = buffer_1920m, y = varY)) +
+                      aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -2931,7 +2931,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
+varPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -2950,9 +2950,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-varPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
+varPEFplot5 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "Var(Severity) ~ Lari * Height", y = "Expected variance",
@@ -2967,7 +2967,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot6 <- ggplot(plotData, 
-                      aes(x = buffer_960m, y = varY)) +
+                      aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -2983,7 +2983,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
+varPEFplot7 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -2998,7 +2998,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
+varPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3012,7 +3012,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
+varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3096,7 +3096,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0NFPEFplot1 <- ggplot(plotData, aes(x = FlamConif, y = p0)) +
+p0NFPEFplot1 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -3111,7 +3111,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0NFPEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p0)) +
+p0NFPEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3140,7 +3140,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0NFPEFplot4 <- ggplot(plotData, aes(x = buffer_30m, y = p0)) +
+p0NFPEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3176,8 +3176,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p0NFPEFplot6 <- ggplot(plotData, aes(x = Decid, y = p0)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+p0NFPEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p0)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p0 ~ Decid * Height",
@@ -3195,9 +3195,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p0NFPEFplot7 <- ggplot(plotData, aes(x = Lari, y = p0)) +
+p0NFPEFplot7 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p0 ~ Lari * Height",
@@ -3211,7 +3211,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0NFPEFplot8 <- ggplot(plotData, aes(x = CTI, y = p0)) +
+p0NFPEFplot8 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3273,8 +3273,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p1NFPEFplot2 <- ggplot(plotData, aes(x = Decid, y = p1)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+p1NFPEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = p1)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p1 ~ Decid * Height",
@@ -3292,9 +3292,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-p1NFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = p1)) +
+p1NFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
   labs(title = "p1 ~ Lari * Height",
@@ -3308,7 +3308,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1NFPEFplot4 <- ggplot(plotData, aes(x = CTI, y = p1)) +
+p1NFPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3323,7 +3323,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1NFPEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio, y = p1)) +
+p1NFPEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3338,7 +3338,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1NFPEFplot6 <- ggplot(plotData, 
-                       aes(x = buffer_30m, y = p1)) +
+                       aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3370,7 +3370,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p1NFPEFplot8 <- ggplot(plotData, aes(x = FlamConif, y = p1)) +
+p1NFPEFplot8 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -3420,8 +3420,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-meanNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = fittedVals)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+meanNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = fittedVals)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
   labs(title = "Severity ~ Decid * Height",
@@ -3436,7 +3436,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanNFPEFplot2 <- ggplot(plotData, aes(x = CTI, y = fittedVals)) +
+meanNFPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -3454,8 +3454,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-meanNFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = fittedVals)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+meanNFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = fittedVals)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
   labs(title = "Severity ~ Lari",
@@ -3485,7 +3485,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanNFPEFplot5 <- ggplot(plotData, 
-                         aes(x = buffer_960m, y = fittedVals)) +
+                         aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -3501,7 +3501,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanNFPEFplot6 <- ggplot(plotData, aes(x = FlamConif, y = fittedVals)) +
+meanNFPEFplot6 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -3516,7 +3516,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanNFPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio, y = fittedVals)) +
+meanNFPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3530,7 +3530,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanNFPEFplot8 <- ggplot(plotData, aes(x = buffer_30m, y = fittedVals)) +
+meanNFPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3597,8 +3597,8 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-muNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = muPred)) +
-  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +
+muNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = muPred)) +
+  geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
   labs(title = "Severity ~ Decid * Height",
@@ -3613,7 +3613,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-muNFPEFplot2 <- ggplot(plotData, aes(x = CTI, y = muPred)) +
+muNFPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -3628,7 +3628,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "L
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-muNFPEFplot3 <- ggplot(plotData, aes(x = Lari, y = muPred)) +
+muNFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -3659,7 +3659,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 muNFPEFplot5 <- ggplot(plotData, 
-                       aes(x = buffer_960m, y = muPred)) +
+                       aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -3701,9 +3701,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-varNFPEFplot1 <- ggplot(plotData, aes(x = Decid, y = varY)) +
+varNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "scaled:scale") + attr(modelDataFULLScaled$Decid, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
   labs(title = "Var(Severity) ~ Decid * Height",
@@ -3735,7 +3735,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot3 <- ggplot(plotData, 
-                        aes(x = buffer_1920m, y = varY)) +
+                        aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -3752,7 +3752,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "C
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varNFPEFplot4 <- ggplot(plotData, aes(x = CTI, y = varY)) +
+varNFPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -3770,9 +3770,9 @@ plotData <- mapply(FUN = function(x, y) {
 x = vars$UNDERSTOREY, y = vars$HEIGH_LOWER, SIMPLIFY = FALSE)
 plotData <- rbindlist(plotData)
 
-varNFPEFplot5 <- ggplot(plotData, aes(x = Lari, y = varY)) +
+varNFPEFplot5 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY), 
-                colour = as.factor(HEIGHT_LOWER)), lineend = "round", size = 1.5) +  
+                colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
   labs(title = "Var(Severity) ~ Lari",
@@ -3787,7 +3787,7 @@ plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot6 <- ggplot(plotData, 
-                        aes(x = buffer_960m, y = varY)) +
+                        aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -3803,7 +3803,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "F
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varNFPEFplot7 <- ggplot(plotData, aes(x = FlamConif, y = varY)) +
+varNFPEFplot7 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$FlamConif, "scaled:scale") + attr(modelDataFULLScaled$FlamConif, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() +
@@ -3818,7 +3818,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "S
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varNFPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio, y = varY)) +
+varNFPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$SurfReliefRatio, "scaled:scale") + attr(modelDataFULLScaled$SurfReliefRatio, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -3832,7 +3832,7 @@ plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "b
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m, y = varY)) +
+varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 

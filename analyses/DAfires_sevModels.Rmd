@@ -1459,9 +1459,11 @@ modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
 
-predictionsDT <- modelDataFullScaled[, .(SEV_PROP, SEV_CLASS)]
-predictionsDT[, predSEV_PROP := calcMeanBEINF(mu, nu, tau)]
+predictionsDT <- na.omit(modelDataFULLScaled)[, .(SEV_PROP, SEV_CLASS)]
+predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response")
+predictionsDT[, predSEV_PROP := calcMeanBEINF(predData$mu, predData$nu, predData$tau)]
 
+rm(predData)
 ## convert to classes, using the quantiles corresponding to the observed class proportions
 ## accumulate proportions to get probabilities
 quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
@@ -1469,8 +1471,27 @@ classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
 predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
                                          include.lowest = TRUE, right = FALSE)] 
 
+## convert to numbered factor (subtracting one, because classes are 0-5)
+predictionsDT[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
+classes <- as.character(sort(unique(predictionsDT$SEV_CLASS)))
+predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
+                     predSEV_CLASS = factor(predSEV_CLASS, levels = classes))]
+
 confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, reference = predictionsDT$SEV_CLASS)
 
+sink("analyses/modelNgbSev4FULL4Scaled_CONFMATRX.txt")
+confMatrix
+sink()
+
+tiff("analyses/modelNgbSev4FULL4Scaled_obsVSpred.tif")
+ggplot(predictionsDT, aes(x = SEV_PROP, y = predSEV_PROP)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "gray30") +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(limits = c(0,1)) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_pubr(base_size = 14) +
+  labs(x = "Observed severity", y = "Expected mean severity")
+graphics.off()
 ```
 
 

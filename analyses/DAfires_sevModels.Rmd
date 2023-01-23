@@ -2339,7 +2339,7 @@ p0PEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
   labs(title = "p0 ~ isForest",
        x = "", shape = "understorey")
 
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
@@ -2438,7 +2438,7 @@ p1PEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
        x = "", linetype = "understorey") +
   guides(shape = guide_legend(override.aes = list(colour = "black")))
 
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
@@ -2587,7 +2587,7 @@ Showing partial effects in forested pixels only, except when isForest was signif
 Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to be plot against all $\mu$, $\nu$ and $\tau$ covariates.
 ```{r fittedMeanPEFPPlots}
 ## mean - mu covariates
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
@@ -2764,7 +2764,7 @@ Note that "mu" is the fitted mean of values in (0,1)
 Showing partial effects in forested pixels only, except when isForest was significant
 ```{r fittedMuPEFPPlots}
 ## mu
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
@@ -3165,7 +3165,7 @@ p0NFPEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
        x = "", linetype = "understorey") +
   guides(shape = guide_legend(override.aes = list(colour = "black")))
 
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
@@ -3262,7 +3262,7 @@ p1NFPEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
        x = "", linetype = "understorey") +
   guides(shape = guide_legend(override.aes = list(colour = "black")))
 
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
@@ -3409,7 +3409,7 @@ Showing partial effects in non-forested pixels only, except when isForest was si
 Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to be plot against all $\mu$, $\nu$ and $\tau$ covariates.
 ```{r fittedMeanPEFPPlotsNonForest}
 ## mean
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
@@ -3586,7 +3586,7 @@ Note that "mu" is the fitted mean of values in (0,1)
 Showing partial effects in non-forested pixels only, except when isForest was significant
 ```{r fittedMuPEFPPlotsNonForest}
 ## mean
-vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(summaryABSK_AllData$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
+vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
   DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))

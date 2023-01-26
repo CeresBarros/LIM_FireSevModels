@@ -161,14 +161,14 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   ## Use Alberta 1 post fire data only for now, as severity classes on other datasets and not yet comparable.
   ABSK_fireEvents <- Cache(defineFireEvents,
-                                         sfObj = firesABSK, fireNAMES = "FIRE_NAME",
-                                         # fireVARS = c("FIRE_ID", "FIRE_YEAR", "SEV_CLASS"),   ## this makes the output object huge
-                                         buff.dist = 200L,
-                                         PLOT = FALSE, SAVE = FALSE, outputDIR = "analyses/FireEvents",
-                                         fileNAME = "Andison_ABSK_fireEvents", overwrite = TRUE,
-                                         cacheRepo = "analyses/cache", userTags = "dataTreat_fireEvents",
-                                         omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
-                                         useCache = doCache)
+                           sfObj = firesABSK, fireNAMES = "FIRE_NAME",
+                           # fireVARS = c("FIRE_ID", "FIRE_YEAR", "SEV_CLASS"),   ## this makes the output object huge
+                           buff.dist = 200L,
+                           PLOT = FALSE, SAVE = FALSE, outputDIR = "analyses/FireEvents",
+                           fileNAME = "Andison_ABSK_fireEvents", overwrite = TRUE,
+                           cacheRepo = "analyses/cache", userTags = "dataTreat_fireEvents",
+                           omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
+                           useCache = doCache)
 
   ## remove empty geometries (e.g. if nor inner residuals exist, empty geometries are produced)
   ABSK_fireEvents <- ABSK_fireEvents[!is.na(st_dimension(ABSK_fireEvents)),]
@@ -251,36 +251,36 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   allVars <- c(allVars, paste0("U", allVars))
 
   albertafires1_prefireMelt <- Cache(meltPreFireABInv,
-                                                   inv = albertafires1_prefire,
-                                                   invName = "albertafires1_prefire",
-                                                   allVars = allVars,
-                                                   folder = vegDataPath,
-                                                   dim = dim(albertafires1_prefire),
-                                                   cacheRepo = "analyses/cache",
-                                                   userTags = "meltABprefire_1",
-                                                   useCache = doCache, omitArgs = c("inv"))
+                                     inv = albertafires1_prefire,
+                                     invName = "albertafires1_prefire",
+                                     allVars = allVars,
+                                     folder = vegDataPath,
+                                     dim = dim(albertafires1_prefire),
+                                     cacheRepo = "analyses/cache",
+                                     userTags = "meltABprefire_1",
+                                     useCache = doCache, omitArgs = c("inv"))
 
   albertafires2_prefireMelt <- Cache(meltPreFireABInv,
-                                                   inv = albertafires2_prefire,
-                                                   invName = "albertafires2_prefire",
-                                                   allVars = allVars,
-                                                   folder = vegDataPath,
-                                                   dim = dim(albertafires2_prefire),
-                                                   cacheRepo = "analyses/cache",
-                                                   userTags = "meltABprefire_2",
-                                                   useCache = doCache, omitArgs = c("inv"))
+                                     inv = albertafires2_prefire,
+                                     invName = "albertafires2_prefire",
+                                     allVars = allVars,
+                                     folder = vegDataPath,
+                                     dim = dim(albertafires2_prefire),
+                                     cacheRepo = "analyses/cache",
+                                     userTags = "meltABprefire_2",
+                                     useCache = doCache, omitArgs = c("inv"))
 
   ## Saskatchewan - melting has to come before renaming
   ## note: for SK these names are not the same as the names accepted by CASFRI,
   ##    because CASFRI is not using the "official" field names
   saskatchewanfires_prefireMelt <- Cache(meltPreFireSKInv,
-                                                       inv = saskatchewanfires_prefire,
-                                                       invName = "saskatchewanfires_prefire",
-                                                       folder = vegDataPath,
-                                                       dim = dim(saskatchewanfires_prefire),
-                                                       cacheRepo = "analyses/cache",
-                                                       userTags = "meltSKprefire",
-                                                       useCache = doCache, omitArgs = c("inv"))
+                                         inv = saskatchewanfires_prefire,
+                                         invName = "saskatchewanfires_prefire",
+                                         folder = vegDataPath,
+                                         dim = dim(saskatchewanfires_prefire),
+                                         cacheRepo = "analyses/cache",
+                                         userTags = "meltSKprefire",
+                                         useCache = doCache, omitArgs = c("inv"))
 
   saskatchewanfires_prefireMelt <- renameCleanSfFields(sfObj = saskatchewanfires_prefireMelt,
                                                        namesTable = read.table("data/VegInventories/saskatchewanPrefire_SFVI_varCorresp.txt", header = TRUE))
@@ -310,31 +310,31 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   ## AVI AND SFVI TO CASFRI
   tablesDir <- "data/VegInventories/CASFRIConvTables.xlsx"
   albertafires1_prefireMeltCASFRI <- Cache(ABToCASFRI,
-                                                         inv = albertafires1_prefireMelt,
-                                                         tablesDir = tablesDir,
-                                                         folder = vegDataPath,
-                                                         dim = dim(albertafires1_prefireMelt),
-                                                         cacheRepo = "analyses/cache",
-                                                         userTags = "AB2CASFRI_1",
-                                                         useCache = doCache, omitArgs = c("inv"))
+                                           inv = albertafires1_prefireMelt,
+                                           tablesDir = tablesDir,
+                                           folder = vegDataPath,
+                                           dim = dim(albertafires1_prefireMelt),
+                                           cacheRepo = "analyses/cache",
+                                           userTags = "AB2CASFRI_1",
+                                           useCache = doCache, omitArgs = c("inv"))
 
   albertafires2_prefireMeltCASFRI <- Cache(ABToCASFRI,
-                                                         inv = albertafires2_prefireMelt,
-                                                         tablesDir = tablesDir,
-                                                         folder = vegDataPath,
-                                                         dim = dim(albertafires2_prefireMelt),
-                                                         cacheRepo = "analyses/cache",
-                                                         userTags = "AB2CASFRI_2",
-                                                         useCache = doCache, omitArgs = c("inv"))
+                                           inv = albertafires2_prefireMelt,
+                                           tablesDir = tablesDir,
+                                           folder = vegDataPath,
+                                           dim = dim(albertafires2_prefireMelt),
+                                           cacheRepo = "analyses/cache",
+                                           userTags = "AB2CASFRI_2",
+                                           useCache = doCache, omitArgs = c("inv"))
 
   saskatchewanfires_prefireMeltCASFRI <- Cache(SKToCASFRI,
-                                                             inv = saskatchewanfires_prefireMelt,
-                                                             tablesDir = tablesDir,
-                                                             folder = vegDataPath,
-                                                             dim = dim(saskatchewanfires_prefireMelt),
-                                                             cacheRepo = "analyses/cache",
-                                                             userTags = "SK2CASFRI_1",
-                                                             useCache = doCache, omitArgs = c("inv"))
+                                               inv = saskatchewanfires_prefireMelt,
+                                               tablesDir = tablesDir,
+                                               folder = vegDataPath,
+                                               dim = dim(saskatchewanfires_prefireMelt),
+                                               cacheRepo = "analyses/cache",
+                                               userTags = "SK2CASFRI_1",
+                                               useCache = doCache, omitArgs = c("inv"))
   ## change LA (lakes) to  water, since Dave'S data is not clear about the type of water bodies in SK
   saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
 
@@ -395,10 +395,10 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   ## WEATHER DATA ----------
   fireWeatherLs <- Cache(prepFireWeather,
-                                       folder = weatherDataPath,
-                                       userTags = "fireWeatherLs",
-                                       cacheRepo = "analyses/cache",
-                                       useCache = doCache)
+                         folder = weatherDataPath,
+                         userTags = "fireWeatherLs",
+                         cacheRepo = "analyses/cache",
+                         useCache = doCache)
 
   ## ECOREGIONS TABLE -------
   fireEcoregions <- read.xlsx("data/fires_Dave/all129-overview.xls", sheetName = "all") %>%

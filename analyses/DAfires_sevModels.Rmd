@@ -45,6 +45,7 @@ library(caret)
 library(future)
 library(future.apply)
 library(reproducible)
+library(terra)
 library(ToolsCB)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
@@ -3900,6 +3901,48 @@ ggarrange(
 )
 dev.off()
 ```
+
+
+#### Maps of observed and predicted severity
+```{r sevMaps}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "SurfReliefRatio", "isForest", "pixID",
+          "SEV_CLASS", "Lat", "Long")
+
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+
+predictionsDT <- na.omit(modelDataFULLScaled)[, .(SEV_PROP, SEV_CLASS, pixID, FIRE_NAME, Lat, Long)]
+predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response")
+predictionsDT[, predSEV_PROP := calcMeanBEINF(predData$mu, predData$nu, predData$tau)]
+rm(predData, modelDataFULLScaled)
+
+## make severit rasters
+firePoints <- predictionsDT[, .(pixID, FIRE_NAME, Lat, Long)]
+firePoints <- st_as_sf(firePoints, coords = c("Long", "Lat"),
+                       agr = "constant", crs = crsProj) |> 
+  vect()
+templateRast <- rast(firePoints, resolution = 30, crs = as.character(crsProj))
+templateRast <- rasterize(x = firePoints, y = templateRast)
+
+obsSeverity <- templateRast
+obsSeverity[predictionsDT$pixID] <- predictionsDT$SEV_PROP
+plot(obsSeverity)
+
+## select 2 fires with high agreement between predictions and observations
+## correlation between pred and obs severity by fire.
+fires2map <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+              by = FIRE_NAME][order(V1)] |>
+  tail(2))$FIRE_NAME
+```
+
+
 
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}
 # save(list = c("plotData", grep("model", ls(), value = TRUE)),

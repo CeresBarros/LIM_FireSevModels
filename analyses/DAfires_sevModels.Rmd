@@ -74,12 +74,13 @@ if (!dir.exists(figDir))
 
 ```{r dataprep, include = FALSE, cache = FALSE}
 ## run dataprep:
+resolution <- 30
 ABSK_AllData <- Cache(ABSKfires_DataPrep,
                       fireDataPath = "data/fires_Dave/fireSev",
                       vegDataPath = "data/fires_Dave/prefireVeg",
                       topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
                       weatherDataPath = "data/fires_Dave/fireWeather",
-                      resolution = 30, ## cacheId = "468b1d728b735352"
+                      resolution = resolution, ## cacheId = "468b1d728b735352"
                       doCache = doCache, bindAllFires = FALSE,
                       # useCache = FALSE,
                       userTags = "ABSKfires_DataPrep",

@@ -1418,19 +1418,19 @@ cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 modelNgbSev4FULL4_Scaled <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                              CTI + Lari + SMR_wet + buffer_960m +
-                              re(random = ~1|FIRE_NAME, level = 0),
-                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                              re(random = ~1|FIRE_NAME, level = 0),
-                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
-                              re(random = ~1|FIRE_NAME, level = 0),
-                            tau.formula = ~isForest + isForest *
-                              UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                              Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                              SurfReliefRatio + SMR_wet + buffer_30m +
-                              re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
-                            data = na.omit(modelDataFULLScaled), 
-                            control = gamlss.control(c.crit = 0.1))
+                                     CTI + Lari + SMR_wet + buffer_960m +
+                                     re(random = ~1|FIRE_NAME, level = 0),
+                                   sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                                     re(random = ~1|FIRE_NAME, level = 0),
+                                   nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                                     re(random = ~1|FIRE_NAME, level = 0),
+                                   tau.formula = ~isForest + isForest *
+                                     UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
+                                     Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
+                                     SurfReliefRatio + SMR_wet + buffer_30m +
+                                     re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
+                                   data = na.omit(modelDataFULLScaled), 
+                                   control = gamlss.control(c.crit = 0.1))
 GAIC(modelNgbSev4FULL4,
      modelNgbSev4FULL4_Scaled,
      k = log(nrow(na.omit(modelDataFULLScaled))))
@@ -1471,8 +1471,9 @@ rm(predData)
 ## accumulate proportions to get probabilities
 quantProbs <- cumsum(table(predictionsDT$SEV_CLASS)/nrow(predictionsDT))
 classRanges <- c(0, quantile(predictionsDT$predSEV_PROP, probs = quantProbs))
+
 predictionsDT[, predSEV_CLASS := cut(predSEV_PROP, breaks = classRanges,
-                                         include.lowest = TRUE, right = FALSE)] 
+                                     include.lowest = TRUE, right = FALSE)]
 
 ## convert to numbered factor (subtracting one, because classes are 0-5)
 predictionsDT[, predSEV_CLASS := as.numeric(predSEV_CLASS)-1]
@@ -2162,7 +2163,7 @@ varplot5 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled
 ## includes effects of understorey and eight via tau
 varplot6 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scaled:scale") + attr(modelDataFULLScaled$Lari, "scaled:center"), y = varY,
                                  linetype = as.factor(UNDERSTOREY),
-                                colour = HEIGHT_LOWER2)) +
+                                 colour = HEIGHT_LOWER2)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2199,7 +2200,7 @@ varplot9 <- ggplot(plotData,
        x = "% roughness", y = "Expected variance")
 
 varplot10 <- ggplot(plotData, 
-                   aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
+                    aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2208,8 +2209,8 @@ varplot10 <- ggplot(plotData,
        x = "prop. neigh. burnt", y = "Expected variance")
 
 varplot11 <- ggplot(plotData, 
-                   aes(x = as.integer(isForest), y = varY, 
-                       linetype = as.factor(UNDERSTOREY))) +
+                    aes(x = as.integer(isForest), y = varY, 
+                        linetype = as.factor(UNDERSTOREY))) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "glm", method.args = list(family = "quasibinomial")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -2245,7 +2246,7 @@ dev.off()
 PEFwrapper <- function(obj, DT, term, fixed.at = list()) {
   DT2 <- copy(DT)
   PEFFunctions <- getPEF.own(obj, parameter = "all", term = term, fixed.at = fixed.at,
-                           type = "response", how = "mean", plot = FALSE, level = 0)
+                             type = "response", how = "mean", plot = FALSE, level = 0)
   
   DT2$muPred <- PEFFunctions$mu(DT2[[term]])
   DT2$sigmaPred <- PEFFunctions$sigma(DT2[[term]])

@@ -1487,13 +1487,15 @@ sink("analyses/modelNgbSev4FULL4Scaled_CONFMATRX.txt")
 confMatrix
 sink()
 
-tiff("analyses/modelNgbSev4FULL4Scaled_obsVSpred.tif")
+tiff("analyses/modelNgbSev4FULL4Scaled_obsVSpred.tif", width = 7, height = 5, units = "in", res = 300)
 ggplot(predictionsDT, aes(x = SEV_PROP, y = predSEV_PROP)) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "gray30") +
   geom_smooth(method = "lm") +
   scale_x_continuous(limits = c(0,1)) +
   scale_y_continuous(limits = c(0,1)) +
-  theme_pubr(base_size = 14) +
+  theme_pubr() +
+  annotate("text", x = 0.1, y = 0.9, size = 5,
+           label = paste("r =", round(cor.test(predictionsDT$SEV_PROP, predictionsDT$predSEV_PROP)$estimate, 2))) +
   labs(x = "Observed severity", y = "Expected mean severity")
 graphics.off()
 ```

@@ -26,139 +26,14 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
   ## LOAD DATA ---------------------------------------
 
   ## POST-FIRE DATA ----
-  files = c("albertafires1_postfire", "albertafires2_postfire", "saskatchewanfires_postfire")
-
-  for(x in files) {
-    suppressWarnings(
-      eval(parse(text = paste0(
-        x, " <- st_read(file.path(fireDataPath", ", paste0('", x,"', '.shp')))"
-      )))
-    )
-  }
-
-  ## water polygons in AB2 (have FIRE_CODE == 9)
-  albertafires2_postfire <- albertafires2_postfire[albertafires2_postfire$FIRE_CODE != "9",]
-
-  ## CHANGE NAMES AND REMOVE UNWANTED VARIABLES
-  albertafires1_postfire <- renameCleanSfFields(sfObj = albertafires1_postfire,
-                                                namesTable = read.table(file.path(fireDataPath, "alberta1Postfire_varCorresp.txt"), header = TRUE))
-  albertafires2_postfire <- renameCleanSfFields(sfObj = albertafires2_postfire,
-                                                namesTable = read.table(file.path(fireDataPath, "alberta2Postfire_varCorresp.txt"), header = TRUE))
-  saskatchewanfires_postfire <- renameCleanSfFields(sfObj = saskatchewanfires_postfire,
-                                                    namesTable = read.table(file.path(fireDataPath, "saskatchewanPostfire_varCorresp.txt"), header = TRUE))
-
-  ## reorder columns
-  if (all(setequal(names(albertafires1_postfire), names(albertafires2_postfire)),
-          setequal(names(albertafires1_postfire), names(saskatchewanfires_postfire)))) {
-    albertafires2_postfire <- albertafires2_postfire[, names(albertafires1_postfire)]
-    saskatchewanfires_postfire <- saskatchewanfires_postfire[, names(albertafires1_postfire)]
-  } else stop("column names differ")
-
-  ## uniformize column classes between sf objs
-  varInfo <- data.frame(name = names(st_set_geometry(albertafires1_postfire, NULL)),
-                        class = sapply(st_set_geometry(albertafires1_postfire, NULL), class),
-                        stringsAsFactors = FALSE)
-  funs <- paste0("as.", varInfo$class)
-
-  ## didn't manage to do all vars at the same time..
-  for(j in 1:nrow(varInfo)) {
-    albertafires2_postfire[, varInfo$name[j]] <- sapply(albertafires2_postfire[, varInfo$name[j], drop = TRUE],
-                                                        funs[[j]])
-    saskatchewanfires_postfire[, varInfo$name[j]] <- sapply(saskatchewanfires_postfire[, varInfo$name[j], drop = TRUE],
-                                                            funs[[j]])
-  }
-
-
-  ## convert alberta1 classes (% survival) to match alberta2 and saskatchewan (mortality classes)
-  ## and create a continuous severity variable in % mortality
-  albertafires1_postfire$SEV_CLASS <- as.character(albertafires1_postfire$SEV_CLASS)
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "100%"] <- "0"
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "75-99%"] <- "1"
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "50-74%"] <- "2"
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "25-49%"] <- "3"
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "6-24%"] <- "4"
-  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "0-5%"] <- "5"
-  albertafires1_postfire$SEV_CLASS <- as.numeric(albertafires1_postfire$SEV_CLASS)
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 0] <- 0
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 1] <- median(c(1,25))
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 2] <- median(c(26,50))
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 3] <- median(c(51,75))
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 4] <- median(c(76,94))
-  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 5] <- median(c(95,100))
-
-
-  albertafires2_postfire$SEV_CLASS <- as.numeric(as.character(albertafires2_postfire$SEV_CLASS))
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 0] <- 0
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 1] <- median(c(1,25))
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 2] <- median(c(26,50))
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 3] <- median(c(51,75))
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 4] <- median(c(76,94))
-  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 5] <- median(c(95,100))
-
-  saskatchewanfires_postfire$SEV_CLASS <- as.numeric(as.character(saskatchewanfires_postfire$SEV_CLASS))
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 0] <- 0
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 1] <- median(c(1,25))
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 2] <- median(c(26,50))
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 3] <- median(c(51,75))
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 4] <- median(c(76,94))
-  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 5] <- median(c(95,100))
-
-  albertafires1_postfire$Province <- "AB"
-  albertafires2_postfire$Province <- "AB"
-  saskatchewanfires_postfire$Province <- "SK"
-
-  ## correction of fire years and convert to numeric
-  ## see data/fires_Dave/all129-overview.xls
-
-  albertafires2_postfire$FIRE_YEAR <- as.character(albertafires2_postfire$FIRE_YEAR)
-  saskatchewanfires_postfire$FIRE_YEAR <- as.character(saskatchewanfires_postfire$FIRE_YEAR)
-
-  ## LETTER Y fire
-  albertafires2_postfire$FIRE_YEAR <- sub("<1953", "1953", albertafires2_postfire$FIRE_YEAR)
-
-  ## MEIKLE fire
-  albertafires2_postfire$FIRE_YEAR <- sub("195X", "1952", albertafires2_postfire$FIRE_YEAR)
-
-  ## HALVERSON fire
-  albertafires2_postfire$FIRE_YEAR <- sub("194X", "1945", albertafires2_postfire$FIRE_YEAR)
-
-  ## Alfred fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Alfred"] <- "1981"
-
-  ## Brett fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Brett"] <- "1977"
-
-  ## Carlton fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Carlton"] <- "1980"
-
-  ## Dillon Lake fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Dillon Lake"] <- "1977"
-
-  ## Elk fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Elk"] <- "1983"
-
-  ## Harry Lake fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Harry Lake"] <- "1980"
-
-  ## McArther fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "McArther"] <- "1984"
-
-  ## Rail fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rail"] <- "1984"
-
-  ## Rainbow fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rainbow"] <- "1986"
-
-  ## Sixty fire
-  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Sixty"] <- "1981"
-
-  albertafires1_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires1_postfire$FIRE_YEAR))
-  albertafires2_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires2_postfire$FIRE_YEAR))
-  saskatchewanfires_postfire$FIRE_YEAR <- as.numeric(as.character(saskatchewanfires_postfire$FIRE_YEAR))
+  firesABSK <- Cache(cleanAndBindFireData,
+                     files = c("albertafires1_postfire", "albertafires2_postfire", "saskatchewanfires_postfire"),
+                     fireDataPath = fireDataPath,
+                     cacheRepo = "analyses/cache",
+                     userTags = "allFireData",
+                     useCache = doCache)
 
   ## DEFINE FIRE EVENTS ----
-  firesABSK <- rbind(albertafires1_postfire, albertafires2_postfire, saskatchewanfires_postfire)
-
   ## Use Alberta 1 post fire data only for now, as severity classes on other datasets and not yet comparable.
   ABSK_fireEvents <- Cache(defineFireEvents,
                            sfObj = firesABSK, fireNAMES = "FIRE_NAME",
@@ -486,3 +361,142 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
 
   return(ABSK_AllData)
 }
+
+
+cleanAndBindFireData <- function(files, fireDataPath) {
+  for(x in files) {
+    suppressWarnings(
+      eval(parse(text = paste0(
+        x, " <- st_read(file.path(fireDataPath", ", paste0('", x,"', '.shp')))"
+      )))
+    )
+  }
+
+
+  ## water polygons in AB2 (have FIRE_CODE == 9)
+  albertafires2_postfire <- albertafires2_postfire[albertafires2_postfire$FIRE_CODE != "9",]
+
+  ## CHANGE NAMES AND REMOVE UNWANTED VARIABLES
+  albertafires1_postfire <- renameCleanSfFields(sfObj = albertafires1_postfire,
+                                                namesTable = read.table(file.path(fireDataPath, "alberta1Postfire_varCorresp.txt"), header = TRUE))
+  albertafires2_postfire <- renameCleanSfFields(sfObj = albertafires2_postfire,
+                                                namesTable = read.table(file.path(fireDataPath, "alberta2Postfire_varCorresp.txt"), header = TRUE))
+  saskatchewanfires_postfire <- renameCleanSfFields(sfObj = saskatchewanfires_postfire,
+                                                    namesTable = read.table(file.path(fireDataPath, "saskatchewanPostfire_varCorresp.txt"), header = TRUE))
+
+  ## reorder columns
+  if (all(setequal(names(albertafires1_postfire), names(albertafires2_postfire)),
+          setequal(names(albertafires1_postfire), names(saskatchewanfires_postfire)))) {
+    albertafires2_postfire <- albertafires2_postfire[, names(albertafires1_postfire)]
+    saskatchewanfires_postfire <- saskatchewanfires_postfire[, names(albertafires1_postfire)]
+  } else stop("column names differ")
+
+  ## uniformize column classes between sf objs
+  varInfo <- data.frame(name = names(st_set_geometry(albertafires1_postfire, NULL)),
+                        class = sapply(st_set_geometry(albertafires1_postfire, NULL), class),
+                        stringsAsFactors = FALSE)
+  funs <- paste0("as.", varInfo$class)
+
+  ## didn't manage to do all vars at the same time..
+  for(j in 1:nrow(varInfo)) {
+    albertafires2_postfire[, varInfo$name[j]] <- sapply(albertafires2_postfire[, varInfo$name[j], drop = TRUE],
+                                                        funs[[j]])
+    saskatchewanfires_postfire[, varInfo$name[j]] <- sapply(saskatchewanfires_postfire[, varInfo$name[j], drop = TRUE],
+                                                            funs[[j]])
+  }
+
+
+  ## convert alberta1 classes (% survival) to match alberta2 and saskatchewan (mortality classes)
+  ## and create a continuous severity variable in % mortality
+  albertafires1_postfire$SEV_CLASS <- as.character(albertafires1_postfire$SEV_CLASS)
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "100%"] <- "0"
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "75-99%"] <- "1"
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "50-74%"] <- "2"
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "25-49%"] <- "3"
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "6-24%"] <- "4"
+  albertafires1_postfire$SEV_CLASS[albertafires1_postfire$SEV_CLASS == "0-5%"] <- "5"
+  albertafires1_postfire$SEV_CLASS <- as.numeric(albertafires1_postfire$SEV_CLASS)
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 0] <- 0
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 1] <- median(c(1,25))
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 2] <- median(c(26,50))
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 3] <- median(c(51,75))
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 4] <- median(c(76,94))
+  albertafires1_postfire$SEV_CONT[albertafires1_postfire$SEV_CLASS == 5] <- median(c(95,100))
+
+
+  albertafires2_postfire$SEV_CLASS <- as.numeric(as.character(albertafires2_postfire$SEV_CLASS))
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 0] <- 0
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 1] <- median(c(1,25))
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 2] <- median(c(26,50))
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 3] <- median(c(51,75))
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 4] <- median(c(76,94))
+  albertafires2_postfire$SEV_CONT[albertafires2_postfire$SEV_CLASS == 5] <- median(c(95,100))
+
+  saskatchewanfires_postfire$SEV_CLASS <- as.numeric(as.character(saskatchewanfires_postfire$SEV_CLASS))
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 0] <- 0
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 1] <- median(c(1,25))
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 2] <- median(c(26,50))
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 3] <- median(c(51,75))
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 4] <- median(c(76,94))
+  saskatchewanfires_postfire$SEV_CONT[saskatchewanfires_postfire$SEV_CLASS == 5] <- median(c(95,100))
+
+  albertafires1_postfire$Province <- "AB"
+  albertafires2_postfire$Province <- "AB"
+  saskatchewanfires_postfire$Province <- "SK"
+
+  ## correction of fire years and convert to numeric
+  ## see data/fires_Dave/all129-overview.xls
+
+  albertafires2_postfire$FIRE_YEAR <- as.character(albertafires2_postfire$FIRE_YEAR)
+  saskatchewanfires_postfire$FIRE_YEAR <- as.character(saskatchewanfires_postfire$FIRE_YEAR)
+
+  ## LETTER Y fire
+  albertafires2_postfire$FIRE_YEAR <- sub("<1953", "1953", albertafires2_postfire$FIRE_YEAR)
+
+  ## MEIKLE fire
+  albertafires2_postfire$FIRE_YEAR <- sub("195X", "1952", albertafires2_postfire$FIRE_YEAR)
+
+  ## HALVERSON fire
+  albertafires2_postfire$FIRE_YEAR <- sub("194X", "1945", albertafires2_postfire$FIRE_YEAR)
+
+  ## Alfred fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Alfred"] <- "1981"
+
+  ## Brett fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Brett"] <- "1977"
+
+  ## Carlton fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Carlton"] <- "1980"
+
+  ## Dillon Lake fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Dillon Lake"] <- "1977"
+
+  ## Elk fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Elk"] <- "1983"
+
+  ## Harry Lake fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Harry Lake"] <- "1980"
+
+  ## McArther fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "McArther"] <- "1984"
+
+  ## Rail fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rail"] <- "1984"
+
+  ## Rainbow fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Rainbow"] <- "1986"
+
+  ## Sixty fire
+  saskatchewanfires_postfire$FIRE_YEAR[saskatchewanfires_postfire$FIRE_NAME == "Sixty"] <- "1981"
+
+  albertafires1_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires1_postfire$FIRE_YEAR))
+  albertafires2_postfire$FIRE_YEAR <- as.numeric(as.character(albertafires2_postfire$FIRE_YEAR))
+  saskatchewanfires_postfire$FIRE_YEAR <- as.numeric(as.character(saskatchewanfires_postfire$FIRE_YEAR))
+
+  ## bind and return
+  firesABSK <- rbind(albertafires1_postfire, albertafires2_postfire, saskatchewanfires_postfire)
+
+  return(firesABSK)
+}
+
+

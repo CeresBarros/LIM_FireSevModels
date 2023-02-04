@@ -4024,3 +4024,31 @@ dev.off()
 # load("analyses/modelsGAMLSS_0-3Days_goodSample_Nov1.RData")
 ```
 
+
+## Accuray values of similar studies
+
+Fang et al. 2018 and Ferster et al. 2016 model severity using BRTs and multinomial logistic models, respectively. In Fang et al. 2018 only 3 severity classes were modelled. Ferster et al. 2016 used the same data as here.
+
+Note that the contingency matrix in Fang et al. 2018 was transposed to match the format expected by `caret::confusionMatrix`.
+
+```{r accuracyFangAndFerster}
+FangEtAl2018_yr2000 <- data.frame(low = c(50, 26, 7),
+                                  moderate = c(261, 496, 142),
+                                  high = c(42, 369, 1184), 
+                                  row.names = c("low", "moderate", "high")) |>
+  as.matrix() |>
+  as.table()
+
+
+FangEtAl2018_yr2010 <- data.frame(low = c(196, 263, 94),
+                                  moderate = c(95, 276, 115),
+                                  high = c(33, 431, 662), 
+                                  row.names = c("low", "moderate", "high")) |>
+  as.matrix() |>
+  as.table()
+
+
+confusionMatrix(FangEtAl2018_yr2000)
+confusionMatrix(FangEtAl2018_yr2010)
+```
+

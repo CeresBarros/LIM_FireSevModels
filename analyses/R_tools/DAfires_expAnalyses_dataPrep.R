@@ -41,7 +41,8 @@ ABSKfires_DataPrep <- function(fireDataPath = "data/fires_Dave/fireSev",
                            buff.dist = 200L,
                            PLOT = FALSE, SAVE = FALSE, outputDIR = "analyses/FireEvents",
                            fileNAME = "Andison_ABSK_fireEvents", overwrite = TRUE,
-                           cacheRepo = "analyses/cache", userTags = "dataTreat_fireEvents",
+                           cacheRepo = "analyses/cache",
+                           userTags = "dataTreat_fireEvents",
                            omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
                            useCache = doCache)
 

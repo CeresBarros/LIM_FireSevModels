@@ -46,6 +46,7 @@ library(future)
 library(future.apply)
 library(reproducible)
 library(terra)
+library(tidyterra)
 library(ToolsCB)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
@@ -3920,28 +3921,88 @@ modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
 
 predictionsDT <- na.omit(modelDataFULLScaled)[, .(SEV_PROP, SEV_CLASS, pixID, FIRE_NAME, Lat, Long)]
 predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response")
-predictionsDT[, predSEV_PROP := calcMeanBEINF(predData$mu, predData$nu, predData$tau)]
+predictionsDT[, `:=`(predSEV_PROP = calcMeanBEINF(predData$mu, predData$nu, predData$tau),
+                     p1 = calcP1BEINF(predData$nu, predData$tau))]
 rm(predData, modelDataFULLScaled)
 
-## make severit rasters
-firePoints <- predictionsDT[, .(pixID, FIRE_NAME, Lat, Long)]
+## make severity rasters
+firePoints <- predictionsDT[, .(pixID, SEV_PROP, predSEV_PROP, p1, FIRE_NAME, Lat, Long)]
 firePoints <- st_as_sf(firePoints, coords = c("Long", "Lat"),
                        agr = "constant", crs = crsProj) |> 
   vect()
-templateRast <- rast(firePoints, resolution = 30, crs = as.character(crsProj))
-templateRast <- rasterize(x = firePoints, y = templateRast)
-
-obsSeverity <- templateRast
-obsSeverity[predictionsDT$pixID] <- predictionsDT$SEV_PROP
-plot(obsSeverity)
 
 ## select 2 fires with high agreement between predictions and observations
 ## correlation between pred and obs severity by fire.
-fires2map <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
-              by = FIRE_NAME][order(V1)] |>
-  tail(2))$FIRE_NAME
-```
+fires2mapHighAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+                                         by = FIRE_NAME][order(V1)] |>
+                             tail(2))$FIRE_NAME |>
+  as.character()
 
+fires2mapLowAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+                                        by = FIRE_NAME][order(V1)] |>
+                            head(2))$FIRE_NAME |>
+  as.character()
+
+
+plotFun <- function(firePoints, var, fireID, varTitle) {
+  fireID <- sub("_(obs|pred|p1)", "", fireID)
+  ggplot(firePoints[firePoints$FIRE_NAME == fireID]) +
+    geom_spatvector(aes_string(colour = var)) +
+    scale_color_distiller(palette = "RdYlGn", direction = -1,
+                          limits = c(0,1)) +
+    theme(axis.text.x = element_text(hjust = 1, angle = 20)) +
+    labs(colour = "", x = "Longitude", y = "Latitude", 
+         title = varTitle)
+}
+
+sevPlotsHighAgrement <- Map(f = plotFun,
+                            fireID = as.vector(outer(fires2mapHighAgreement, 
+                                                     c("_obs", "_pred", "_p1"), paste0)),
+                            var = rep(c("SEV_PROP", "predSEV_PROP", "p1"), each = 2),
+                            varTitle = rep(c("Observed", "Predicted mean sev.", "Predicted prob. of max. sev."),
+                                           each = 2),
+                            MoreArgs = list(firePoints = firePoints))
+
+sevPlotsLowAgrement <- Map(f = plotFun,
+                           fireID = as.vector(outer(fires2mapLowAgreement, 
+                                                    c("_obs", "_pred", "_p1"), paste0)),
+                            var = rep(c("SEV_PROP", "predSEV_PROP", "p1"), each = 2),
+                            varTitle = rep(c("Observed", "Predicted mean sev.", "Predicted prob. of max. sev."),
+                                           each = 2),
+                            MoreArgs = list(firePoints = firePoints))
+
+png(file.path(figDir, "severityMaps_highAgreement.png"), height = 8, width = 12,
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsHighAgrement$BUFFALO_HEAD_obs + theme(axis.title.x = element_blank()), 
+  sevPlotsHighAgrement$BUFFALO_HEAD_pred + theme(axis.title = element_blank()), 
+  sevPlotsHighAgrement$BUFFALO_HEAD_p1 + theme(axis.title = element_blank()),
+  ## line 2
+  sevPlotsHighAgrement$LIVOCK_obs, 
+  sevPlotsHighAgrement$LIVOCK_pred + theme(axis.title.y = element_blank()), 
+  sevPlotsHighAgrement$LIVOCK_p1 + theme(axis.title.y = element_blank()), 
+  align = "h",
+  legend = "right", common.legend = TRUE, 
+  labels = c("a)", "", "", "b)", "", ""))
+dev.off()
+
+png(file.path(figDir, "severityMaps_lowAgreement.png"), height = 8, width = 9,   
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsLowAgrement$`CONTEST #2_obs` + theme(axis.title.x = element_blank()),
+  sevPlotsLowAgrement$`CONTEST #2_pred` + theme(axis.title = element_blank()), 
+  sevPlotsLowAgrement$`CONTEST #2_p1` + theme(axis.title = element_blank()),
+  ## line 2
+  sevPlotsLowAgrement$WOODMAN_obs, 
+  sevPlotsLowAgrement$WOODMAN_pred + theme(axis.title.y = element_blank()), 
+  sevPlotsLowAgrement$WOODMAN_p1 + theme(axis.title.y = element_blank()),
+  align = "h",
+  legend = "right", common.legend = TRUE, 
+  labels = c("a)", "", "", "b)", "", ""))
+dev.off()
+```
 
 
 ```{r saveLoadRdata, include = FALSE, eval = FALSE}

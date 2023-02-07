@@ -1885,7 +1885,7 @@ p0plot6 <- ggplot(plotData,
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p0 ~ Decid * Height\n GAM smoother",
+  labs(title = "p0 ~ Broadleaf * Height\n GAM smoother",
        x = "% cover", colour = "height", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -1939,7 +1939,7 @@ p1plot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "sca
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p1 ~ Decid * Height\n GAM smoother",
+  labs(title = "p1 ~ Broadleaf * Height\n GAM smoother",
        x = "% cover", colour = "height", linetype = "understorey")  +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -2025,7 +2025,7 @@ meanplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "s
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height \n GAM smoother",
+  labs(title = "Severity ~ Broadleaf * Height \n GAM smoother",
        x = "% cover", y = "mean sev.", colour = "height")
 
 meanplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = fittedVals)) +
@@ -2125,7 +2125,7 @@ muplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "sca
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height \n GAM smoother",
+  labs(title = "Severity ~ Broadleaf * Height \n GAM smoother",
        x = "% cover", y = expression(mu), colour = "height")
 
 muplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scaled:scale") + attr(modelDataFULLScaled$CTI, "scaled:center"), y = muPred)) +
@@ -2187,7 +2187,7 @@ varplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "sc
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "Var(Severity) ~ Decid * understorey\n GAM smoother",
+  labs(title = "Var(Severity) ~ Broadleaf * understorey\n GAM smoother",
        y = "Expected variance", 
        x = "% cover", colour = "height", 
        linetype = "understorey") +
@@ -2434,7 +2434,7 @@ p0PEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p0 ~ Decid * Height",
+  labs(title = "p0 ~ Broadleaf * Height",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -2533,7 +2533,7 @@ p1PEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p1 ~ Decid * Height",
+  labs(title = "p1 ~ Broadleaf * Height",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -2682,7 +2682,7 @@ meanPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height",
+  labs(title = "Severity ~ Broadleaf * Height",
        x = "% cover", y = "mean sev.", 
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -2859,7 +2859,7 @@ muPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height",
+  labs(title = "Severity ~ Broadleaf * Height",
        x = "% cover", y = expression(mu), 
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -2964,7 +2964,7 @@ varPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, 
                 colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "Var(Severity) ~ Decid * Height",
+  labs(title = "Var(Severity) ~ Broadleaf * Height",
        y = "Expected variance",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -3260,7 +3260,7 @@ p0NFPEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p0 ~ Decid * Height",
+  labs(title = "p0 ~ Broadleaf * Height",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -3357,7 +3357,7 @@ p1NFPEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
-  labs(title = "p1 ~ Decid * Height",
+  labs(title = "p1 ~ Broadleaf * Height",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
@@ -3504,7 +3504,7 @@ meanNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Deci
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height",
+  labs(title = "Severity ~ Broadleaf * Height",
        x = "% cover", y = "mean sev.", 
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -3681,7 +3681,7 @@ muNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
   geom_line(aes(linetype = as.factor(UNDERSTOREY), colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
-  labs(title = "Severity ~ Decid * Height",
+  labs(title = "Severity ~ Broadleaf * Height",
        x = "% cover", y = expression(mu), 
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
@@ -3786,7 +3786,7 @@ varNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid
                 colour = as.factor(HEIGHT_LOWER * attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:scale") + attr(modelDataFULLScaled$HEIGHT_LOWER, "scaled:center"))), lineend = "round", size = 1.5) +  
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
-  labs(title = "Var(Severity) ~ Decid * Height",
+  labs(title = "Var(Severity) ~ Broadleaf * Height",
        y = "Expected variance",
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))

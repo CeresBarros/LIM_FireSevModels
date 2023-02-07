@@ -1795,7 +1795,7 @@ $$xi1 = \tau = \frac{p1}{1 + p0 + p1}$$
 where *xi0* and *xi1* are the `gamlssInf0to1` equivalents of $\nu$ and $\tau$.
 See above for variance (Var(Y)) of the zero- and one-inflated Beta regression.
 
-### General effects - model with original variables.
+### General effects - model with scaled variables.
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE, eval=FALSE}
 modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")

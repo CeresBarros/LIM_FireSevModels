@@ -1,104 +1,112 @@
-FROM rocker/r-ver:4.1.3
+# syntax=docker/dockerfile:1
 
-ARG RSTUDIO_VERSION
-ENV RSTUDIO_VERSION=${RSTUDIO_VERSION:-1.2.5042}
-ARG S6_VERSION
-ARG PANDOC_TEMPLATES_VERSION
-ENV S6_VERSION=${S6_VERSION:-v1.21.7.0}
-ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
-ENV PATH=/usr/lib/rstudio-server/bin:$PATH
-ENV PANDOC_TEMPLATES_VERSION=${PANDOC_TEMPLATES_VERSION:-2.9}
+######################
+## install git and get files before creating the image
 
-## Download and install RStudio server & dependencies
-## Attempts to get detect latest version, otherwise falls back to version given in $VER
-## Symlink pandoc, pandoc-citeproc so they are available system-wide
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-    file \
-    git \
-    libapparmor1 \
-    libclang-dev \
-    libcurl4-openssl-dev \
-    libedit2 \
-    libssl-dev \
-    lsb-release \
-    multiarch-support \
-    psmisc \
-    procps \
-    python-setuptools \
-    sudo \
-    wget \
-  && if [ -z "$RSTUDIO_VERSION" ]; \
-    then RSTUDIO_URL="https://www.rstudio.org/download/latest/stable/server/bionic/rstudio-server-latest-amd64.deb"; \
-    else RSTUDIO_URL="http://download2.rstudio.org/server/bionic/amd64/rstudio-server-${RSTUDIO_VERSION}-amd64.deb"; fi \
-  && wget -q $RSTUDIO_URL \
-  && dpkg -i rstudio-server-*-amd64.deb \
-  && rm rstudio-server-*-amd64.deb \
-  ## Symlink pandoc & standard pandoc templates for use system-wide
-  && ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc /usr/local/bin \
-  && ln -s /usr/lib/rstudio-server/bin/pandoc/pandoc-citeproc /usr/local/bin \
-  && git clone --recursive --branch ${PANDOC_TEMPLATES_VERSION} https://github.com/jgm/pandoc-templates \
-  && mkdir -p /opt/pandoc/templates \
-  && cp -r pandoc-templates*/* /opt/pandoc/templates && rm -rf pandoc-templates* \
-  && mkdir /root/.pandoc && ln -s /opt/pandoc/templates /root/.pandoc/templates \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/ \
-  ## RStudio wants an /etc/R, will populate from $R_HOME/etc
-  && mkdir -p /etc/R \
-  ## Write config files in $R_HOME/etc
-  && echo '\n\
-    \n# Configure httr to perform out-of-band authentication if HTTR_LOCALHOST \
-    \n# is not set since a redirect to localhost may not work depending upon \
-    \n# where this Docker container is running. \
-    \nif(is.na(Sys.getenv("HTTR_LOCALHOST", unset=NA))) { \
-    \n  options(httr_oob_default = TRUE) \
-    \n}' >> /usr/local/lib/R/etc/Rprofile.site \
-  && echo "PATH=${PATH}" >> /usr/local/lib/R/etc/Renviron \
-  ## Need to configure non-root user for RStudio
-  && useradd rstudio \
-  && echo "rstudio:rstudio" | chpasswd \
-	&& mkdir /home/rstudio \
-	&& chown rstudio:rstudio /home/rstudio \
-	&& addgroup rstudio staff \
-  ## Prevent rstudio from deciding to use /usr/bin/R if a user apt-get installs a package
-  &&  echo 'rsession-which-r=/usr/local/bin/R' >> /etc/rstudio/rserver.conf \
-  ## use more robust file locking to avoid errors when using shared volumes:
-  && echo 'lock-type=advisory' >> /etc/rstudio/file-locks \
-  ## configure git not to request password each time
-  && git config --system credential.helper 'cache --timeout=3600' \
-  && git config --system push.default simple \
-  ## Set up S6 init system
-  && wget -P /tmp/ https://github.com/just-containers/s6-overlay/releases/download/${S6_VERSION}/s6-overlay-amd64.tar.gz \
-  && tar xzf /tmp/s6-overlay-amd64.tar.gz -C / \
-  && mkdir -p /etc/services.d/rstudio \
-  && echo '#!/usr/bin/with-contenv bash \
-          \n## load /etc/environment vars first: \
-  		  \n for line in $( cat /etc/environment ) ; do export $line ; done \
-          \n exec /usr/lib/rstudio-server/bin/rserver --server-daemonize 0' \
-          > /etc/services.d/rstudio/run \
-  && echo '#!/bin/bash \
-          \n rstudio-server stop' \
-          > /etc/services.d/rstudio/finish \
-  && mkdir -p /home/rstudio/.rstudio/monitored/user-settings \
-  && echo 'alwaysSaveHistory="0" \
-          \nloadRData="0" \
-          \nsaveAction="0"' \
-          > /home/rstudio/.rstudio/monitored/user-settings/user-settings \
-  && chown -R rstudio:rstudio /home/rstudio/.rstudio
-  ## from https://forum.posit.co/t/troubles-installing-rstudio-server/10651/4
-  && ln /usr/bin/R /usr/local/bin/R
+FROM ubuntu:latest AS builder
 
-COPY userconf.sh /etc/cont-init.d/userconf
+## install git and get git repo with installation scripts
 
-## running with "-e ADD=shiny" adds shiny server
-COPY add_shiny.sh /etc/cont-init.d/add
-COPY disable_auth_rserver.conf /etc/rstudio/disable_auth_rserver.conf
-COPY pam-helper.sh /usr/lib/rstudio-server/bin/pam-helper
+RUN apt-get update && \
+apt-get upgrade -y && \
+apt-get install -y git
+
+WORKDIR /tmp
+
+RUN git clone https://github.com/rocker-org/rocker-versioned2.git rocker-versioned2/
+
+## edit a few of the scripts
+
+## edit *.sh to patch R config file to change required libcurl version
+## https://unix.stackexchange.com/questions/758026/error-libcurl-7-28-0-library-and-headers-are-required-with-support-for-https
+RUN <<EOF
+awk '
+  { print }
+  /^cd R-\*\// {
+    print "\nif [ \"$R_VERSION\" == \"4.1.3\" ]; then"
+    print "  awk \047/> 7/ { c = 1 } !/> 7/ && c { print(\"  exit(0);\"); c = 0; next; } 1\047 configure > configure.new && mv configure.new configure"
+    print "fi"
+    print "\nchmod +x configure"
+  }' rocker-versioned2/scripts/install_R_source.sh > temp.sh
+mv temp.sh rocker-versioned2/scripts/install_R_source.sh
+chmod +x rocker-versioned2/scripts/install_R_source.sh
+EOF
+
+
+## edit wget when downloading various software pieces
+RUN awk '{gsub(/wget\ \"https/, "wget --no-check-certificate \"http")}1' rocker-versioned2/scripts/install_R_source.sh > temp.sh && \
+mv temp.sh rocker-versioned2/scripts/install_R_source.sh && \
+chmod +x rocker-versioned2/scripts/install_R_source.sh
+
+RUN <<EOF
+awk '{gsub(/wget -P/, "wget --no-check-certificate -P")}1' rocker-versioned2/scripts/install_s6init.sh > temp.sh
+mv temp.sh rocker-versioned2/scripts/install_s6init.sh
+awk '{gsub(/https/, "http")}1' rocker-versioned2/scripts/install_s6init.sh > temp.sh
+mv temp.sh rocker-versioned2/scripts/install_s6init.sh
+chmod +x rocker-versioned2/scripts/install_s6init.sh
+EOF
+
+RUN awk '{gsub(/wget\ \"https/, "wget --no-check-certificate \"http")}1' rocker-versioned2/scripts/install_rstudio.sh > temp.sh && \
+mv temp.sh rocker-versioned2/scripts/install_rstudio.sh && \
+chmod +x rocker-versioned2/scripts/install_rstudio.sh
+
+RUN awk '{gsub(/wget\ \"\$PANDOC_DL_URL/, "wget --no-check-certificate \"$PANDOC_DL_URL")}1' rocker-versioned2/scripts/install_pandoc.sh > temp.sh && \
+mv temp.sh rocker-versioned2/scripts/install_pandoc.sh && \
+chmod +x rocker-versioned2/scripts/install_pandoc.sh
+
+RUN awk '{gsub(/wget\ \"\$QUARTO_DL_URL/, "wget --no-check-certificate \"$QUARTO_DL_URL")}1' rocker-versioned2/scripts/install_quarto.sh > temp.sh && \
+mv temp.sh rocker-versioned2/scripts/install_quarto.sh && \
+chmod +x rocker-versioned2/scripts/install_quarto.sh
+
+######################
+## Now create image
+
+FROM docker.io/library/ubuntu:latest
+
+ENV R_VERSION="4.1.3"
+ENV R_HOME="/usr/local/lib/R"
+ENV TZ="Etc/UTC"
+ENV HOME="/home/cbarros"
+
+## install ssh-client
+RUN apt-get update && apt-get install -y openssh-client
+
+COPY --from=builder /tmp/rocker-versioned2/scripts/install_R_source.sh /rocker_scripts/install_R_source.sh
+RUN /rocker_scripts/install_R_source.sh
+
+
+ENV CRAN="http://cloud.r-project.org"
+ENV LANG=en_US.UTF-8
+
+COPY --from=builder /tmp/rocker-versioned2/scripts/bin/ /rocker_scripts/bin/
+COPY --from=builder /tmp/rocker-versioned2/scripts/setup_R.sh /rocker_scripts/setup_R.sh
+
+RUN <<EOF
+if grep -q "1000" /etc/passwd; then
+userdel --remove "$(id -un 1000)";
+fi
+/rocker_scripts/setup_R.sh
+EOF
+
+ENV S6_VERSION="v2.1.0.2"
+ENV RSTUDIO_VERSION="2025.05.1+513"
+ENV DEFAULT_USER="rstudio"
+
+COPY --from=builder /tmp/rocker-versioned2/scripts/install_rstudio.sh /rocker_scripts/install_rstudio.sh
+COPY --from=builder /tmp/rocker-versioned2/scripts/install_s6init.sh /rocker_scripts/install_s6init.sh
+COPY --from=builder /tmp/rocker-versioned2/scripts/default_user.sh /rocker_scripts/default_user.sh
+COPY --from=builder /tmp/rocker-versioned2/scripts/init_set_env.sh /rocker_scripts/init_set_env.sh
+COPY --from=builder /tmp/rocker-versioned2/scripts/init_userconf.sh /rocker_scripts/init_userconf.sh
+COPY --from=builder /tmp/rocker-versioned2/scripts/pam-helper.sh /rocker_scripts/pam-helper.sh
+RUN /rocker_scripts/install_rstudio.sh
 
 EXPOSE 8787
+CMD ["/init"]
 
-## automatically link a shared volume for kitematic users
-VOLUME /home/rstudio/kitematic
+COPY --from=builder /tmp/rocker-versioned2/scripts/install_pandoc.sh /rocker_scripts/install_pandoc.sh
+RUN /rocker_scripts/install_pandoc.sh
 
-## from https://forum.posit.co/t/troubles-installing-rstudio-server/10651/4
-CMD ["/usr/lib/rstudio-server/bin/rserver", "--server-daemonize=0", "--server-app-armor-enabled=0"]
+COPY --from=builder /tmp/rocker-versioned2/scripts/install_quarto.sh /rocker_scripts/install_quarto.sh
+RUN /rocker_scripts/install_quarto.sh
+
+COPY --from=builder /tmp/rocker-versioned2/scripts /rocker_scripts

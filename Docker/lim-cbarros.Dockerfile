@@ -74,7 +74,8 @@ RUN apt-get update && apt-get install -y openssh-client \
   vim \
   less \
   nano \
-  htop
+  htop \
+  rsync
 
 
 COPY --from=builder /tmp/rocker-versioned2/scripts/install_R_source.sh /rocker_scripts/install_R_source.sh

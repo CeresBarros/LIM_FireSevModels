@@ -68,8 +68,15 @@ ENV R_HOME="/usr/local/lib/R"
 ENV TZ="Etc/UTC"
 ENV HOME="/home/cbarros"
 
-## install ssh-client
-RUN apt-get update && apt-get install -y openssh-client
+## install necessary software
+RUN apt-get update && apt-get install -y openssh-client \
+  git \
+  vim \
+  less \
+  zip \
+  unzip \
+  nano
+
 
 COPY --from=builder /tmp/rocker-versioned2/scripts/install_R_source.sh /rocker_scripts/install_R_source.sh
 RUN /rocker_scripts/install_R_source.sh

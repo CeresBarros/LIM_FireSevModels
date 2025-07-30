@@ -75,12 +75,40 @@ RUN apt-get update && apt-get install -y openssh-client \
   less \
   nano \
   htop \
-  rsync
+  rsync \
+  libglpk40 \
+  libgdal-dev \
+  gdal-bin \
+  proj-bin \
+  libproj-dev \
+  libudunits2-dev \
+  libgeos-dev \
+  libsqlite3-dev \
+  locate
 
+## need to configure a few things.
+RUN <<EOF
+export LD_LIBRARY_PATH="~/bin/gdal/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+ldconfig -c "echo '/usr/local/lib' >> /etc/ld.so.conf.d/R-dependencies-x86_64.conf"
+ln -s libgdal.so /usr/lib/x86_64-linux-gnu/libgdal.so.26
+ln -s libproj.so /usr/lib/x86_64-linux-gnu/libproj.so.15
+mkdir -p /usr/local/gdal/share
+ln -s /usr/share/gdal /usr/local/gdal/share/gdal
+export GDAL_DATA="/usr/local/gdal/share/gdal"
+mkdir -p /usr/local/gdal/bin/
+ln -s /usr/bin/gdal* /usr/local/gdal/bin/
+EOF
+
+## user configs
+RUN <<EOF
+## change ownership of homedir
+chown -R "$USER":"$USER" "$HOME"
+adduser "$USER" sudo
+EOF
 
 COPY --from=builder /tmp/rocker-versioned2/scripts/install_R_source.sh /rocker_scripts/install_R_source.sh
 RUN /rocker_scripts/install_R_source.sh
-
 
 ENV CRAN="http://cloud.r-project.org"
 ENV LANG=en_US.UTF-8

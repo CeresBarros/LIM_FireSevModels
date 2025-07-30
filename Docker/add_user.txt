@@ -1,0 +1,18 @@
+## To add a new user:
+
+## enter container
+docker exec -it <containerID> bash
+
+## add users and set password
+useradd <username>
+passwd <username>
+
+## make home dir if not there
+mkdir /home/<username>
+
+## change ownership of homedir
+chown -R <username>:<username> /home/<username>
+
+## change ownership of scratch
+chown -R <username>:<username> /home/<username>
+

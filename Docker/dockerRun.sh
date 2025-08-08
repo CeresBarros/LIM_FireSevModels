@@ -3,9 +3,9 @@
 ## Initialise docker container.
 docker run -d \
   -it \
-  -e PASSWORD=!Caribou4 \
+  -e PASSWORD="55Borgui$" \
   -e USER=cbarros \
-  --memory=100g \
+  --memory=250g \
   --cpus=32 \
   -p 8080:8787 \
   --name LIM-docker \

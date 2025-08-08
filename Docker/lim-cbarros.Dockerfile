@@ -67,6 +67,7 @@ ENV R_VERSION="4.1.3"
 ENV R_HOME="/usr/local/lib/R"
 ENV TZ="Etc/UTC"
 ENV HOME="/home/cbarros"
+ENV USER="cbarros"
 
 ## install necessary software
 RUN apt-get update && apt-get install -y openssh-client \
@@ -84,7 +85,19 @@ RUN apt-get update && apt-get install -y openssh-client \
   libudunits2-dev \
   libgeos-dev \
   libsqlite3-dev \
-  locate
+  locate \
+  r-cran-littler
+
+## user configs
+RUN <<EOF
+mkdir $HOME
+groupadd -g 1003 "$USER"
+useradd -m -u 1003 -g "$USER" "$USER"
+useradd sudo "$USER"
+## change ownership of homedir
+chown -R "$USER":"$USER" "$HOME"
+usermod -aG sudo "$USER"
+EOF
 
 ## need to configure a few things.
 RUN <<EOF
@@ -98,13 +111,6 @@ ln -s /usr/share/gdal /usr/local/gdal/share/gdal
 export GDAL_DATA="/usr/local/gdal/share/gdal"
 mkdir -p /usr/local/gdal/bin/
 ln -s /usr/bin/gdal* /usr/local/gdal/bin/
-EOF
-
-## user configs
-RUN <<EOF
-## change ownership of homedir
-chown -R "$USER":"$USER" "$HOME"
-adduser "$USER" sudo
 EOF
 
 COPY --from=builder /tmp/rocker-versioned2/scripts/install_R_source.sh /rocker_scripts/install_R_source.sh

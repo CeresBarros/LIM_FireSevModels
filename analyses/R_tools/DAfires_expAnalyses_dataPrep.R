@@ -824,3 +824,144 @@ cleanAndBindFireData <- function(files, fireDataPath) {
 }
 
 
+#' Data preparation wrapper function -- for caching data prep steps
+#'
+#' @param resolution numeric. in meters. Defaults to 30m.
+#' @param doCache logical. Activates/deactivates caching. Passed to reproducible::Cache
+#' @param fireDataPath character. Folder path to fire severity data.
+#' @param vegDataPath character. Folder path to pre-fire vegetation data.
+#' @param topoDataPath character. Folder path to topography data.
+#' @param weatherDataPath character. Folder path to fire weather data.
+#'
+#' @returns
+#' @export
+#'
+#' @importFrom amc .gc
+#' @importFrom reproducible Cache
+#' @importFrom crayon cyan
+
+dataPrepWrapper <- function(resolution = 30,
+                            fireDataPath = "data/fires_Dave/fireSev",
+                            vegDataPath = "data/fires_Dave/prefireVeg",
+                            topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+                            weatherDataPath = "data/fires_Dave/fireWeather",
+                            doCache = TRUE) {
+
+  message(cyan("Joining severity, vegetation, topo. and weather datasets..."))
+  ABSK_AllData <- Cache(ABSKfires_DataPrep,
+                        fireDataPath = fireDataPath,
+                        vegDataPath = vegDataPath,
+                        topoDataPath = topoDataPath,
+                        weatherDataPath = weatherDataPath,
+                        resolution = resolution,
+                        ## cacheId = "7317549c72849eb2"
+                        doCache = doCache,
+                        bindAllFires = FALSE,
+                        # useCache = FALSE,
+                        userTags = "ABSKfires_DataPrep",
+                        omitArgs = c("bindAllFires", "doCache", "userTags"))
+
+  ## exclude event perimeter patch type
+  # memory.limit(size = 64000)
+  ABSK_AllData <- subset(x = ABSK_AllData, PatchType != "eventPerim")
+  amc::.gc()
+
+  ## remove columns with no data
+  NAcols <- sapply(ABSK_AllData, FUN = function(x) all(is.na(x)))
+  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
+  zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE))
+  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
+
+  ## calculate stand age at fire year by subtracting fire year - makes negative values
+  ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]
+
+  ## convert SMR to ordinal variable (moister as values increase)
+  ABSK_AllData[SMR == "D", SMR_ord := 1]
+  ABSK_AllData[SMR == "F", SMR_ord := 2]
+  ABSK_AllData[SMR == "M", SMR_ord := 3]
+  ABSK_AllData[SMR == "W", SMR_ord := 4]
+  ABSK_AllData[SMR == "A", SMR_ord := 5]
+
+  ABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
+
+  ## summarise weather data - faster if not cached
+  message(cyan("Summarising weather data..."))
+  summaryABSK_AllData <- Cache(summarizeABSK_AllData,
+                               DT = ABSK_AllData,
+                               dim = dim(ABSK_AllData),
+                               days = 1:3,
+                               omitArgs = c("DT"),
+                               useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
+
+  ## collapse species into more generic categories
+  message(cyan("Aggregating species..."))
+  summaryABSK_AllData[, FlamConif := sum(`Pice glau`, `Pice mari`, `Pice enge`,
+                                         `Pinu cont`, `Pinu bank`, na.rm = TRUE),
+                      by = pixID]
+  summaryABSK_AllData[, Abie := sum(`Abie bals`, `Abie lasi`, na.rm = TRUE),
+                      by = pixID]
+  summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
+                      by = pixID]
+
+  ## collapse non-forested variables
+  message(cyan("Aggregating non-forested classes..."))
+  if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
+      dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
+      dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
+    warning("> 1 non-forest class type present")
+
+  collapseCols <- function(x) {
+    x <- unlist(x)
+    names(x) <- NULL
+    if (all(is.na(x)))
+      "NA"
+    else
+      x[!is.na(x)]
+  }
+
+  cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
+  summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
+  summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+
+  summaryABSK_AllData[, isForest := 0]
+  summaryABSK_AllData[NonForestValue == "NA", isForest := 1]
+  summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
+
+  ## change Lari lari to simpler name
+  setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
+  ## rescale severity from 0-1
+  message(cyan("Rescaling severity to [0,1], and converting 97.5% severity to 100%..."))
+
+  summaryABSK_AllData[, SEV_PROP := SEV_CONT/100]
+  ## convert the highest fire severity to 1
+  summaryABSK_AllData[SEV_PROP == 0.9750, SEV_PROP := 1.0]
+
+  ## change some columns to numeric
+  cols <- grep("mean|max|min|cv|range|pixID|P_ID|Duration|ORIGIN|HEIGHT|isForest|SEV_PROP|Aspect|^CTI$|PctSlope|SurfReliefRatio|SurfAspectRatio|Elevation", names(summaryABSK_AllData), value = TRUE)
+  str(summaryABSK_AllData[, ..cols])
+  summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+
+  ## calculate SMR_wet
+  message(cyan("Creating binary 'wet' SMR variable..."))
+  summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+
+  ## fix Area column (not used but still)
+  message(cyan("Data fixes and column class adjustments..."))
+  summaryABSK_AllData[, Area := as.integer(sub(",", "", Area))]
+
+  ## disturbance years and percentages should be integer
+  cols <- grep("YEAR|_PER$", names(summaryABSK_AllData), value = TRUE)
+  summaryABSK_AllData[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
+
+
+  ## make some columns factors
+  cols <- unique(c("FIRE_NAME", "Czone1", "NR1"), names(which(sapply(summaryABSK_AllData, is.character))))
+  summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
+
+  ## make some columns others boolean
+  cols <- c("UNDERSTOREY", "isForest", "SMR_wet")
+  summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.logical), .SDcols = cols]
+
+  return(summaryABSK_AllData)
+}

@@ -347,7 +347,7 @@ cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
              names(summaryABSK_AllData),
              value = TRUE)
 
-## sample a forth of the pixels in each fire
+## sample a fourth of the pixels in each fire
 sampDT <- na.omit(summaryABSK_AllData[, ..cols])[,.(FIRE_NAME, pixID)]
 sampDT[, noPixels :=  length(pixID), by = FIRE_NAME]
 set.seed(123)

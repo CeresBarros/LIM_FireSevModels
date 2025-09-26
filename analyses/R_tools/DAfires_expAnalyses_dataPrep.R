@@ -1,7 +1,7 @@
 ## ---------------------------------
 ## DAVID ANDISON FIRE DATA
 ##
-## Dataprep function for Exploratory analysis
+## Dataprep function for statiscal analyses
 ## ---------------------------------
 
 ## resolution is passed to joinSevVegTopoWeatherData

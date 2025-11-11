@@ -122,7 +122,7 @@ ngbNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   parallel = TRUE,
                                   cores = 3,
                                   useCache = doCache,
-                                  ## cacheId = "9a366f60217632b1",
+                                  cacheId = "9a366f60217632b1",
                                   userTags = "ngbBurns",
                                   omitArgs = c("useCache", "userTags", "cores")) 
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
@@ -140,6 +140,7 @@ firesABSK <- Cache(cleanAndBindFireData,
                    fireDataPath = "data/fires_Dave/fireSev",
                    cachePath = "analyses/cache",
                    userTags = "allFireData",
+                   cacheId = "allFireData",
                    omitArgs = c("cachePath", "userTags"))
 firesABSK <- vect(firesABSK)
 
@@ -161,6 +162,7 @@ NRAlberta <- Cache(prepInputs,
                    destinationPath = "R/SpaDES/inputs/",
                    cachePath = "R/SpaDES/data/cache",
                    userTags = c("prepInputsNatSubRegionsAB_SA"),
+                   cacheId = "652465e92ab1f7e2",
                    omitArgs = c("cachePath", "userTags", "destinationPath", "alsoExtract"))
 
 NRAlberta <- vect(NRAlberta)

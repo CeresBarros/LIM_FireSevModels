@@ -82,6 +82,7 @@ RUN apt-get update && apt-get install -y openssh-client \
   gdal-bin \
   proj-bin \
   libproj-dev \
+  libpng-dev \
   libudunits2-dev \
   libgeos-dev \
   libsqlite3-dev \

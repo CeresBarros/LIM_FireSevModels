@@ -29,14 +29,15 @@ if (!exists("pkgDir")) {
 
 install.packages("Require")
 
-# Require::Require("xgboost", repos = "http://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
-if (!"xgboost" %in% rownames(installed.packages()) && packageVersion("xgboost") != "3.0.5.1") {
-  install.packages("C:/Users/cbarros/Downloads/xgboost_3.0.5.1.tar.gz")  ## needed to manually download
-}
+Require::Require("xgboost (==3.0.5.1)", repos = "https://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
+# if (!"xgboost" %in% rownames(installed.packages()) && packageVersion("xgboost") != "3.0.5.1") {
+#   install.packages("C:/Users/cbarros/Downloads/xgboost_3.0.5.1.tar.gz")  ## needed to manually download
+# }
+Require::Install("party")  ## for gpboost
 
 Require::Require(
   c(
-    "caret",
+    # "caret",
     "crayon",
     "data.table",
     "dplyr",
@@ -44,6 +45,10 @@ Require::Require(
     "fasterize",
     "future",
     "future.apply",
+    "gamlss",
+    "gamlss.inf", 
+    "gpboost",
+    "CeresBarros/gpboost.utils (>=0.1.0.9001)",
     "ggplot2",
     "ggpubr",
     "ggrepel",
@@ -54,24 +59,25 @@ Require::Require(
     "purrr",
     "pROC",
     "raster",
-    "reproducible",
+    "CeresBarros/reproducible@devCeres",
     "reshape2",
     "sf",
-    "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)",
+    "shapr",  
+    "PredictiveEcology/SHAPforxgboost (>=0.1.3.9001)",
     "terra",
     "tidyterra",
-    "CeresBarros/ToolsCB",
-    # "xgboost (>= 3.0.5.1)",  ## installed above
+    "CeresBarros/ToolsCB (>=0.0.9001)",
+    # "xgboost (>=3.0.5.1)",  ## above
     "xlsx"
   )
 )
 
-Require::Require("xgboost (>= 3.0.5.1)", upgrade = FALSE, install = FALSE)
+devtools::load_all("C:/Users/cbarros/GitHub/caret/pkg/caret/")
 
 options("reproducible.cachePath" = "analyses/cache",
+        "reproducible.useDBI" = TRUE,
         "future.globals.maxSize" = +Inf)
 
-source("R/R_tools/prepCorrTable.R")
 source("R/R_tools/Useful_functions.R") ## may replace some functions in ToolsCB, this is ok
 source("R/R_tools/CASFRIrelated_functions.R")
 source("R/R_tools/prepFireWeather.R")

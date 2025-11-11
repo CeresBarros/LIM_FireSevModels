@@ -133,7 +133,7 @@ setnames(ngbNoBurns, old = cols, new = paste0("buffer_", cols, "m"))
 summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
 ```
 
-## MAP OF FIRE PERIMETERS, ECOZONES AND NATURAL REGIONS
+## Maps of fire perimeters, ecozones and nat. regions
 ```{r}
 firesABSK <- Cache(cleanAndBindFireData,
                    files = c("albertafires1_postfire", "albertafires2_postfire", "saskatchewanfires_postfire"),
@@ -255,9 +255,15 @@ Variables selected for models (when using all fire weather days):
 * Landcover type
 + isForest
 
+## Gradient boosted trees with XGBoost
 
-Scale data
+### Fit and test model with k-fold cross-validation
 
+*Note: we don't need to scale data for XGBoost*
+See [here](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2008.01390.x)
+
+**Oct 30th 2025**: I tried using a Tweedie distribution. Residuals were just as bad 
+and there were actually decreases in model fit.
 ```{r}
 ## variables for analysis when considering all weather (first 3 days) - dropping range
 ## due to lack of data in some fires, dropping:

@@ -2,6 +2,7 @@
 title: "Dave Andison's fire data Severity models"
 author: "Ceres Barros"
 date: "02/04/2019"
+date-modified: last-modified
 output:
   html_document: default
 editor_options: 
@@ -4110,7 +4111,7 @@ dev.off()
 ```
 
 
-## Accuray values of similar studies
+## Accuracy values of similar studies
 
 Fang et al. 2018 and Ferster et al. 2016 model severity using BRTs and multinomial logistic models, respectively. In Fang et al. 2018 only 3 severity classes were modelled. Ferster et al. 2016 used the same data as here.
 

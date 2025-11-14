@@ -71,6 +71,77 @@ doCache = TRUE
 figDir <- "analyses/Figs"
 if (!dir.exists(figDir))
   dir.create(figDir)
+
+
+if (!exists("pkgDir")) {
+  pkgDir <- file.path(
+    if (Sys.info()[["user"]] == "rstudio") "packages_docker" else "packages",
+    version$platform,
+    paste0(version$major, ".", strsplit(version$minor, "[.]")[[1]][1])
+  )
+  
+  if (!dir.exists(pkgDir)) {
+    dir.create(pkgDir, recursive = TRUE)
+  }
+  .libPaths(pkgDir)
+}
+
+install.packages("Require")
+
+Require::Require("xgboost", repos = "http://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
+# if (!"xgboost" %in% rownames(installed.packages()) && packageVersion("xgboost") != "3.0.5.1") {
+#   install.packages("C:/Users/cbarros/Downloads/xgboost_3.0.5.1.tar.gz")  ## needed to manually download
+# }
+
+Require::Require(
+  c(
+    "caret",
+    "crayon",
+    "data.table",
+    "dplyr",
+    "foreign",
+    "fasterize",
+    "future",
+    "future.apply",
+    "ggplot2",
+    "ggpubr",
+    "ggrepel",
+    "Hmisc",
+    "LandR.CS",
+    "lightgbm",
+    "prioritizr",
+    "purrr",
+    "pROC",
+    "raster",
+    "reproducible",
+    "reshape2",
+    "sf",
+    "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)",
+    "terra",
+    "tidyterra",
+    "CeresBarros/ToolsCB",
+    # "xgboost (>= 3.0.5.1)",  ## installed above
+    "xlsx"
+  )
+)
+
+Require::Require("xgboost (>= 3.0.5.1)", upgrade = FALSE, install = FALSE)
+
+options("reproducible.cachePath" = "analyses/cache",
+        "future.globals.maxSize" = +Inf)
+
+source("R/R_tools/prepCorrTable.R")
+source("R/R_tools/Useful_functions.R") ## may replace some functions in ToolsCB, this is ok
+source("R/R_tools/CASFRIrelated_functions.R")
+source("R/R_tools/prepFireWeather.R")
+source("R/R_tools/joinSevVegTopoWeatherData.R")
+source("analyses/R_tools/summarizeABSK_AllData.R")
+source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
+
+doCache = TRUE
+
+figDir <- "analyses/Figs"
+dir.create(figDir, showWarnings = FALSE)
 ```
 
 ```{r dataprep, include = FALSE, cache = FALSE}

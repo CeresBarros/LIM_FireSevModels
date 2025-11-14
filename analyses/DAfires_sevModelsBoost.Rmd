@@ -479,6 +479,52 @@ shap.plot.dependence(data_long = shap_long,
                      dilute = 20) +
   ggtitle("SHAP for proportion of burnt neigh. - 1920m radius")
 ```
+
+### Feature selection
+
+Constraining feature interactions to within "feature types" (i.e. climate, 
+vegetation, topographic) yielded worse models.
+
+```{r constrain_interactions}
+interaction_constraints <- list(
+  grep("^min|^max|^mean|^cv|^SMR|^buffer", colnamesPred, value = TRUE), ## interactions between climate vars, and climate and burnt neighbours
+  grep("^Abie|^FlamConif|^Lari|^Decid|^UNDERST|^HEIGHT|^buffer", colnamesPred, value = TRUE), ## interactions between veg vars, and veg and burnt neighbours
+  grep("^Elev|^Aspect|^CTI|^Surf|^PctSlope|^buffer", colnamesPred, value = TRUE) ## interactions between topo vars, and topo and burnt neighbours
+)
+modelGBT2 <- runXGBOOST(modelData, digestOfData, nFolds = 5
+                        , SHAPthresh = 0.25  ## higher/lower threshold decreases AUC
+                        , interaction_constraints = interaction_constraints   ## this decreased model performance
+)
+```
+
+Constraining features and feature interactions to those in GAMLSS model also yielded
+wore models (somewhere between the unconstrained XGBoost and GAMLSS)
+```{r constrain_interactions}
+## get all GAMLSS model covariates and interactions
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+vars <- sapply(coefAll(modelNgbSev4FULL4_Scaled), function(x) {
+  names(x)[!grepl("Intercept|random", names(x))]
+}) |>
+  unlist()
+vars <- unique(vars)
+vars <- gsub("TRUE", "", vars)
+ints <- vars[grepl(":", vars)] |>
+  strsplit(split = ":") |>
+  lapply(FUN = sort) |>
+  unique()
+
+vars <- unlist(strsplit(vars, split = ":")) |>
+  unique()
+
+modelData <- summaryABSK_AllData[, .SD, .SDcols = c("SEV_PROP", vars)]
+digestOfData <- .robustDigest(modelData)
+modelGBT3 <- runXGBOOST(modelData, digestOfData
+                        , nFolds = 10
+                        , SHAPthresh = 0 ## higher/lower threshold decreases AUC
+                        , interaction_constraints = ints
+)
+```
+
 ### Maps of predicted severity
 TODO: predict with full model, or combine CV preds
 

@@ -895,18 +895,120 @@ plotResiduals(valData)
 ```
 
 
-```{r}
-## these were the covariates
-# cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-#           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
-#           "FlamConif", "SurfReliefRatio", "isForest")
-# modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-# cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-#                 "buffer_1920m", "buffer_30m", "FlamConif",
-#                 "SurfReliefRatio")
-# modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
-modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+## Compare with zero-one-inflated beta regression
 
+### SHAP analyses
+```{r}
+cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
+          "SEV_CLASS")
+
+modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
+                "buffer_1920m", "buffer_30m", "FlamConif", 
+                "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
+modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+modelDataFULLScaled <- na.omit(modelDataFULLScaled)
+
+p0 <- mean(modelDataFULLScaled$SEV_PROP)
+
+testIDs <- createFolds(modelDataFULLScaled$SEV_PROP, k = 10)$Fold01
+trainIDs <- setdiff(1:nrow(modelDataFULLScaled), testIDs)
+
+## get only the predictor columns
+cols <- .modelspecsfunGAMLSS(modelNgbSev4FULL4_Scaled)$labels
+
+## much too slow...
+explainOut <- explain(
+  model = modelNgbSev4FULL4_Scaled,
+  x_explain = modelDataFULLScaled[trainIDs, ..cols],
+  x_train = modelDataFULLScaled[testIDs, ..cols],
+  approach = "ctree",
+  phi0 = p0,
+  seed = 1,
+  predict_model = .predfunGAMLSS,
+  get_model_specs = .modelspecsfunGAMLSS
+) |> 
+  Cache(omitArgs = c("model", "x_explain", "x_train"),
+        .functionName = "explain_gamlss")
+```
+
+### Get GAMLSS validation metrics and average confidence matrix
+```{r}
+allLines <- readLines("analyses/modelNgbSev4FULL4Scaled_crossValidOutputs.txt")
+
+## Get GAMLSS validation metrics
+startLine <- grep("[[:alpha:]]", allLines)[1]+1
+endLine <- grep("\\*{3,}", allLines)[1]-1
+vmLines <- allLines[startLine:endLine]
+vmLines <- sub("^\\s*\\d+:\\s*", "", vmLines)
+## rm col classes
+vmLines <- vmLines[-2]
+
+vmFile <- tempfile()
+writeLines(vmLines, vmFile)
+gamlssValidMetrics <- fread(vmFile)
+
+## Get GAMLSS conf matrix metrics
+cacheLines <- showCache(userTags = c("crossValidFunction"))[tagKey == "function" & tagValue == "crossValidFunction"]
+gamlssCVout <- cacheLines[order(createdDate, decreasing = TRUE)][1, cacheId] |>
+  loadFromCache(cacheId = _)
+
+outConfMatsStatsGamlss <- lapply(gamlssCVout, function(x) {
+  DT <- as.data.table(x$confMatrix$byClass, keep.rownames = TRUE)
+  setnames(DT, "rn", "Class")
+  DT
+}) |>
+  rbindlist(idcol = "fold", use.names = TRUE)
+
+## Get GAMLSS avg conf matrix
+startLine <- grep("Averaged confusion matrices", allLines)[1]+2
+cmLines <- allLines[startLine:length(allLines)]
+endLine <- grep("\\*{3,}", cmLines)[1]-1
+cmLines <- cmLines[1:endLine]
+cmLines <- sub("^\\s*\\d+:\\s*", "", cmLines)
+## rm col classes
+cmLines <- cmLines[-2]
+
+cmFile <- tempfile()
+writeLines(cmLines, cmFile)
+gamlssConfMatrix <- fread(cmFile)
+```
+
+### RMSE
+
+```{r}
+message("XGBoost unrestricted -- RMSE, averaged across folds:\n", round(mean(RMSEs), 2))
+message("XGBoost restricted features -- RMSE, averaged across folds:\n", round(mean(RMSEs_modelGBT3), 2))
+message("GAMLSS -- RMSE, averaged across folds:\n", round(mean(gamlssValidMetrics$RMSE), 2))
+```
+
+
+### Sensitivity and specificity
+We can't compare the confusion matrix values between the two models 
+directly, we can compare avg sensitivities/specificities per class
+
+```{r}
+avgSSxgboost <- outConfMatsStats[, list(Specificity = mean(Specificity),
+                                        Sensitivity = mean(Sensitivity)), 
+                                 by = Class]
+
+avgSSxgboost_modelGBT3 <- outConfMatsStats_modelGBT3[, list(Specificity = mean(Specificity),
+                                                            Sensitivity = mean(Sensitivity)), 
+                                                     by = Class]
+
+avgSSgpboost <- outConfMatsStatsGPB[, list(Specificity = mean(Specificity),
+                                           Sensitivity = mean(Sensitivity)), 
+                                    by = Class]
+
+avgSSgamlss <- outConfMatsStatsGamlss[, list(Specificity = mean(Specificity),
+                                             Sensitivity = mean(Sensitivity)), 
+                                      by = Class]
 
 ```
+
+
 

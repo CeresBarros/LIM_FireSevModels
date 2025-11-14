@@ -582,6 +582,319 @@ dev.off()
 valData <- modelGBT$Fold01$valData
 plotResiduals(valData)
 ```
+
+
+
+## Gradient boosted trees with GPBoost
+Gaussian process and mixed effects models with gradient boosting
+
+Allows modelling a zero-inflated gamma, which could be a good choice if we model
+% survival, instead of mortality -- the severity data is mostly one-inflated and this
+would flip it to mostly 0 inflated
+
+### Fit and test model with k-fold cross-validation
+
+```{r}
+cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
+                   "FlamConif|Abie$|Lari$|Decid",
+                   "isForest|HEIGHT_LOWER|UNDERSTOREY",
+                   "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
+                   "FIRE_NAME|pixID|SMR_ord|SMR_wet|buffer", sep = "|"), 
+             names(summaryABSK_AllData),
+             value = TRUE)
+cols <- grep("^range", cols, invert = TRUE, value = TRUE)
+
+modelData <- na.omit(summaryABSK_AllData[, ..cols])
+modelData[, SURV_PROP := abs(SEV_PROP-1)]  ## create a survival variable
+
+if (FALSE) {
+  ggplot(modelData) +
+    geom_density(aes(x = SEV_PROP), colour = "cadetblue", fill = "cadetblue", alpha = 0.5) +
+    geom_density(aes(x = SURV_PROP), colour = "coral", fill = "coral", alpha = 0.5) +
+    labs(x = "Severity (blue) and survival (coral)")
+}
+
+## select covariates, convert to numeric (these are specified as categorical later)
+predvars <- setdiff(names(modelData), 
+                    c("FIRE_NAME", "SEV_PROP", "SURV_PROP", "pixID"))
+modelData[, (predvars) := lapply(.SD, as.numeric), .SDcols = predvars]
+
+digestOfData <- .robustDigest(modelData)
+## TODO: RE-RUN PARAMETER OPTIMIZATION AFTER PRESENTATION and export RMSE's
+
+modelGPB <- runGPBOOST(dat = modelData
+                       , digestOfData 
+                       , nFolds = 10
+                       , colnamesGrp = "FIRE_NAME"
+                       , colnamesPred = predvars
+                       , colnamesCat = c("SMR_wet", "isForest", "UNDERSTOREY", "SMR_ord")
+                       , SHAPthresh = 0) #|>
+## TODO: RE-RUN ALL INTERNAL CACHES SO THAT RAW DATA IS SAVED and this Cache works
+# Cache(omitArgs = "dat",
+# .functionName = "runGPBOOST")  ## models can't be cached. files are being saved and output is the filename
+
+```
+
+### RMSE and AUC
+TODO:
+```{r}
+# RMSEs <- sapply(modelGPB$Fold01$modelGPBcv$best_score, function(mm) {
+#   tail(attr(mm$mod,"evaluation_log"), 1)$eval_rmse
+# })
+
+## AUC is inappropriate. This is not a classification problem
+## yes, we could check accuracy of classifying 0s and 1s, but then we'd
+## lose the middle values's accuracies.
+# AUCs <- sapply(modelGBT, function(mm) {
+#   tail(attr(mm$mod,"evaluation_log"), 1)$eval_auc
+# })
+
+# mean(AUCs)
+```
+
+### Confidence matrix
+```{r}
+## predict from each fold and average final confusion matrix
+## runXGBOOST outputs predictions and observations and residuals in valData
+outConfMats <- modelGPB |>
+  purrr::map(\(x) gpboostConfMat(
+    mod = x,
+    classes = as.character(sort(unique(summaryABSK_AllData[["SEV_CLASS"]]))),
+    classMap = unique(summaryABSK_AllData[, .SD, .SDcols = c("SEV_CLASS", "SEV_PROP")])
+  )
+  )
+
+## make a list, then stack into 3-D array
+confMats <- sapply(outConfMats, FUN = function(x) {
+  x <- x$confMatrix
+  DT <- as.data.table(x$table)
+  DT <- dcast.data.table(DT, Prediction ~ Reference)
+  cols <- names(DT)
+  DT[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+  as.matrix(DT, rownames = 1)
+}, simplify = "array")
+
+outConfMatsStatsGPB <- lapply(outConfMats, function(x) {
+  DT <- as.data.table(x$byClass, keep.rownames = TRUE)
+  setnames(DT, "rn", "Class")
+  DT
+}) |>
+  rbindlist(idcol = "fold", use.names = TRUE)
+
+```
+
+
+### Feature importance
+```{r}
+figDir2 <- file.path(figDir, "GPBoost")
+dir.create(figDir2, showWarnings = FALSE)
+all_meanSHAP <- purrr::map(modelGPB,
+                           function(modFold) {
+                             as.data.table(as.list(modFold$shap_values$mean_shap_score))
+                           }) |> 
+  rbindlist(use.names = TRUE, idcol = "Fold")
+
+meanSHAP <- colMeans(all_meanSHAP[, -"Fold"])
+meanSHAP <- as.data.table(melt(meanSHAP), keep.rownames = TRUE)
+varOrder <- meanSHAP[order(value), rn]
+
+ggplot(meanSHAP, aes(x = rn, y = value)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(limits = varOrder) +
+  theme_pubr() +
+  labs(x = "Predictor", y = "SHAP value") +
+  coord_flip()
+ggsave(file.path(figDir2, "Cross-fold_featImpSHAP.png"),
+       width = 7, height = 8.5)
+
+## the full model needs to be fit -- at least I don't see how to do this with 
+## the CV outputs
+## TODO: cache full model
+gp_model <- quote(GPModel(group_data = modelData[["FIRE_NAME"]],
+                    likelihood = "zero_inflated_gamma"))
+gp_train <- gpb.Dataset(as.matrix(modelData[, ..predvars]),
+                        label = modelData[["SURV_PROP"]])
+
+## get parameters from one of the folds (they are always the same)
+params <- modelGPB$Fold01$modelGPBfit$modelGPBfit$params
+modelGPBFULL <- gpboost(data = gp_train
+                        , gp_model = eval(gp_model)
+                        , categorical_feature = c("SMR_wet", "isForest", "UNDERSTOREY", "SMR_ord")  ## as above
+                        , nrounds = 200
+                        , params = params
+                        , early_stopping_rounds = 20
+) |>
+  Cache(omitArgs = c("data", "gp_model"),
+        .cacheExtra = c(digestOfData, gp_model),
+        .functionName = "gpboost_FULL")
+
+lapply(predvars, function(varname) {
+  png(file.path(figDir2, paste0("PDplot_", varname, ".png")))
+  gpb.plot.partial.dependence(modelGPBFULL
+                              , data = as.matrix(modelData[, ..predvars])
+                              , variable = varname
+                              , type = "l"
+                              , ylab = "survival")
+  graphics.off()
+  
+})
+
+
+## significant interactions from GAMLSS
+png(file.path(figDir2, "PDplot_Decid_UNDERSTOREY.png"))
+gpb.plot.part.dep.interact(modelGPBFULL
+                           , data = as.matrix(modelData[, ..predvars])
+                           , variables = c("Decid", "UNDERSTOREY")
+                           , zlab = "survival")
+graphics.off()
+
+png(file.path(figDir2, "PDplot_Decid_HEIGHT.png"))
+gpb.plot.part.dep.interact(modelGPBFULL
+                           , data = as.matrix(modelData[, ..predvars])
+                           , variables = c("Decid", "HEIGHT_LOWER")
+                           , zlab = "survival")
+graphics.off()
+
+png(file.path(figDir2, "PDplot_isForest_UNDERSTOREY.png"))
+gpb.plot.part.dep.interact(modelGPBFULL
+                           , data = as.matrix(modelData[, ..predvars])
+                           , variables = c("isForest", "UNDERSTOREY")
+                           , zlab = "survival")
+graphics.off()
+
+png(file.path(figDir2, "PDplot_Lari_HEIGHT.png"))
+gpb.plot.part.dep.interact(modelGPBFULL
+                           , data = as.matrix(modelData[, ..predvars])
+                           , variables = c("Lari", "HEIGHT_LOWER")
+                           , zlab = "survival")
+graphics.off()
+
+png(file.path(figDir2, "PDplot_Lari_UNDERSTOREY.png"))
+gpb.plot.part.dep.interact(modelGPBFULL
+                           , data = as.matrix(modelData[, ..predvars])
+                           , variables = c("Lari", "UNDERSTOREY")
+                           , zlab = "survival")
+graphics.off()
+
+```
+
+### Feature selection
+```{r}
+## TODO: test with interaction constraints
+```
+
+
+### Between-covariate relationships
+```{r}
+## cvDMC correlations > 0.7
+plotData <- melt.data.table(summaryABSK_AllData, id.vars = "cvDMC",
+                 measure.vars = c("meanDMC", "minDMC", "minBUI",
+                                  "cvBUI", "minFFMC", "meanFWI",
+                                  'minFWI', 'cvFWI'))
+ggplot(plotData, aes(x = cvDMC, y = value)) +
+  geom_point() +
+  facet_wrap(~ variable)
+
+plotData <- melt.data.table(summaryABSK_AllData, id.vars = "cvBUI",
+                 measure.vars = c("meanDMC", "minDMC", "minBUI",
+                                  "cvDMC", "minFFMC", "meanFWI",
+                                  'minFWI', 'cvFWI'))
+ggplot(plotData, aes(x = cvBUI, y = value)) +
+  geom_point() +
+  facet_wrap(~ variable)
+```
+
+
+### Maps of predicted severity (back transformed)
+```{r}
+predictionsDT <- summaryABSK_AllData[, .(SEV_PROP, pixID, FIRE_NAME, Lat, Long)]
+
+predData <- data.table(predSURV_PROP = predict(modelGPBFULL, data = as.matrix(modelData[, .SD, .SDcols = predvars]), 
+                                              group_data_pred = modelData[["FIRE_NAME"]])$response_mean,
+                       pixID = modelData$pixID)
+predictionsDT <- predData[predictionsDT, on = "pixID"]
+predictionsDT[, predSEV_PROP := 1-predSURV_PROP]
+rm(predData); gc(reset = TRUE)
+
+## make severity rasters
+firePoints <- predictionsDT[, .(pixID, SEV_PROP, predSEV_PROP, FIRE_NAME, Lat, Long)]
+firePoints <- st_as_sf(firePoints, coords = c("Long", "Lat"),
+                       agr = "constant", crs = crsProj) |> 
+  vect()
+
+## select 2 fires with high agreement between predictions and observations
+## correlation between pred and obs severity by fire.
+# fires2mapHighAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+#                                          by = FIRE_NAME][order(V1)] |>
+#                              tail(2))$FIRE_NAME |>
+#   as.character()
+# 
+# fires2mapLowAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+#                                         by = FIRE_NAME][order(V1)] |>
+#                             head(2))$FIRE_NAME |>
+#   as.character()
+## use same as GAMLSS for comparison
+fires2mapHighAgreement <- c("BUFFALO_HEAD", "LIVOCK")
+fires2mapLowAgreement <- c("CONTEST #2", "WOODMAN")
+
+sevPlotsHighAgrement <- Map(f = plotFun,
+                            fireID = as.vector(outer(fires2mapHighAgreement, 
+                                                     c("_obs", "_pred"), paste0)),
+                            var = rep(c("SEV_PROP", "predSEV_PROP"), each = 2),
+                            varTitle = rep(c("Observed", "Predicted mean sev."),
+                                           each = 2),
+                            MoreArgs = list(firePoints = firePoints))
+
+sevPlotsLowAgrement <- Map(f = plotFun,
+                           fireID = as.vector(outer(fires2mapLowAgreement, 
+                                                    c("_obs", "_pred"), paste0)),
+                           var = rep(c("SEV_PROP", "predSEV_PROP"), each = 2),
+                           varTitle = rep(c("Observed", "Predicted mean sev."),
+                                          each = 2),
+                           MoreArgs = list(firePoints = firePoints))
+
+png(file.path(figDir2, "severityMaps_highAgreement.png"), height = 8, width = 8,
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsHighAgrement$BUFFALO_HEAD_obs + theme(axis.title.x = element_blank()), 
+  sevPlotsHighAgrement$BUFFALO_HEAD_pred + theme(axis.title = element_blank()),
+  ## line 2
+  sevPlotsHighAgrement$LIVOCK_obs, 
+  sevPlotsHighAgrement$LIVOCK_pred + theme(axis.title.y = element_blank()), 
+  align = "h",
+  legend = "right", common.legend = FALSE, 
+  labels = c("a)", "", "b)", ""), 
+  ncol = 2, nrow = 2
+)
+dev.off()
+
+png(file.path(figDir2, "severityMaps_lowAgreement.png"), height = 8, width = 6,   
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsLowAgrement$`CONTEST #2_obs` + theme(axis.title.x = element_blank()),
+  sevPlotsLowAgrement$`CONTEST #2_pred` + theme(axis.title = element_blank()), 
+  ## line 2
+  sevPlotsLowAgrement$WOODMAN_obs, 
+  sevPlotsLowAgrement$WOODMAN_pred + theme(axis.title.y = element_blank()), 
+  align = "h",
+  legend = "right", common.legend = FALSE, 
+  labels = c("a)", "", "b)", ""),
+  ncol = 2, nrow = 2
+)
+dev.off()
+
+
+```
+
+### Residuals
+```{r}
+valData <- modelGPB$Fold01$valData
+plotResiduals(valData)
+```
+
+
 ```{r}
 ## these were the covariates
 # cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",

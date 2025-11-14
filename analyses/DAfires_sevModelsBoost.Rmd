@@ -177,8 +177,12 @@ NRAlberta <- Cache(prepInputs,
 NRAlberta <- vect(NRAlberta)
 
 ## dissolve by region
-NRAlberta <- aggregate(NRAlberta[, "NRNAME"], by = "NRNAME", dissolve = TRUE)
+NRAlberta <- terra::aggregate(NRAlberta[, "NRNAME"], by = "NRNAME", dissolve = TRUE)
 NRAlberta <- project(NRAlberta, crs(firesABSK, proj = TRUE))
+
+extentFires <- ext(rbind(firesABSK, NRAlberta))
+extentFires <- vect(extentFires)
+crs(extentFires) <- crs(firesABSK, proj = TRUE)
 
 EcozonesCan <- prepInputs(targetFile = "ecozones.shp",
                           url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
@@ -186,43 +190,81 @@ EcozonesCan <- prepInputs(targetFile = "ecozones.shp",
                           fun = "sf::st_read",
                           destinationPath = "data/maps",
                           cachePath = "analyses/cache",
+                          to = extentFires, 
                           userTags = "EcozonesCan")
-EcozonesCan <- vect(EcozonesCan)
-EcozonesCan[EcozonesCan$ZONE_NAME == "Boreal PLain"]$ZONE_NAME <- "Boreal Plain"
-EcozonesCan <- project(EcozonesCan, crs(firesABSK, proj = TRUE))
-
-CA_admin <- vect("data/CA_admin/gpr_000a11a_e.shp")
-CA_admin <- project(CA_admin, crs(firesABSK, proj = TRUE))
+EcozonesCan[EcozonesCan$ZONE_NAME == "Boreal PLain", "ZONE_NAME"] <- "Boreal Plain"
+EcozonesCan <- vect(EcozonesCan["ZONE_NAME"])
 
 ## crop layers to a slightly larger area
-extentFires <- ext(rbind(firesABSK, NRAlberta))
-extentFires <- extend(extentFires, 50000)
-# NRAlberta <- crop(NRAlberta, extentFires)
-EcozonesCan <- crop(EcozonesCan, extentFires)
+CA_admin <- vect("data/CA_admin/gpr_000a11a_e.shp")
+CA_admin <- project(CA_admin, crs(firesABSK, proj = TRUE))
 CA_admin <- crop(CA_admin, extentFires)
+NRAlberta <- crop(NRAlberta, extentFires)
+EcozonesCan <- crop(EcozonesCan, extentFires)
+rm(extentFires); gc(reset = TRUE)
+```
 
-
-## TODO: move legend to outside of plot
+```{r}
+## Maps
 if (FALSE) {
-  png(file.path(figDir, "firesEcozonesNatRAB.png"), height = 7, width = 8,
-      units = "in", res = 300)
-  plot(EcozonesCan, y = "ZONE_NAME", col = RColorBrewer::brewer.pal(name = "Pastel2", n = 7),
-       border = NA, plg = list(x = "topright", inset = c(-0.255, 0)),
-       mar = c(3.1, 3.1, 2.1, 7.5), main = "")
+  opts <- par(bg = "white")
+  plot(EcozonesCan, "ZONE_NAME", col = RColorBrewer::brewer.pal(name = "Pastel2", n = 7),
+       border = NA, mar = c(3.1, 3.1, 2.1, 7.5), sort = TRUE, main = "")
   plot(CA_admin, legend = FALSE, add = TRUE)
-  plot(NRAlberta, y = "NRNAME", col = RColorBrewer::brewer.pal(name = "Set1", n = 5),
+  plot(NRAlberta, "NRNAME", 
+       col = alpha("white", 0.1), sort = TRUE, legend = FALSE,
        border = RColorBrewer::brewer.pal(name = "Set1", n = 6), lwd = 2,
-       alpha = 0.3, plg = list(x = "bottomright", inset = c(-0.24, 0)),
-       mar = c(3.1, 3.1, 2.1, 7.5), add = TRUE)
+       alpha = 0.3, mar = c(3.1, 3.1, 2.1, 7.5), add = TRUE)
+  legend("bottomright", bty = "n",
+         cex = 0.85,
+         inset = c(-0.2, 0),     # Negative inset moves legend outside
+         legend = sort(unique(NRAlberta$NRNAME)),
+         fill = alpha("white", 0),
+         border = RColorBrewer::brewer.pal(name = "Set1", n = 6),
+         xpd = TRUE,                 # Allow drawing outside plot region
+         title = "")
   text(CA_admin[CA_admin$PRENAME %in% c("Alberta", "Saskatchewan")],
        labels = "PRENAME", adj = c(0.5, 6))
   plot(firesABSK[firesABSK$FIRE_NAME %in% summaryABSK_AllData$FIRE_NAME], legend = FALSE, add = TRUE)
-  dev.off()
+  dev.print(png, filename = file.path(figDir, "firesEcozonesNatRAB.png"), height = 7, width = 8,
+            units = "in", res = 300, bg = "white")
+  
+  
+  plot(EcozonesCan, "ZONE_NAME", col = RColorBrewer::brewer.pal(name = "Pastel2", n = 7),
+       border = NA, mar = c(3.1, 3.1, 2.1, 7.5), main = "")
+  plot(CA_admin, legend = FALSE, add = TRUE)
+  text(CA_admin[CA_admin$PRENAME %in% c("Alberta", "Saskatchewan")],
+       labels = "PRENAME", adj = c(0.5, 6))
+  plot(firesABSK[firesABSK$FIRE_NAME %in% summaryABSK_AllData$FIRE_NAME], legend = FALSE, add = TRUE)
+  dev.print(png, filename = file.path(figDir, "firesEcozones.png"), height = 7, width = 8,
+            units = "in", res = 300, bg = "white")
+  par(opts)
 }
+
+## severity
+if (FALSE) {
+  ggplot(summaryABSK_AllData, aes(x = SEV_CONT)) +
+    geom_histogram(fill = "cadetblue", alpha = 0.5) +
+    theme_bw()
+  
+    ggplot(summaryABSK_AllData, aes(x = SEV_CLASS)) +
+    geom_histogram(fill = "cadetblue", alpha = 0.5) +
+    theme_bw()
+  
+plot(firesABSK[firesABSK$FIRE_NAME == unique(summaryABSK_AllData$FIRE_NAME)[5]], 
+     "SEV_CONT", col = map.pal("inferno", 8)[c(2, 4:8)])
+
+
+ggplot(summaryABSK_AllData, aes(x = meanFFMC, y = SEV_CONT)) +
+  geom_point() +
+  theme_bw()
+
+}
+
+
 ```
 
-
-## SUMMARY OF PRELIMINARY ANALYSES
+## Summary of preliminary analyses
 
 Variables selected for models (when using all fire weather days):
 * Climate:
@@ -297,18 +339,249 @@ cols <- grep("^range", cols, invert = TRUE, value = TRUE)
 # modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 ```
 
+### Feature importance
 
 ```{r}
-cols <- setdiff(cols, c("FIRE_NAME", "Czone1", "NR1"))
-digestOfData <- .robustDigest(summaryABSK_AllData[, ..cols])  ## TODO: clear cache before final runs.
+figDir2 <- file.path(figDir, "XGBoost")
+dir.create(figDir2, showWarnings = FALSE)
+all_meanSHAP <- purrr::map(modelGBT,
+                           function(modFold) {
+                             as.data.table(as.list(modFold$shap_long))
+                           }) |> 
+  rbindlist(use.names = TRUE, idcol = "Fold")
 
-## drop FIRENAME for now, as I'm not sure how to include it as a random effesct
-runXGBOOST(summaryABSK_AllData[, ..cols], digestOfData, nFolds = 5)
+meanSHAP <- all_meanSHAP[, .(Fold, variable, mean_value)]
+meanSHAP <- meanSHAP[, list(mean_value = mean(mean_value)), by = variable]
+
+varOrder <- meanSHAP[order(mean_value), variable]
+
+ggplot(meanSHAP, aes(x = variable, y = mean_value)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(limits = varOrder) +
+  theme_pubr() +
+  labs(x = "Predictor", y = "SHAP value") +
+  coord_flip()
+ggsave(file.path(figDir2, "Cross-fold_featImpSHAP.png"),
+       width = 7, height = 8.5)
+
+
+## all pairwise combos:
+varcombos <- expand.grid(unique(shap_long$variable), unique(shap_long$variable))
+varcombos <- apply(varcombos, 1, FUN = function(X) {
+  X <- sort(X)
+  names(X) <- NULL
+  data.table(Var1 = X[1], Var2 = X[2])
+}) |>
+  rbindlist() |>
+  unique()
+
+varcombos <- varcombos[Var1 != Var2, ]
+varcombos <- varcombos[!(grepl("buffer", Var1) & grepl("buffer", Var2))]  ## weird to plot buffer interactions
+
+allPlots <- Map(f = function(x, y) {
+  gtitle <- paste("SHAP for", x, "|", y)
+  plot1 <- shap.plot.dependence(data_long = shap_long,
+                                x = x,
+                                y = y,
+                                dilute = 20) +
+    ggtitle(gtitle)
+  plot1
+}
+, x = varcombos$Var1
+, y = varcombos$Var2
+)
+
+DT <- data.table(plotIDs = 1:length(allPlots))
+DT[, splits := cut(plotIDs, breaks = round(.N/6))]
+
+figDir2 <- file.path(figDir,"XGBoost")
+dir.create(figDir2, recursive = TRUE, showWarnings = FALSE)
+Map(f = function(ids) {
+  fileStr <- paste(head(ids$plotIDs, 1), tail(ids$plotIDs, 1), sep = "_")
+  fileName <- paste0("SHAP_partialDep_", fileStr, ".png")
+  plot1 <- ggarrange(plotlist = allPlots[ids$plotIDs])
+  ggsave(file.path(figDir2, fileName), plot = plot1, 
+         width = 12, height = 7.23,
+         units = "in")
+},
+ids = split(DT, f = ~ splits))
+
+
+shap_long <- modelGBT$Fold01$shap_long
+shap.plot.dependence(data_long = shap_long,
+                        x = 'HEIGHT_LOWER',
+                        y = 'Decid',
+                        dilute = 20) +
+  ggtitle("SHAP for Decidous cover | Height")
+
+
+## significant from GAMLSS
+shap.plot.dependence(data_long = modelGBT$Fold01$shap_long,
+                     x = 'UNDERSTOREYTRUE',
+                     y = 'Decid',
+                     dilute = 20) +
+  ggtitle("SHAP for Decidous cover | Understorey presence")
+
+## dropped:
+# shap.plot.dependence(data_long = shap_long,
+#                      x = 'UNDERSTOREYTRUE',
+#                      y = 'isForestTRUE',
+#                      dilute = 20) +
+#   ggtitle("SHAP for Decidous cover | Height")
+
+shap.plot.dependence(data_long = shap_long,
+                     x = 'HEIGHT_LOWER',
+                     y = 'Lari',
+                     dilute = 20) +
+  ggtitle("SHAP for Larch cover | Height")
+
+shap.plot.dependence(data_long = shap_long,
+                     x = 'UNDERSTOREYTRUE',
+                     y = 'Lari',
+                     dilute = 20) +
+  ggtitle("SHAP for Larch cover | Understorey presence")
+
+## other features
+shap.plot.dependence(data_long = shap_long,
+                     x = 'FlamConif',
+                     dilute = 10) +
+  ggtitle("SHAP for Flammable conifer cover")
+
+shap.plot.dependence(data_long = shap_long,
+                     x = 'HEIGHT_LOWER',
+                     dilute = 10) +
+  ggtitle("SHAP for Height")
+
+
+shap.plot.dependence(data_long = shap_long,
+                     x = 'minISI',
+                     dilute = 20) +
+  ggtitle("SHAP for min ISI over first 3 days of fire")
+shap.plot.dependence(data_long = shap_long,
+                     x = 'maxDMC',
+                     dilute = 20) +
+  ggtitle("SHAP for max DMC over first 3 days of fire")
+shap.plot.dependence(data_long = shap_long,
+                     x = 'cvBUI',
+                     dilute = 20) +
+  ggtitle("SHAP for cv BUI over first 3 days of fire")
+
+shap.plot.dependence(data_long = shap_long,
+                     x = 'buffer_30m',
+                     dilute = 20) +
+  ggtitle("SHAP for proportion of burnt neigh. - 30m radius")
+shap.plot.dependence(data_long = shap_long,
+                     x = 'buffer_60m',
+                     dilute = 20) +
+  ggtitle("SHAP for proportion of burnt neigh. - 60m radius")
+shap.plot.dependence(data_long = shap_long,
+                     x = 'buffer_1920m',
+                     dilute = 20) +
+  ggtitle("SHAP for proportion of burnt neigh. - 1920m radius")
+```
+### Maps of predicted severity
+TODO: predict with full model, or combine CV preds
+
+```{r}
+cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
+                   "FlamConif|Abie$|Lari$|Decid",
+                   "isForest|HEIGHT_LOWER|UNDERSTOREY",
+                   "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
+                   "FIRE_NAME|pixID|SMR_ord|SMR_wet|buffer", sep = "|"), 
+             names(summaryABSK_AllData),
+             value = TRUE)
+cols <- grep("^range|FIRE_NAME", cols, invert = TRUE, value = TRUE)
+
+modelData <- summaryABSK_AllData[, ..cols]
+
+predictionsDT <- summaryABSK_AllData[, .(SEV_PROP, pixID, FIRE_NAME, Lat, Long)]
+modelData2pred <- model.matrix(~ . + 0, data = modelData) |>
+  as.data.table()
+
+predData <- data.table(predSEV_PROP = predict(modelGBT$Fold01$mod, 
+                                              modelData2pred, 
+                                              type = "response"),
+                       pixID = modelData2pred$pixID)
+predictionsDT <- predData[predictionsDT, on = "pixID"]
+
+rm(predData, modelData2pred); gc(reset = TRUE)
+
+## make severity rasters
+firePoints <- predictionsDT[, .(pixID, SEV_PROP, predSEV_PROP, FIRE_NAME, Lat, Long)]
+firePoints <- st_as_sf(firePoints, coords = c("Long", "Lat"),
+                       agr = "constant", crs = crsProj) |> 
+  vect()
+
+## select 2 fires with high agreement between predictions and observations
+## correlation between pred and obs severity by fire.
+# fires2mapHighAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+#                                          by = FIRE_NAME][order(V1)] |>
+#                              tail(2))$FIRE_NAME |>
+#   as.character()
+# 
+# fires2mapLowAgreement <- (predictionsDT[, cor.test(SEV_PROP, predSEV_PROP, method = "pearson")$estimate,
+#                                         by = FIRE_NAME][order(V1)] |>
+#                             head(2))$FIRE_NAME |>
+#   as.character()
+## use same as GAMLSS for comparison
+fires2mapHighAgreement <- c("BUFFALO_HEAD", "LIVOCK")
+fires2mapLowAgreement <- c("CONTEST #2", "WOODMAN")
+
+sevPlotsHighAgrement <- Map(f = plotFun,
+                            fireID = as.vector(outer(fires2mapHighAgreement, 
+                                                     c("_obs", "_pred"), paste0)),
+                            var = rep(c("SEV_PROP", "predSEV_PROP"), each = 2),
+                            varTitle = rep(c("Observed", "Predicted mean sev."),
+                                           each = 2),
+                            MoreArgs = list(firePoints = firePoints))
+
+sevPlotsLowAgrement <- Map(f = plotFun,
+                           fireID = as.vector(outer(fires2mapLowAgreement, 
+                                                    c("_obs", "_pred"), paste0)),
+                           var = rep(c("SEV_PROP", "predSEV_PROP"), each = 2),
+                           varTitle = rep(c("Observed", "Predicted mean sev."),
+                                          each = 2),
+                           MoreArgs = list(firePoints = firePoints))
+
+figDir2 <- file.path(figDir,"XGBoost")
+png(file.path(figDir2, "severityMaps_highAgreement.png"), height = 8, width = 8,
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsHighAgrement$BUFFALO_HEAD_obs + theme(axis.title.x = element_blank()), 
+  sevPlotsHighAgrement$BUFFALO_HEAD_pred + theme(axis.title = element_blank()),
+  ## line 2
+  sevPlotsHighAgrement$LIVOCK_obs, 
+  sevPlotsHighAgrement$LIVOCK_pred + theme(axis.title.y = element_blank()), 
+  align = "h",
+  legend = "right", common.legend = FALSE, 
+  labels = c("a)", "", "b)", ""), 
+  ncol = 2, nrow = 2
+)
+dev.off()
+
+png(file.path(figDir2, "severityMaps_lowAgreement.png"), height = 8, width = 6,   
+    units = "in", res = 300)
+ggarrange(
+  ## line 1
+  sevPlotsLowAgrement$`CONTEST #2_obs` + theme(axis.title.x = element_blank()),
+  sevPlotsLowAgrement$`CONTEST #2_pred` + theme(axis.title = element_blank()), 
+  ## line 2
+  sevPlotsLowAgrement$WOODMAN_obs, 
+  sevPlotsLowAgrement$WOODMAN_pred + theme(axis.title.y = element_blank()), 
+  align = "h",
+  legend = "right", common.legend = FALSE, 
+  labels = c("a)", "", "b)", ""),
+  ncol = 2, nrow = 2
+)
+dev.off()
 ```
 
-
-
-Compare with zero-one-inflated beta regression
+### Residuals
+```{r}
+valData <- modelGBT$Fold01$valData
+plotResiduals(valData)
+```
 ```{r}
 ## these were the covariates
 # cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",

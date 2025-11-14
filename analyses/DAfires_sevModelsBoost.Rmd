@@ -138,6 +138,8 @@ cols <- grep("pixID|FIRE_NAME", names(ngbNoBurns), invert = TRUE, value = TRUE)
 setnames(ngbNoBurns, old = cols, new = paste0("buffer_", cols, "m"))
 
 summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
+
+rm(SEV_PROPpoints); gc(reset = TRUE)
 ```
 
 ## Maps of fire perimeters, ecozones and nat. regions

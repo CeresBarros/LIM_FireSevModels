@@ -337,6 +337,50 @@ cols <- grep("^range", cols, invert = TRUE, value = TRUE)
 #                       c("pixID", "FIRE_NAME", "Czone1", "NR1", "SMR_ord", 
 #                         "UNDERSTOREY", "isForest", "SEV_PROP", "SMR_wet"))
 # modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+### RMSE and AUC
+
+```{r}
+RMSEs <- sapply(modelGBT, function(mm) {
+  tail(attr(mm$mod,"evaluation_log"), 1)$eval_rmse
+})
+
+## AUC is inappropriate. This is not a classification problem
+## yes, we could check accuracy of classifying 0s and 1s, but then we'd
+## lose the middle values's accuracies.
+AUCs <- sapply(modelGBT, function(mm) {
+  tail(attr(mm$mod,"evaluation_log"), 1)$eval_auc
+})
+
+mean(AUCs)
+```
+
+### Confidence matrix
+```{r}
+## predict from each fold and average final confusion matrix
+## runXGBOOST outputs predictions and observations and residuals in valData
+outConfMats <- modelGBT |>
+  purrr::map(\(x) xgboostConfMat(mod = x,
+                                 classes = as.character(sort(unique(summaryABSK_AllData[["SEV_CLASS"]]))),
+                                 classMap = unique(summaryABSK_AllData[, .SD, .SDcols = c("SEV_CLASS", "SEV_PROP")])
+  ))
+
+## make a list, then stack into 3-D array
+confMats <- sapply(outConfMats, FUN = function(x) {
+  DT <- as.data.table(x$table)
+  DT <- dcast.data.table(DT, Prediction ~ Reference)
+  cols <- names(DT)
+  DT[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+  as.matrix(DT, rownames = 1)
+}, simplify = "array")
+
+outConfMatsStats <- lapply(outConfMats, function(x) {
+  DT <- as.data.table(x$byClass, keep.rownames = TRUE)
+  setnames(DT, "rn", "Class")
+  DT
+}) |>
+  rbindlist(idcol = "fold", use.names = TRUE)
+
 ```
 
 ### Feature importance

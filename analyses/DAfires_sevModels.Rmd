@@ -1190,6 +1190,7 @@ crossValidResults <- Cache(crossValidFunction,
                            origData = modelData, 
                            statsModel = model8.4,
                            k = 4, idCol = "pixID",
+                           classVar = "SEV_CLASS",
                            cacheObj1 = summaryABSK_AllData$pixID, 
                            cacheObj2 = modelData$pixID,
                            userTags = c("validation", "model8.4"),
@@ -1225,6 +1226,7 @@ crossValidResults2 <- Cache(crossValidFunction,
                             origData = modelData, 
                             statsModel = model8,
                             k = 4, idCol = "pixID",
+                            classVar = "SEV_CLASS",
                             cacheObj1 = summaryABSK_AllData$pixID, 
                             cacheObj2 = modelData$pixID,
                             omitArgs = c("fullDT", "origData"))
@@ -1589,6 +1591,7 @@ crossValidResults3 <- Cache(crossValidFunction,
                             origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
                             statsModel = modelNgbSev4FULL4,
                             k = 10, idCol = "pixID",
+                            classVar = "SEV_CLASS",
                             level = 0, 
                             cacheObj1 = summaryABSK_AllData$pixID,
                             cacheObj2 = na.omit(summaryABSK_AllData[, cols, with = FALSE])$pixID,
@@ -1681,20 +1684,25 @@ modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
 
 crossValidResults4 <- Cache(crossValidFunction,
-                            fullDT = modelDataFULLScaled,
+                            fullDT = na.omit(modelDataFULLScaled),
                             origData = na.omit(modelDataFULLScaled),
                             statsModel = modelNgbSev4FULL4_Scaled,
-                            k = 10, idCol = "pixID",
+                            k = 10, 
+                            classVar = "SEV_CLASS",
+                            sampleGroup = "FIRE_NAME",
+                            idCol = "pixID",
                             level = 0, 
-                            cacheObj1 = modelDataFULLScaled$pixID,
-                            cacheObj2 = na.omit(modelDataFULLScaled)$pixID,
+                            spec = 2,
                             parallel = FALSE,
-                            workers = 2,
+                            .cacheExtra = list(residuals(modelNgbSev4FULL4_Scaled),
+                                               a = modelDataFULLScaled$pixID,
+                                               b = na.omit(modelDataFULLScaled)$pixID),
                             # useCache = "overwrite", 
                             # showSimilar = TRUE,
                             userTags = c("validation", "modelNgbSev4FULL4_Scaled"),
-                            omitArgs = c("fullDT", "origData", "userTags", "parallel", "workers"))
-
+                            omitArgs = c("fullDT", "origData", "statsModel",
+                                         "userTags", "parallel", "workers"))
+rm(trainData); gc(reset = TRUE)
 # crossValidResults4 <- loadFromCache(cacheId="85b6d427b43ff53d")
 ## collapse results into data.tables
 allValidMetrics4 <- rbindlist(lapply(crossValidResults4, FUN = function(x) as.data.table(t(x$validMetrics))))
@@ -1715,15 +1723,6 @@ avgAllConfMatrices4 <- unique(allConfMatrices4[, .(Prediction, Reference, compar
 avgAllConfMatrices4[, compareID := NULL]
 avgAllConfMatrices4 <- dcast(avgAllConfMatrices4, Prediction ~ Reference)
 
-allRsquared4 <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$Rsquared)),
-                                 simplify = FALSE), idcol = "sampID")
-
-allRsquared4GAMLSS <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$RsqGAMLSS)),
-                                       simplify = FALSE), idcol = "sampID")
-
-allTGD <- rbindlist(sapply(crossValidResults4, FUN = function(x) as.data.table(t(x$TGD)),
-                           simplify = FALSE), idcol = "sampID")
-
 allCoefs <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
   mu <- as.data.table(t(x$coefs$mu))
   sigma <- as.data.table(t(x$coefs$sigma))
@@ -1743,15 +1742,6 @@ print("******************")
 print("Averaged confusion matrices")
 avgAllConfMatrices4
 print("******************")
-print("R squared")
-allRsquared4
-print("******************")
-print("R squared GAMLSS")
-allRsquared4GAMLSS
-print("******************")
-print("TGD")
-allTGD
-print("******************")
 print("Coefficients mean")
 allCoefs[, lapply(.SD, mean), by = .(param),
          .SDcols = setdiff(names(allCoefs), c("sampID", "param"))]
@@ -1763,13 +1753,37 @@ sink()
 
 Plot cross-validation results against model metrics
 ```{r crossValidPlots_ScaledModel}
-## don't compare TGD between full model and folds.
-# tgdObj <- getTGD(modelNgbSev4FULL4, newdata = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
-# allTGD[, fullModel := TGD(tgdObj)]
+allRMSE4 <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
+  as.data.table(x$validMetrics[["RMSE"]])
+},
+simplify = FALSE), idcol = "sampID")
+
+allRsquared4GAMLSS <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
+  as.data.table(x$validMetrics[["RsqGAMLSS"]])
+},
+simplify = FALSE), idcol = "sampID")
+
+allTGD4 <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
+  as.data.table(x$validMetrics[["TGD"]])
+},
+simplify = FALSE), idcol = "sampID")
+
 allRsquared4GAMLSS[, fullModel := Rsq(modelNgbSev4FULL4_Scaled)]
 
-plotData <- rbindlist(list(Rsq = allRsquared4GAMLSS, TGD = allTGD), idcol = "metric", fill = TRUE)
-plotData[metric == "TGD", fullModel := modelNgbSev4FULL4_Scaled$G.deviance]
+rmseDT <- data.table(pred = calcMeanBEINF(mu = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "mu"),
+                                          nu = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "nu"),
+                                          tau = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "tau")),
+                     obs = modelNgbSev4FULL4_Scaled$y)
+allRMSE4[, fullModel := RMSE(rmseDT$pred, rmseDT$obs)]
+## NOTE: don't compare TGD between full model and folds. get full deviance from model object
+allTGD4[, fullModel := modelNgbSev4FULL4_Scaled$G.deviance]
+
+plotData <- rbindlist(list(
+  Rsq = allRsquared4GAMLSS
+  , TGD = allTGD4
+  # , RMSE = allRMSE4
+                           ),
+                      idcol = "metric", fill = TRUE)
 
 crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
   geom_boxplot() +

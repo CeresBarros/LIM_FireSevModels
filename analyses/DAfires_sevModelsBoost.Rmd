@@ -325,18 +325,27 @@ cols <- grep(paste("SEV_PROP|FFMC$|DC$|DMC$|ISI$|BUI$|FWI$",
                    "FlamConif|Abie$|Lari$|Decid",
                    "isForest|HEIGHT_LOWER|UNDERSTOREY",
                    "^CTI$|Aspect|Elevation|Surf.*Ratio|PctSlope",
-                   "Czone1|NR1|FIRE_NAME|pixID|SMR_ord|SMR_wet|buffer", sep = "|"), 
+                   "FIRE_NAME|pixID|SMR_ord|SMR_wet|buffer", sep = "|"), 
              names(summaryABSK_AllData),
              value = TRUE)
 cols <- grep("^range", cols, invert = TRUE, value = TRUE)
 
-## TODO: WE MAY NOT NEED TO SCALE DATA for XGBoost
-## https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2008.01390.x
-# modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
+modelData <- summaryABSK_AllData[, ..cols]
 # cols2scale <- setdiff(cols, 
 #                       c("pixID", "FIRE_NAME", "Czone1", "NR1", "SMR_ord", 
 #                         "UNDERSTOREY", "isForest", "SEV_PROP", "SMR_wet"))
-# modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+# modelData[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
+
+## drop FIRENAME for now, as I'm not sure how to include it as a random effects
+cols <- setdiff(cols, c("FIRE_NAME", "pixID"))
+modelData <- modelData[, ..cols]
+digestOfData <- .robustDigest(modelData)
+
+modelGBT <- runXGBOOST(modelData, digestOfData, nFolds = 10
+                       , SHAPthresh = 0.25  ## higher/lower threshold decreases AUC
+                       , figDir = file.path(figDir, "XGBoost")
+)
+```
 
 ### RMSE and AUC
 

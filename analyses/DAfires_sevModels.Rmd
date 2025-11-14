@@ -1649,6 +1649,9 @@ graphics.off()
 
 
 #### Model validation
+
+##### On `modelNgbSev4FULL4` 
+
 Using k-fold cross validation on `modelNgbSev4FULL4` (which was fitted on the full data), with the data partitioned in 4 chunks.
 ```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
@@ -1738,7 +1741,7 @@ allCoefs[, lapply(.SD, mean), by = .(param),
 sink()
 ```
 
-On model with standardized predictors 
+##### On `modelNgbSev4FULL4_Scaled` with standardized predictors 
 ```{r crossValidationBurnNgbPropScaled, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
           "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
@@ -4131,11 +4134,11 @@ sevPlotsHighAgrement <- Map(f = plotFun,
 sevPlotsLowAgrement <- Map(f = plotFun,
                            fireID = as.vector(outer(fires2mapLowAgreement, 
                                                     c("_obs", "_pred", "_p1", "_varY"), paste0)),
-                            var = rep(c("SEV_PROP", "predSEV_PROP", "p1", "varY"), each = 2),
-                            varTitle = rep(c("Observed", "Predicted mean sev.", 
-                                             "Predicted prob. of max. sev.", "Variance"),
-                                           each = 2),
-                            MoreArgs = list(firePoints = firePoints))
+                           var = rep(c("SEV_PROP", "predSEV_PROP", "p1", "varY"), each = 2),
+                           varTitle = rep(c("Observed", "Predicted mean sev.", 
+                                            "Predicted prob. of max. sev.", "Variance"),
+                                          each = 2),
+                           MoreArgs = list(firePoints = firePoints))
 
 png(file.path(figDir, "severityMaps_highAgreement.png"), height = 8, width = 16,
     units = "in", res = 300)
@@ -4154,7 +4157,7 @@ ggarrange(
   legend = "right", common.legend = FALSE, 
   labels = c("a)", "", "", "", "b)", "", "", ""), 
   ncol = 4, nrow = 2
-  )
+)
 dev.off()
 
 png(file.path(figDir, "severityMaps_lowAgreement.png"), height = 8, width = 12,   
@@ -4174,7 +4177,7 @@ ggarrange(
   legend = "right", common.legend = FALSE, 
   labels = c("a)", "", "", "", "b)", "", "", ""),
   ncol = 4, nrow = 2
-  )
+)
 dev.off()
 ```
 

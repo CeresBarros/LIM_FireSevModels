@@ -16,4 +16,9 @@ firesInFMAs
 *.txt
 *.tif
 *.rds
+GPBoost/*
+
+
 !.gitignore
+
+

@@ -59,7 +59,7 @@ Require::Require(
     "purrr",
     "pROC",
     "raster",
-    "CeresBarros/reproducible@devCeres",
+    "PredictiveEcology/reproducible@AI",
     "reshape2",
     "sf",
     "shapr",  

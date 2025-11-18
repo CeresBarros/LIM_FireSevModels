@@ -16,6 +16,7 @@ summarizeABSK_AllData <- function(DT, dim,
                      DT = DT,
                      dim = dim(DT),
                      days = days,
+                     cacheId = "1c9b2249efe9bc46",
                      omitArgs = c("DT"))
 
   ## merge with remaining data

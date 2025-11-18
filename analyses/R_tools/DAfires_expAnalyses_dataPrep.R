@@ -43,7 +43,8 @@ ABSKfires_DataPrep <- function(
     fireDataPath = fireDataPath,
     cachePath = "analyses/cache",
     userTags = "allFireData",
-    useCache = doCache
+    useCache = doCache,
+    cacheId = "c4116973045eb9a3"  ## fix
   )
 
   ## DEFINE FIRE EVENTS ----
@@ -62,7 +63,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "dataTreat_fireEvents",
     omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
-    useCache = doCache
+    useCache = doCache,
+    cacheId = "7e545707ee8b59d1"
   )
 
   ## remove empty geometries (e.g. if nor inner residuals exist, empty geometries are produced)
@@ -76,7 +78,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "validABSK_fireEvents",
     omitArgs = c("sfObj"),
-    useCache = doCache
+    useCache = doCache,
+    cacheId = "04dacf18dd7e1a81"
   )
 
   ## ADD SEVERITY IN DISTURBED PATCHES
@@ -218,7 +221,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "meltABprefire_1",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "9c5a574825977426"
   )
 
   albertafires2_prefireMelt <- Cache(
@@ -231,7 +235,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "meltABprefire_2",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "38ec7804ab5af5ec"
   )
 
   ## Saskatchewan - melting has to come before renaming
@@ -246,7 +251,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "meltSKprefire",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "d9d251e366c19495"
   )
 
   saskatchewanfires_prefireMelt <- renameCleanSfFields(
@@ -302,7 +308,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "AB2CASFRI_1",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "123e9d763b358be2"
   )
 
   albertafires2_prefireMeltCASFRI <- Cache(
@@ -314,7 +321,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "AB2CASFRI_2",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "45abfe5b31780ae2"
   )
 
   saskatchewanfires_prefireMeltCASFRI <- Cache(
@@ -326,7 +334,8 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "SK2CASFRI_1",
     useCache = doCache,
-    omitArgs = c("inv")
+    omitArgs = c("inv"),
+    cacheId = "5e9530011e422b42"
   )
   ## change LA (lakes) to  water, since Dave'S data is not clear about the type of water bodies in SK
   saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[
@@ -418,7 +427,8 @@ ABSKfires_DataPrep <- function(
     folder = weatherDataPath,
     userTags = "fireWeatherLs",
     cachePath = "analyses/cache",
-    useCache = doCache
+    useCache = doCache,
+    cacheId = "b7e137c08bde718e"
   )
 
   ## ECOREGIONS TABLE -------
@@ -506,7 +516,8 @@ ABSKfires_DataPrep <- function(
     doAll = bindAllFires,
     userTags = "ABSK_AllData",
     cachePath = "analyses/cache",
-    useCache = doCache
+    useCache = doCache,
+    cacheId = "33fc46a9f209968a"
   )
 
   ## clean-up
@@ -854,7 +865,7 @@ dataPrepWrapper <- function(resolution = 30,
                         topoDataPath = topoDataPath,
                         weatherDataPath = weatherDataPath,
                         resolution = resolution,
-                        ## cacheId = "7317549c72849eb2"
+                        cacheId = "7317549c72849eb2",
                         doCache = doCache,
                         bindAllFires = FALSE,
                         # useCache = FALSE,
@@ -891,6 +902,7 @@ dataPrepWrapper <- function(resolution = 30,
                                dim = dim(ABSK_AllData),
                                days = 1:3,
                                omitArgs = c("DT"),
+                               cacheId = "8819c7d9a85ca340",
                                useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
 
   ## collapse species into more generic categories

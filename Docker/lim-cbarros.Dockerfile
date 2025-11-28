@@ -87,7 +87,9 @@ RUN apt-get update && apt-get install -y openssh-client \
   libgeos-dev \
   libsqlite3-dev \
   locate \
-  r-cran-littler
+  r-cran-littler \
+  libabsl-dev \
+  libmagick++-dev
 
 ## user configs
 RUN <<EOF
@@ -107,6 +109,9 @@ export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 ldconfig -c "echo '/usr/local/lib' >> /etc/ld.so.conf.d/R-dependencies-x86_64.conf"
 ln -s libgdal.so /usr/lib/x86_64-linux-gnu/libgdal.so.26
 ln -s libproj.so /usr/lib/x86_64-linux-gnu/libproj.so.15
+ln -s /usr/lib/x86_64-linux-gnu/libproj.so /usr/lib/libproj.so
+ln -s /usr/lib/x86_64-linux-gnu/libproj.so /usr/lib/libproj.so.15
+ln -s /usr/lib/x86_64-linux-gnu/libMagick++-6.Q16.so /usr/lib/libMagickCore-6.Q16.so.6
 mkdir -p /usr/local/gdal/share
 ln -s /usr/share/gdal /usr/local/gdal/share/gdal
 export GDAL_DATA="/usr/local/gdal/share/gdal"

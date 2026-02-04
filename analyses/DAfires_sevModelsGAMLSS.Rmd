@@ -28,27 +28,35 @@ if (!exists("pkgDir")) {
   .libPaths(pkgDir)
 }
 
-library(data.table)
-library(reshape2)
-library(sf)
-library(dplyr)
-library(xlsx)
-library(foreign)
-library(fasterize)
-library(prioritizr)
-library(gamlss.inf)
-library(gamlss)
-library(ggplot2)
-library(ggpubr)
-library(ggrepel)
-library(LandR.CS)
-library(caret)
-library(future)
-library(future.apply)
-library(reproducible)
-library(terra)
-library(tidyterra)
-library(ToolsCB)
+install.packages("Require")
+
+Require::Require(
+  c(
+    "data.table",
+    "reshape2",
+    "sf",
+    "dplyr",
+    "xlsx",
+    "foreign",
+    "fasterize",
+    "prioritizr",
+    "gamlss.inf",
+    "gamlss",
+    "ggplot2",
+    "ggpubr",
+    "ggrepel",
+    "LandR.CS",
+    "caret",
+    "future",
+    "future.apply",
+    "reproducible",
+    "terra",
+    "tidyterra",
+    "ToolsCB"
+  )
+)
+
+
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
         "reproducible.useMemoise" = FALSE,
@@ -68,63 +76,7 @@ source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
 doCache = TRUE
 
 figDir <- "analyses/Figs"
-if (!dir.exists(figDir))
-  dir.create(figDir)
-
-
-if (!exists("pkgDir")) {
-  pkgDir <- file.path(
-    if (Sys.info()[["user"]] == "rstudio") "packages_docker" else "packages",
-    version$platform,
-    paste0(version$major, ".", strsplit(version$minor, "[.]")[[1]][1])
-  )
-  
-  if (!dir.exists(pkgDir)) {
-    dir.create(pkgDir, recursive = TRUE)
-  }
-  .libPaths(pkgDir)
-}
-
-install.packages("Require")
-
-Require::Require("xgboost", repos = "http://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
-# if (!"xgboost" %in% rownames(installed.packages()) && packageVersion("xgboost") != "3.0.5.1") {
-#   install.packages("C:/Users/cbarros/Downloads/xgboost_3.0.5.1.tar.gz")  ## needed to manually download
-# }
-
-Require::Require(
-  c(
-    "caret",
-    "crayon",
-    "data.table",
-    "dplyr",
-    "foreign",
-    "fasterize",
-    "future",
-    "future.apply",
-    "ggplot2",
-    "ggpubr",
-    "ggrepel",
-    "Hmisc",
-    "LandR.CS",
-    "lightgbm",
-    "prioritizr",
-    "purrr",
-    "pROC",
-    "raster",
-    "reproducible",
-    "reshape2",
-    "sf",
-    "PredictiveEcology/SHAPforxgboost (>= 0.1.3.9001)",
-    "terra",
-    "tidyterra",
-    "CeresBarros/ToolsCB",
-    # "xgboost (>= 3.0.5.1)",  ## installed above
-    "xlsx"
-  )
-)
-
-Require::Require("xgboost (>= 3.0.5.1)", upgrade = FALSE, install = FALSE)
+dir.create(figDir, showWarnings = FALSE)
 
 options("reproducible.cachePath" = "analyses/cache",
         "future.globals.maxSize" = +Inf)
@@ -140,7 +92,7 @@ source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
 doCache = TRUE
 
 figDir <- "analyses/Figs"
-dir.create(figDir, showWarnings = FALSE)
+
 ```
 
 ```{r dataprep, include = FALSE, cache = FALSE}
@@ -1855,8 +1807,8 @@ plotData <- rbindlist(list(
   Rsq = allRsquared4GAMLSS
   , TGD = allTGD4
   # , RMSE = allRMSE4
-                           ),
-                      idcol = "metric", fill = TRUE)
+),
+idcol = "metric", fill = TRUE)
 
 crossValidplot <- ggplot(plotData, aes(y = V1, x = as.factor(metric))) +
   geom_boxplot() +

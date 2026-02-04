@@ -868,7 +868,7 @@ dataPrepWrapper <- function(resolution = 30,
                         cacheId = "7317549c72849eb2",
                         doCache = doCache,
                         bindAllFires = FALSE,
-                        # useCache = FALSE,
+                        useCache = doCache,
                         userTags = "ABSKfires_DataPrep",
                         omitArgs = c("bindAllFires", "doCache", "userTags"))
 

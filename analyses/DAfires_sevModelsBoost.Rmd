@@ -29,7 +29,7 @@ if (!exists("pkgDir")) {
 
 install.packages("Require")
 
-Require::Require("xgboost (==3.0.5.1)", repos = "https://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
+Require::Install("xgboost (==3.0.5.1)", repos = "https://dmlc.r-universe.dev") ## not working "SSL connect error", same with install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
 # if (!"xgboost" %in% rownames(installed.packages()) && packageVersion("xgboost") != "3.0.5.1") {
 #   install.packages("C:/Users/cbarros/Downloads/xgboost_3.0.5.1.tar.gz")  ## needed to manually download
 # }
@@ -48,7 +48,7 @@ Require::Require(
     "gamlss",
     "gamlss.inf", 
     "gpboost",
-    "CeresBarros/gpboost.utils (>=0.1.0.9001)",
+    "gpboost.utils", ##  "CeresBarros/gpboost.utils (>=0.1.0.9001)",
     "ggplot2",
     "ggpubr",
     "ggrepel",
@@ -59,17 +59,17 @@ Require::Require(
     "purrr",
     "pROC",
     "raster",
-    "PredictiveEcology/reproducible@AI",
+    "reproducible", ## "PredictiveEcology/reproducible@AI (==2.1.2.9001)",
     "reshape2",
     "sf",
     "shapr",  
-    "PredictiveEcology/SHAPforxgboost (>=0.1.3.9001)",
+    "SHAPforxgboost", ## "PredictiveEcology/SHAPforxgboost (>=0.1.3.9001)",
     "terra",
     "tidyterra",
-    "CeresBarros/ToolsCB (>=0.0.9001)",
-    # "xgboost (>=3.0.5.1)",  ## above
+    "ToolsCB", ## "CeresBarros/ToolsCB (>=0.0.9001)",
+    "xgboost", ## "xgboost (>=3.0.5.1)",  ## above
     "xlsx"
-  )
+  ), install = FALSE
 )
 
 devtools::load_all("C:/Users/cbarros/GitHub/caret/pkg/caret/")

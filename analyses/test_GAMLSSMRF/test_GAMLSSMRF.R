@@ -67,18 +67,33 @@ draw.polys(rent99.polys, fitted(mrf.out))
 
 crsProj <- crs(vect("data/fires_Dave/fireSev/albertafires1_postfire.shp"), proj = TRUE)
 
-SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)]
-SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
+sevPoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)]
+sevPoints <- st_as_sf(sevPoints, coords = c("Long", "Lat"),
                            agr = "constant", crs = st_crs(crsProj))
 
-## subset to a fire
-firePoints <- SEV_PROPpoints[SEV_PROPpoints$FIRE_NAME == head(summaryABSK_AllData$FIRE_NAME, 1),]
+## create a fire perimeter polygon
+resolution <- 30
+rasterToMatch <- raster(sevPoints, resolution = resolution,
+                        crs = crs(sevPoints))
+if(!raster::compareCRS(crs(sevPoints), crs(rasterToMatch))) {
+  crs(rasterToMatch) <- crs(sevPoints)
+  rasterToMatch <- raster::projectRaster(rasterToMatch, crs = crs(sevPoints))
+}
+rasterToMatch <- fasterize(sf = sevPoints, raster = rasterToMatch)
+rasterToMatch <- setValues(rasterToMatch, values = 1:ncell(rasterToMatch))
 
-## get fire perimeter
-##HERE
-firePerim <- firePoints |>
-  st_union("MULTIPOINT")
 
+fireColID <- "FIRE_NAME"
+fireID <- head(sevPoints[[fireColID]], 1)
+firePix <- st_drop_geometry(sevPoints[sevPoints[[fireColID]] == fireID, "pixID"])
+
+firePoints <- sevPoints[sevPoints[[fireColID]] == fireID,]
+
+fireRas <- rasterToMatch
+fireRas[!fireRas[] %in% firePoints$pixID] <- NA
+
+plot(fireRas)
+raster::rasterToPolygons(rasterToMatch[firePix], dissolve = )
 
 ##
 dist <- 30

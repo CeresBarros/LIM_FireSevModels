@@ -14,9 +14,9 @@ summarizeABSK_AllData <- function(DT, dim,
 
   summaryDT <- Cache(summarizeClimateVars,
                      DT = DT,
-                     dim = dim(DT),
+                     dim = dim,
                      days = days,
-                     cacheId = "1c9b2249efe9bc46",
+                     cacheId = "29538c58d8d7a7cf",
                      omitArgs = c("DT"))
 
   ## merge with remaining data

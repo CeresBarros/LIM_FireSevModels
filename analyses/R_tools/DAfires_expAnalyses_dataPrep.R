@@ -44,7 +44,7 @@ ABSKfires_DataPrep <- function(
     cachePath = "analyses/cache",
     userTags = "allFireData",
     useCache = doCache,
-    cacheId = "c4116973045eb9a3"  ## fix
+    cacheId = "d192af23e783f4ce"
   )
 
   ## DEFINE FIRE EVENTS ----
@@ -80,7 +80,7 @@ ABSKfires_DataPrep <- function(
     userTags = "validABSK_fireEvents",
     omitArgs = c("sfObj"),
     useCache = doCache,
-    cacheId = "04dacf18dd7e1a81"
+    cacheId = "994d71caadff7d85"
   )
 
   ## ADD SEVERITY IN DISTURBED PATCHES
@@ -222,7 +222,7 @@ ABSKfires_DataPrep <- function(
     userTags = "meltABprefire_1",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "9c5a574825977426"
+    cacheId = "a77d6b8f70c5364e"
   )
 
   cacheExtra <- CacheDigest(albertafires2_prefire)
@@ -237,7 +237,7 @@ ABSKfires_DataPrep <- function(
     userTags = "meltABprefire_2",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "38ec7804ab5af5ec"
+    cacheId = "83d768c92626bea4"
   )
 
   ## Saskatchewan - melting has to come before renaming
@@ -254,7 +254,7 @@ ABSKfires_DataPrep <- function(
     userTags = "meltSKprefire",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "d9d251e366c19495"
+    cacheId = "6216a0950163f63b"
   )
 
   saskatchewanfires_prefireMelt <- renameCleanSfFields(
@@ -312,7 +312,7 @@ ABSKfires_DataPrep <- function(
     userTags = "AB2CASFRI_1",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "123e9d763b358be2"
+    cacheId = "04dde0226357e1cb"
   )
 
   cacheExtra <- CacheDigest(albertafires2_prefireMelt)
@@ -326,7 +326,7 @@ ABSKfires_DataPrep <- function(
     userTags = "AB2CASFRI_2",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "45abfe5b31780ae2"
+    cacheId = "a77b753733826bf0"
   )
 
   cacheExtra <- CacheDigest(saskatchewanfires_prefireMelt)
@@ -518,7 +518,9 @@ ABSKfires_DataPrep <- function(
     userTags = "ABSK_AllData",
     cachePath = "analyses/cache",
     useCache = doCache,
-    cacheId = "33fc46a9f209968a"
+    cacheId = "943e2db2e58c5890",
+    omitArgs = c("saveDir", "sevDataSf", "vegDataSf", "topoDataSf", "weatherDataDt"),
+    .cacheExtra = cacheExtra
   )
 
   ## clean-up
@@ -866,7 +868,7 @@ dataPrepWrapper <- function(resolution = 30,
                         topoDataPath = topoDataPath,
                         weatherDataPath = weatherDataPath,
                         resolution = resolution,
-                        cacheId = "7317549c72849eb2",
+                        cacheId = "f33b4be910148068",
                         doCache = doCache,
                         bindAllFires = FALSE,
                         useCache = doCache,
@@ -910,8 +912,9 @@ dataPrepWrapper <- function(resolution = 30,
                                dim = cacheExtra,
                                days = 1:3,
                                omitArgs = c("DT"),
-                               cacheId = "8819c7d9a85ca340",
-                               useCache = doCache) ## cacheId = "7f5e7f0ae8fe1943"
+                               cacheId = "5c457489708f39bf",
+                               showSimilar = TRUE,
+                               useCache = doCache)
 
   ## collapse species into more generic categories
   message(cyan("Aggregating species..."))

@@ -942,13 +942,53 @@ dataPrepWrapper <- function(resolution = 30,
       x[!is.na(x)]
   }
 
+  ## collapse non forest veg types into a single column
+  browser()
   cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
   summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
-  summaryABSK_AllData[, NonForestValue := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+  summaryABSK_AllData[, LandCover := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
+  summaryABSK_AllData[, (cols) := NULL]
 
   summaryABSK_AllData[, isForest := 0]
-  summaryABSK_AllData[NonForestValue == "NA", isForest := 1]
+  summaryABSK_AllData[LandCover == "NA", isForest := 1]
   summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
+
+
+  ## remove PRODUCTIVE_FOREST column, as it should be coded as forest or not forest in other columns
+  if (summaryABSK_AllData[PRODUCTIVE_FOREST != "PF", all(!isForest)]) {
+    if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF", all(isForest)]) {
+      ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
+      summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
+    } else {
+      if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF" & isForest == 0, all(!is.na(LandCover))]) {
+        ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
+        summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
+      } else {
+        stop("There is a mismatch between land-cover/forest type columns")
+      }
+    }
+  }
+
+  summaryABSK_AllData[LandCover == "NA", LandCover := "PF"]  ## for "productive forest"
+
+  ## set the following forest attributes to zero in non-forested LCs, so that they are not excluded from analyses
+  browser()
+  forAtts <- c("UNDERSTOREY", "STAND_AGE",
+               "HEIGHT_UPPER", "HEIGHT_LOWER", "SPEC10", "SPEC10_PER",
+               "ORIGIN_UPPER", "ORIGIN_LOWER",
+               "CROWN_CLOSURE_LOWER", "CROWN_CLOSURE_UPPER",
+               "Decid", "Abie", "FlamConif",
+               "Pice glau", "Pinu cont", "Pice mari", "Lari lari", "Popu trem",
+               "Betu papy", "Abie bals", "Pinu bank", "Pice enge", "Abie lasi", "Popu balb")
+  summaryABSK_AllData[LandCover != "PF" & is.na(LAYER_RANK), unique(LandCover)]
+
+  # ## these should be 1, double check for rank
+  # "LAYER" "LAYER_RANK"
+
+  ## check what is the etland code in landcover
+  # "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD", "STAND_STRUCTURE_PER", "STAND_STRUCTURE"
+  # DIST3 DIST1_YEAR DIST2_YEAR DIST2  DIST1 DIST2_EXTENT_LOWER DIST1_EXTENT_LOWER DIST2_EXTENT_UPPER DIST1_EXTENT_UPPER
+  # "SITE_CLASS"
 
   ## change Lari lari to simpler name
   setnames(summaryABSK_AllData, "Lari lari", "Lari")

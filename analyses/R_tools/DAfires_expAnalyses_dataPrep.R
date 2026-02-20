@@ -62,7 +62,7 @@ ABSKfires_DataPrep <- function(
     overwrite = TRUE,
     cachePath = "analyses/cache",
     userTags = "dataTreat_fireEvents",
-    omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite"),
+    omitArgs = c("PLOT", "SAVE", "outputDIR", "fileNAME", "overwrite", "userTags"),
     useCache = doCache,
     cacheId = "7e545707ee8b59d1"
   )
@@ -71,10 +71,11 @@ ABSKfires_DataPrep <- function(
   ABSK_fireEvents <- ABSK_fireEvents[!is.na(st_dimension(ABSK_fireEvents)), ]
 
   ## validategeometries if need be
+  cacheExtra <- CacheDigest(ABSK_fireEvents)
   ABSK_fireEvents <- Cache(
     validateGeomsSf,
     sfObj = ABSK_fireEvents,
-    dim = dim(ABSK_fireEvents),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "validABSK_fireEvents",
     omitArgs = c("sfObj"),
@@ -211,13 +212,14 @@ ABSKfires_DataPrep <- function(
   )
   allVars <- c(allVars, paste0("U", allVars))
 
+  cacheExtra <- CacheDigest(albertafires1_prefire)
   albertafires1_prefireMelt <- Cache(
     meltPreFireABInv,
     inv = albertafires1_prefire,
     invName = "albertafires1_prefire",
     allVars = allVars,
     folder = vegDataPath,
-    dim = dim(albertafires1_prefire),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "meltABprefire_1",
     useCache = doCache,
@@ -225,13 +227,14 @@ ABSKfires_DataPrep <- function(
     cacheId = "9c5a574825977426"
   )
 
+  cacheExtra <- CacheDigest(albertafires2_prefire)
   albertafires2_prefireMelt <- Cache(
     meltPreFireABInv,
     inv = albertafires2_prefire,
     invName = "albertafires2_prefire",
     allVars = allVars,
     folder = vegDataPath,
-    dim = dim(albertafires2_prefire),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "meltABprefire_2",
     useCache = doCache,
@@ -242,12 +245,13 @@ ABSKfires_DataPrep <- function(
   ## Saskatchewan - melting has to come before renaming
   ## note: for SK these names are not the same as the names accepted by CASFRI,
   ##    because CASFRI is not using the "official" field names
+  cacheExtra <- CacheDigest(saskatchewanfires_prefire)
   saskatchewanfires_prefireMelt <- Cache(
     meltPreFireSKInv,
     inv = saskatchewanfires_prefire,
     invName = "saskatchewanfires_prefire",
     folder = vegDataPath,
-    dim = dim(saskatchewanfires_prefire),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "meltSKprefire",
     useCache = doCache,
@@ -299,12 +303,13 @@ ABSKfires_DataPrep <- function(
 
   ## AVI AND SFVI TO CASFRI
   tablesDir <- "data/VegInventories/CASFRIConvTables.xlsx"
+  cacheExtra <- CacheDigest(albertafires1_prefireMelt)
   albertafires1_prefireMeltCASFRI <- Cache(
     ABToCASFRI,
     inv = albertafires1_prefireMelt,
     tablesDir = tablesDir,
     folder = vegDataPath,
-    dim = dim(albertafires1_prefireMelt),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "AB2CASFRI_1",
     useCache = doCache,
@@ -312,12 +317,13 @@ ABSKfires_DataPrep <- function(
     cacheId = "123e9d763b358be2"
   )
 
+  cacheExtra <- CacheDigest(albertafires2_prefireMelt)
   albertafires2_prefireMeltCASFRI <- Cache(
     ABToCASFRI,
     inv = albertafires2_prefireMelt,
     tablesDir = tablesDir,
     folder = vegDataPath,
-    dim = dim(albertafires2_prefireMelt),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "AB2CASFRI_2",
     useCache = doCache,
@@ -325,12 +331,13 @@ ABSKfires_DataPrep <- function(
     cacheId = "45abfe5b31780ae2"
   )
 
+  cacheExtra <- CacheDigest(saskatchewanfires_prefireMelt)
   saskatchewanfires_prefireMeltCASFRI <- Cache(
     SKToCASFRI,
     inv = saskatchewanfires_prefireMelt,
     tablesDir = tablesDir,
     folder = vegDataPath,
-    dim = dim(saskatchewanfires_prefireMelt),
+    dim = cacheExtra,
     cachePath = "analyses/cache",
     userTags = "SK2CASFRI_1",
     useCache = doCache,
@@ -506,6 +513,7 @@ ABSKfires_DataPrep <- function(
     "analyses/fireDataJoins",
     paste0("res", resolution, "m")
   )
+  cacheExtra <- CacheDigest(list(ABSK_fireEventsSev, allPrefireCASFRI, DEM, fireWeatherLs$fireWeather))
   ABSK_AllData <- Cache(
     joinSevVegTopoWeatherData,
     sevDataSf = ABSK_fireEventsSev,
@@ -899,9 +907,15 @@ dataPrepWrapper <- function(resolution = 30,
 
   ## summarise weather data - faster if not cached
   message(cyan("Summarising weather data..."))
+
+  # cacheExtra <- CacheDigest(ABSK_AllData) ## too slow
+  seed <- .Random.seed
+  set.seed(1234)
+  cacheExtra <- CacheDigest(ABSK_AllData[sample(1:nrow(ABSK_AllData), size = 5000, replace = FALSE),])
+  set.seed(seed)
   summaryABSK_AllData <- Cache(summarizeABSK_AllData,
                                DT = ABSK_AllData,
-                               dim = dim(ABSK_AllData),
+                               dim = cacheExtra,
                                days = 1:3,
                                omitArgs = c("DT"),
                                cacheId = "8819c7d9a85ca340",

@@ -9,20 +9,20 @@
 ## bindAllFires controls whether all fire data binding should be repeated
 
 ABSKfires_DataPrep <- function(
-  fireDataPath = "data/fires_Dave/fireSev",
-  vegDataPath = "data/fires_Dave/prefireVeg",
-  topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
-  weatherDataPath = "data/fires_Dave/fireWeather",
-  resolution = 20,
-  doCache = TRUE,
-  bindAllFires = FALSE
+    fireDataPath = "data/fires_Dave/fireSev",
+    vegDataPath = "data/fires_Dave/prefireVeg",
+    topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+    weatherDataPath = "data/fires_Dave/fireWeather",
+    resolution = 20,
+    doCache = TRUE,
+    bindAllFires = FALSE
 ) {
   ## checks
   if (
     is.null(fireDataPath) |
-      is.null(vegDataPath) |
-      is.null(weatherDataPath) |
-      is.null(topoDataPath)
+    is.null(vegDataPath) |
+    is.null(weatherDataPath) |
+    is.null(topoDataPath)
   ) {
     stop(
       "Missing one of fireDataPath, vegDataPath, weatherDataPath, topoDataPath"
@@ -879,10 +879,11 @@ dataPrepWrapper <- function(resolution = 30,
   amc::.gc()
 
   ## remove columns with no data
-  NAcols <- sapply(ABSK_AllData, FUN = function(x) all(is.na(x)))
-  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!NAcols))]
-  zeroCols <- sapply(ABSK_AllData, FUN = function(x) all(x == 0, na.rm = TRUE))
-  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = names(which(!zeroCols))]
+  keepCols <- sapply(ABSK_AllData, FUN = function(x) !all(is.na(x)))
+  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = keepCols]
+  keepCols2 <- sapply(ABSK_AllData, FUN = function(x) !all(x == 0, na.rm = TRUE))
+  ABSK_AllData <- ABSK_AllData[, .SD, .SDcols = keepCols2]
+  amc::.gc()
 
   ## calculate stand age at fire year by subtracting fire year - makes negative values
   ABSK_AllData[!is.na(ORIGIN_UPPER), STAND_AGE := FIRE_YEAR - ORIGIN_UPPER]

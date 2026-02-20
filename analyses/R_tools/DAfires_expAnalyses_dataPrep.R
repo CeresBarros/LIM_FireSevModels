@@ -154,9 +154,7 @@ ABSKfires_DataPrep <- function(
   ## IDs in the data cannot be trusted as they are repeated/missing across polygons with different data.
   albertafires1_prefire$P_ID <- 1:nrow(albertafires1_prefire[,, drop = TRUE])
   albertafires2_prefire$P_ID <- 1:nrow(albertafires2_prefire[,, drop = TRUE])
-  saskatchewanfires_prefire$P_ID <- 1:nrow(saskatchewanfires_prefire[,,
-    drop = TRUE
-  ])
+  saskatchewanfires_prefire$P_ID <- 1:nrow(saskatchewanfires_prefire[,, drop = TRUE])
 
   ## MELT CHANGE NAMES AND REMOVE UNWANTED VARIABLES
   ## Alberta - melting comes after renaming
@@ -344,10 +342,9 @@ ABSKfires_DataPrep <- function(
     omitArgs = c("inv"),
     cacheId = "5e9530011e422b42"
   )
-  ## change LA (lakes) to  water, since Dave'S data is not clear about the type of water bodies in SK
-  saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[
-    saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"
-  ] <- "WA"
+
+  ## change LA (lakes) to  water, since Dave's data is not clear about the type of water bodies in SK
+  saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
 
   ## rbind pre-fire data
   setcolorder(

@@ -274,22 +274,22 @@ ABSKfires_DataPrep <- function(
 
   ## add watter class where missing
   tempDT[,
-    TYPE := addWaterInfo(AQUATIC_CLASS, TYPE, CSG, PFT),
-    by = 1:nrow(tempDT)
+         TYPE := addWaterInfo(AQUATIC_CLASS, TYPE, CSG, PFT),
+         by = 1:nrow(tempDT)
   ]
   tempDT[TYPE %in% "WAT", NVSL := "WA"]
 
-  ## note that one polyogn has TYPE/CSG/PFT = NFA (after checking AQUATIC info) and no veg info - will have to be ignored
+  ## note that one polygon has TYPE/CSG/PFT = NFA (after checking AQUATIC info) and no veg info - will have to be ignored
   tempDT[,
-    c("TYPE", "CSG", "PFT") := correctCSGPFTTYPE(
-      LAYER,
-      TYPE,
-      CSG,
-      PFT,
-      SP1_COVER,
-      SMR
-    ),
-    by = P_ID
+         c("TYPE", "CSG", "PFT") := correctCSGPFTTYPE(
+           LAYER,
+           TYPE,
+           CSG,
+           PFT,
+           SP1_COVER,
+           SMR
+         ),
+         by = P_ID
   ]
 
   ## back to sf object
@@ -357,8 +357,9 @@ ABSKfires_DataPrep <- function(
     albertafires2_prefireMeltCASFRI,
     saskatchewanfires_prefireMeltCASFRI
   )
+
   ## re-do polygon IDs
-  allPrefireCASFRI$P_ID <- 1:nrow(allPrefireCASFRI[,, drop = TRUE])
+  allPrefireCASFRI$P_ID <- 1:nrow(allPrefireCASFRI)
 
   ## WATER DATA ----
   # files = c("water-abta", "water-sask")
@@ -838,7 +839,7 @@ cleanAndBindFireData <- function(files, fireDataPath) {
 #' Data preparation wrapper function -- for caching data prep steps
 #'
 #' @param resolution numeric. in meters. Defaults to 30m.
-#' @param doCache logical. Activates/deactivates caching. Passed to reproducible::Cache
+#' @param doCache logical. Activates/deactivates caching. Passed to Cache
 #' @param fireDataPath character. Folder path to fire severity data.
 #' @param vegDataPath character. Folder path to pre-fire vegetation data.
 #' @param topoDataPath character. Folder path to topography data.

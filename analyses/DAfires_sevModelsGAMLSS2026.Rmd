@@ -1767,12 +1767,6 @@ crossValidplot
 dev.off()
 ```
 
-## GAMLSS with spatial terms
-
-
-
-
-
 ## Inspecting the final model and figures
 Probabilities of 0s and 1s in function of covariates:
 $$xi0 = \nu = \frac{p0}{1 + p0 + p1}$$

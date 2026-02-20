@@ -340,21 +340,16 @@ ABSKfires_DataPrep <- function(
     userTags = "SK2CASFRI_1",
     useCache = doCache,
     omitArgs = c("inv"),
-    cacheId = "5e9530011e422b42"
+    cacheId = "176af61b1d9e761e"
   )
 
   ## change LA (lakes) to  water, since Dave's data is not clear about the type of water bodies in SK
   saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
 
   ## rbind pre-fire data
-  setcolorder(
-    albertafires2_prefireMeltCASFRI,
-    names(albertafires1_prefireMeltCASFRI)
-  )
-  setcolorder(
-    saskatchewanfires_prefireMeltCASFRI,
-    names(albertafires1_prefireMeltCASFRI)
-  )
+  cols <- names(albertafires1_prefireMeltCASFRI)
+  albertafires2_prefireMeltCASFRI <- albertafires2_prefireMeltCASFRI[, cols]
+  saskatchewanfires_prefireMeltCASFRI <- saskatchewanfires_prefireMeltCASFRI[, cols]
 
   allPrefireCASFRI <- rbind(
     albertafires1_prefireMeltCASFRI,

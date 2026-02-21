@@ -943,7 +943,6 @@ dataPrepWrapper <- function(resolution = 30,
   }
 
   ## collapse non forest veg types into a single column
-  browser()
   cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
   summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
   summaryABSK_AllData[, LandCover := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
@@ -971,8 +970,10 @@ dataPrepWrapper <- function(resolution = 30,
 
   summaryABSK_AllData[LandCover == "NA", LandCover := "PF"]  ## for "productive forest"
 
-  ## set the following forest attributes to zero in non-forested LCs, so that they are not excluded from analyses
-  browser()
+  ## Replace NA's with sensible values to avoid excluding non-forested points from analyses
+  ## NAs -> 0:
+
+  nonForestDT <- summaryABSK_AllData[LandCover != "PF"]
   forAtts <- c("UNDERSTOREY", "STAND_AGE",
                "HEIGHT_UPPER", "HEIGHT_LOWER", "SPEC10", "SPEC10_PER",
                "ORIGIN_UPPER", "ORIGIN_LOWER",
@@ -980,16 +981,24 @@ dataPrepWrapper <- function(resolution = 30,
                "Decid", "Abie", "FlamConif",
                "Pice glau", "Pinu cont", "Pice mari", "Lari lari", "Popu trem",
                "Betu papy", "Abie bals", "Pinu bank", "Pice enge", "Abie lasi", "Popu balb")
-  summaryABSK_AllData[LandCover != "PF" & is.na(LAYER_RANK), unique(LandCover)]
 
-  # ## these should be 1, double check for rank
-  # "LAYER" "LAYER_RANK"
+  for (col in forAtts) {
+    nonForestDT[is.na(nonForestDT[[col]]), (col) := 0L]
+  }
 
-  ## check what is the etland code in landcover
+  ## NAs -> 1:
+  forAtts <- c("LAYER", "LAYER_RANK")
+  for (col in forAtts) {
+    nonForestDT[is.na(nonForestDT[[col]]), (col) := 1L]
+  }
+
+  browser() ## here!
+  ## check what is the wetland code in landcover
   # "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD", "STAND_STRUCTURE_PER", "STAND_STRUCTURE"
   # DIST3 DIST1_YEAR DIST2_YEAR DIST2  DIST1 DIST2_EXTENT_LOWER DIST1_EXTENT_LOWER DIST2_EXTENT_UPPER DIST1_EXTENT_UPPER
   # "SITE_CLASS"
 
+  summaryABSK_AllData <- rbind(summaryABSK_AllData[LandCover == "PF"], nonForestDT)
   ## change Lari lari to simpler name
   setnames(summaryABSK_AllData, "Lari lari", "Lari")
 

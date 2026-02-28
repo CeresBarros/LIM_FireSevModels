@@ -52,16 +52,17 @@ Require::Require(
     "future",
     "future.apply",
     "purrr",
-    # "mirai",   ## for in_parallel with purrr::*, not used at the moment
-    # "carrier", ## for in_parallel with purrr::*, not used at the moment
     "reproducible",   ## "PredictiveEcology/reproducible@AI (==2.1.2.9001)",
     "raster",
     "terra",
     "tidyterra",
     "ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
+    # "mirai",   ## for in_parallel with purrr::*, not used at the moment
+    # "carrier", ## for in_parallel with purrr::*, not used at the moment
   ), install = FALSE
 )
 
+Require::Require("reproducible", install = FALSE) ## for some reasons it's not being loaded above
 doCache = TRUE
 
 figDir <- "analyses/Figs"

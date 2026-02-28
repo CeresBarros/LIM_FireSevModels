@@ -506,6 +506,7 @@ ABSKfires_DataPrep <- function(
     paste0("res", resolution, "m")
   )
   cacheExtra <- CacheDigest(list(ABSK_fireEventsSev, allPrefireCASFRI, DEM, fireWeatherLs$fireWeather))
+
   ABSK_AllData <- Cache(
     joinSevVegTopoWeatherData,
     sevDataSf = ABSK_fireEventsSev,
@@ -518,8 +519,8 @@ ABSKfires_DataPrep <- function(
     userTags = "ABSK_AllData",
     cachePath = "analyses/cache",
     useCache = doCache,
-    cacheId = "943e2db2e58c5890",
-    omitArgs = c("saveDir", "sevDataSf", "vegDataSf", "topoDataSf", "weatherDataDt"),
+    cacheId = "943e2db2e58c5890",  ## cache is saying the hash differs due to supplied tags
+    omitArgs = c("userTags", "doAll", "saveDir", "sevDataSf", "vegDataSf", "topoDataSf", "weatherDataDt"),
     .cacheExtra = cacheExtra
   )
 

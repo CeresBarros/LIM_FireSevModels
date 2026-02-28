@@ -29,7 +29,7 @@ summarizeABSK_AllData <- function(DT, dim,
   ## make column with presence/absence of understory and remove the understorey layer
   ## as it can't really be trusted (Andison pers. comm. January 29th 2019)
   ## even considering its presence might be risky as some times aerial photos do not detect the presence of the understorey, even if it is present.
-  cols <- grep("SPEC._PER", names(summaryDT), value = TRUE)
+  cols <- grep("SPEC[[:digit:]]*_PER", names(summaryDT), value = TRUE)
   summaryDT[LAYER == 2, UNDERSTOREY := rowSums(.SD, na.rm = TRUE) > 0, .SDcols = cols]
   summaryDT[, UNDERSTOREY2 := any(UNDERSTOREY), by = "pixID"]
   summaryDT[, UNDERSTOREY := UNDERSTOREY2]
@@ -39,8 +39,8 @@ summarizeABSK_AllData <- function(DT, dim,
 
   ## change NA cover to 0 and melt species and cover
   ## don't exclude pixels without vegetation
-  colA = grep("SPEC.$", names(summaryDT), value = TRUE)
-  colB = grep("SPEC._PER", names(summaryDT), value = TRUE)
+  colA = grep("SPEC[[:digit:]]*$", names(summaryDT), value = TRUE)
+  colB = grep("SPEC[[:digit:]]*_PER$", names(summaryDT), value = TRUE)
 
   for (j in which(names(summaryDT) %in% colB))
     set(summaryDT, which(is.na(summaryDT[[j]])), j, 0)
@@ -61,7 +61,7 @@ summarizeABSK_AllData <- function(DT, dim,
   summaryDT <- unique(summaryDT)
 
   ## ignore species dominance variable - not needed as dominance is defined by cover
-  cols <- grep("SPEC.$", names(DT), value = TRUE)
+  cols <- grep("SPEC[[:digit:]]*$", names(DT), value = TRUE)
   species <- unique(unlist(unique(DT[, ..cols])))
   species <- species[!is.na(species) & species != "NA"]
   summaryDTsp <- summaryDT[, lapply(.SD, sum), by = "pixID", .SDcols = species]

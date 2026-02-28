@@ -87,7 +87,6 @@ figDir <- "analyses/Figs"
 
 ```{r dataprep, include = FALSE, cache = FALSE}
 resolution = 30
-## problem in ABSKfires_DataPrep() numeric values entering disturbance column. the columns are screwed up see browser there
 
 summaryABSK_AllData <- Cache(
   dataPrepWrapper,
@@ -99,8 +98,15 @@ summaryABSK_AllData <- Cache(
   doCache = doCache,
   useCache = doCache,
   userTags = "summaryABSK_AllData",
-  # cacheId = "",   ## overwride. Feb 2026, Cache is being silly about "new" userTags
+  cacheId = "c760bd563509bda9",
   omitArgs = c("useCache", "doCache", "userTags"))
+
+## /!\ the following variables have many NA's and should perhaps be excluded
+## wetlands are indicated within `LandCover`, the wetland vars are too much for this analysis.
+## "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD"
+## "Duration"
+## "cvRain
+## SMR_ord/wet -- probably nothing that can be done here and there are few NAs on this one.
 ```
 
 ```{r addNgbNoBurns, cache = FALSE, include = FALSE}

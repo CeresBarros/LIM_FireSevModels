@@ -943,6 +943,9 @@ dataPrepWrapper <- function(resolution = 30,
       x[!is.na(x)]
   }
 
+  ## change Lari lari to simpler name
+  setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
   ## collapse non forest veg types into a single column
   cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
   summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
@@ -973,35 +976,88 @@ dataPrepWrapper <- function(resolution = 30,
 
   ## Replace NA's with sensible values to avoid excluding non-forested points from analyses
   ## NAs -> 0:
-
-  nonForestDT <- summaryABSK_AllData[LandCover != "PF"]
   forAtts <- c("UNDERSTOREY", "STAND_AGE",
-               "HEIGHT_UPPER", "HEIGHT_LOWER", "SPEC10", "SPEC10_PER",
+               "HEIGHT_UPPER", "HEIGHT_LOWER",
                "ORIGIN_UPPER", "ORIGIN_LOWER",
-               "CROWN_CLOSURE_LOWER", "CROWN_CLOSURE_UPPER",
+               "CROWN_CLOSURE_LOWER", "CROWN_CLOSURE_UPPER", "STAND_STRUCTURE_PER",
                "Decid", "Abie", "FlamConif",
-               "Pice glau", "Pinu cont", "Pice mari", "Lari lari", "Popu trem",
+               "Pice glau", "Pinu cont", "Pice mari", "Lari", "Popu trem",
                "Betu papy", "Abie bals", "Pinu bank", "Pice enge", "Abie lasi", "Popu balb")
 
   for (col in forAtts) {
-    nonForestDT[is.na(nonForestDT[[col]]), (col) := 0L]
-  }
+    rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
+    set(summaryABSK_AllData, rowIDs, col, 0L)
+    }
 
   ## NAs -> 1:
   forAtts <- c("LAYER", "LAYER_RANK")
   for (col in forAtts) {
-    nonForestDT[is.na(nonForestDT[[col]]), (col) := 1L]
+    rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
+    set(summaryABSK_AllData, rowIDs, col, 1L)
+    }
+
+  ## Site productivity -- NA's replaced with "unknown"
+  summaryABSK_AllData[is.na(SITE_CLASS), SITE_CLASS := "unknown"]
+
+  ## Disturbances -- DIST2/3 may not exist.
+  summaryABSK_AllData[is.na(DIST1), DIST1 := "notDisturbed"]
+
+  forAtts <- c("DIST1_YEAR", "DIST1_EXTENT_UPPER", "DIST1_EXTENT_LOWER")
+  for (col in forAtts) {
+    if (is.null(summaryABSK_AllData[[col]])) next
+    rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
+    set(summaryABSK_AllData, rowIDs, col, 0L)
   }
 
-  browser() ## here!
-  ## check what is the wetland code in landcover
-  # "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD", "STAND_STRUCTURE_PER", "STAND_STRUCTURE"
-  # DIST3 DIST1_YEAR DIST2_YEAR DIST2  DIST1 DIST2_EXTENT_LOWER DIST1_EXTENT_LOWER DIST2_EXTENT_UPPER DIST1_EXTENT_UPPER
-  # "SITE_CLASS"
+  if (!is.null(summaryABSK_AllData[["DIST2"]])) {
+    summaryABSK_AllData[is.na(DIST2), DIST2 := "notDisturbed"]
+    forAtts <- c("DIST2_YEAR", "DIST2_EXTENT_UPPER", "DIST2_EXTENT_LOWER")
+    for (col in forAtts) {
+      if (is.null(summaryABSK_AllData[[col]])) next
+      rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
+      set(summaryABSK_AllData, rowIDs, col, 0L)
+    }
+  }
 
-  summaryABSK_AllData <- rbind(summaryABSK_AllData[LandCover == "PF"], nonForestDT)
-  ## change Lari lari to simpler name
-  setnames(summaryABSK_AllData, "Lari lari", "Lari")
+  if (!is.null(summaryABSK_AllData[["DIST3"]])) {
+    summaryABSK_AllData[is.na(DIST3), DIST3 := "notDisturbed"]
+    forAtts <- c("DIST3_YEAR", "DIST3_EXTENT_UPPER", "DIST3_EXTENT_LOWER")
+    for (col in forAtts) {
+      if (is.null(summaryABSK_AllData[[col]])) next
+      rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
+      set(summaryABSK_AllData, rowIDs, col, 0L)
+    }
+  }
+
+  ## for the next ones deal with forest and non-forest veg differently.
+  summaryABSK_AllData[, SMR_ord := as.integer(SMR_ord)]  ## remove levels first
+
+  nonForestDT <- summaryABSK_AllData[LandCover != "PF"]
+  forestDT <- summaryABSK_AllData[LandCover == "PF"]
+
+  ## Wetlands - if (non-NA) wetlands have NA LandCover, LandCover gets "wetland"
+  ## is.na(wetland) wetland columns get "notWetland"
+  nonForestDT[!is.na(WETLAND_CLASS) & is.na(LandCover), LandCover := "wetland"]
+  forAtts <- c("WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD")
+  for (col in forAtts) {
+    if (any(is.na(nonForestDT[["WETLAND_CLASS"]]) & !is.na(nonForestDT[[col]]))) {
+      stop("WETLAND_CLASS is NA, but associated modifiers are not.")
+    }
+    nonForestDT[is.na(nonForestDT[[col]]), (col) := "notWetland"]
+  }
+
+  ## Soil moisture regime
+  nonForestDT[is.na(SMR) & LandCover %in% c("WA", "RI", "OC", "LA", "SI", "TF", "LG"),
+              `:=`(SMR = "A", SMR_ord = 5L)]
+  nonForestDT[is.na(SMR) & LandCover %in% c("FL"),
+              `:=`(SMR = "W", SMR_ord = 4L)]
+
+  ## STAND_STRUCTURE - assuming a single layer (S) if not specified
+  forestDT[is.na(STAND_STRUCTURE) & any(LAYER > 1, na.rm = TRUE), STAND_STRUCTURE := "M", by = P_ID]
+  forestDT[is.na(STAND_STRUCTURE) & !any(LAYER > 1, na.rm = TRUE), STAND_STRUCTURE := "S", by = P_ID]
+  nonForestDT[is.na(STAND_STRUCTURE), STAND_STRUCTURE := "S"]
+
+  summaryABSK_AllData <- rbind(forestDT, nonForestDT)
 
   ## rescale severity from 0-1
   message(cyan("Rescaling severity to [0,1], and converting 97.5% severity to 100%..."))
@@ -1027,12 +1083,14 @@ dataPrepWrapper <- function(resolution = 30,
   cols <- grep("YEAR|_PER$", names(summaryABSK_AllData), value = TRUE)
   summaryABSK_AllData[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
 
-
   ## make some columns factors
   cols <- unique(c("FIRE_NAME", "Czone1", "NR1"), names(which(sapply(summaryABSK_AllData, is.character))))
   summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
 
-  ## make some columns others boolean
+  ## make SMR_ord ordered again
+  summaryABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
+
+  ## make some columns boolean
   cols <- c("UNDERSTOREY", "isForest", "SMR_wet")
   summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.logical), .SDcols = cols]
 

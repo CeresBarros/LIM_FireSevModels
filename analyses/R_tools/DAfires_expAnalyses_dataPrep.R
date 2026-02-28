@@ -545,9 +545,9 @@ ABSKfires_DataPrep <- function(
     "LAYER",
     "LAYER_RANK",
     "STAND_STRUCTURE_PER",
-    "HEIGHT",
-    "HEIGHT",
-    "SPEC._PER",
+    "HEIGHT_UPPER",
+    "HEIGHT_LOWER",
+    "SPEC[[:digit:]]*_PER",
     "ORIGIN"
   )
   cols <- grep(paste(cols, collapse = "|"), names(ABSK_AllData), value = TRUE)

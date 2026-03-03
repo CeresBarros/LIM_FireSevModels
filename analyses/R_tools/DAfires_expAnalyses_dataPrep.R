@@ -986,16 +986,18 @@ dataPrepWrapper <- function(resolution = 30,
                "Betu papy", "Abie bals", "Pinu bank", "Pice enge", "Abie lasi", "Popu balb")
 
   for (col in forAtts) {
+    if (is.null(summaryABSK_AllData[[col]])) next
     rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
     set(summaryABSK_AllData, rowIDs, col, 0L)
-    }
+  }
 
   ## NAs -> 1:
   forAtts <- c("LAYER", "LAYER_RANK")
   for (col in forAtts) {
+    if (is.null(summaryABSK_AllData[[col]])) next
     rowIDs <- which(is.na(summaryABSK_AllData[[col]]))
     set(summaryABSK_AllData, rowIDs, col, 1L)
-    }
+  }
 
   ## Site productivity -- NA's replaced with "unknown"
   summaryABSK_AllData[is.na(SITE_CLASS), SITE_CLASS := "unknown"]
@@ -1041,6 +1043,7 @@ dataPrepWrapper <- function(resolution = 30,
   nonForestDT[!is.na(WETLAND_CLASS) & is.na(LandCover), LandCover := "wetland"]
   forAtts <- c("WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD")
   for (col in forAtts) {
+    if (is.null(nonForestDT[[col]])) next
     if (any(is.na(nonForestDT[["WETLAND_CLASS"]]) & !is.na(nonForestDT[[col]]))) {
       stop("WETLAND_CLASS is NA, but associated modifiers are not.")
     }

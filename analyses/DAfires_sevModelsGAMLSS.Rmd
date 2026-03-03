@@ -1101,6 +1101,7 @@ model8.4FULL <- gamlss(SEV_PROP ~ Decid*HEIGHT_LOWER + CTI + Lari +
                        data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
 ## save chosen model
 saveRDS(model8.4, "analyses/model8_4.rds")
+saveRDS(model8.4FULL, "analyses/model8_4FULL.rds")
 
 GAIC(model8,
      model8.4,  ## almost the same.

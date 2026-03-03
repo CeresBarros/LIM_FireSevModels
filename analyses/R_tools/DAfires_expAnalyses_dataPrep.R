@@ -1057,6 +1057,11 @@ dataPrepWrapper <- function(resolution = 30,
   nonForestDT[is.na(SMR) & LandCover %in% c("FL"),
               `:=`(SMR = "W", SMR_ord = 4L)]
 
+  ## remaining NAs become unknown
+  nonForestDT[is.na(SMR), SMR := "unknown"]
+  forestDT[is.na(SMR), SMR := "unknown"]
+
+
   ## STAND_STRUCTURE - assuming a single layer (S) if not specified
   forestDT[is.na(STAND_STRUCTURE) & any(LAYER > 1, na.rm = TRUE), STAND_STRUCTURE := "M", by = P_ID]
   forestDT[is.na(STAND_STRUCTURE) & !any(LAYER > 1, na.rm = TRUE), STAND_STRUCTURE := "S", by = P_ID]
@@ -1079,6 +1084,7 @@ dataPrepWrapper <- function(resolution = 30,
   ## calculate SMR_wet
   message(cyan("Creating binary 'wet' SMR variable..."))
   summaryABSK_AllData[, SMR_wet := as.integer(grepl("4|5", SMR_ord))]
+  summaryABSK_AllData[is.na(SMR_ord), SMR_wet := NA]
 
   ## fix Area column (not used but still)
   message(cyan("Data fixes and column class adjustments..."))

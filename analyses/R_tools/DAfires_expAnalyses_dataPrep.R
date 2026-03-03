@@ -343,8 +343,9 @@ ABSKfires_DataPrep <- function(
     cacheId = "176af61b1d9e761e"
   )
 
+  ## the following was commented out as of Feb 2026, since CASFRI standar has no "WA" water class and replaces all SK "WA" with "LA"
   ## change LA (lakes) to  water, since Dave's data is not clear about the type of water bodies in SK
-  saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
+  # saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG[saskatchewanfires_prefireMeltCASFRI$NATURALLY_NON_VEG %in% "LA"] <- "WA"
 
   ## rbind pre-fire data
   cols <- names(albertafires1_prefireMeltCASFRI)

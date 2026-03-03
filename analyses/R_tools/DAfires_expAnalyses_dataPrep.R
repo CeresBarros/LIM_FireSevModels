@@ -520,7 +520,7 @@ ABSKfires_DataPrep <- function(
     userTags = "ABSK_AllData",
     cachePath = "analyses/cache",
     useCache = doCache,
-    cacheId = "943e2db2e58c5890",  ## cache is saying the hash differs due to supplied tags
+    cacheId = "94b3ae7e62875fbf",  ## cache is saying the hash differs due to supplied tags
     omitArgs = c("userTags", "doAll", "saveDir", "sevDataSf", "vegDataSf", "topoDataSf", "weatherDataDt"),
     .cacheExtra = cacheExtra
   )
@@ -870,7 +870,7 @@ dataPrepWrapper <- function(resolution = 30,
                         topoDataPath = topoDataPath,
                         weatherDataPath = weatherDataPath,
                         resolution = resolution,
-                        cacheId = "f33b4be910148068",
+                        cacheId = "2a6849eca671d72b",
                         doCache = doCache,
                         bindAllFires = FALSE,
                         useCache = doCache,
@@ -914,7 +914,7 @@ dataPrepWrapper <- function(resolution = 30,
                                dim = cacheExtra,
                                days = 1:3,
                                omitArgs = c("DT"),
-                               cacheId = "5c457489708f39bf",
+                               cacheId = "920174dd1dd11cc4",
                                showSimilar = TRUE,
                                useCache = doCache)
 

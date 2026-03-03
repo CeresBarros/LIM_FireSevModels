@@ -97,9 +97,8 @@ summaryABSK_AllData <- Cache(
   topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
   weatherDataPath = "data/fires_Dave/fireWeather",
   doCache = doCache,
-  useCache = doCache,
   userTags = "summaryABSK_AllData",
-  cacheId = "c760bd563509bda9",
+  cacheId = "185c1b8db3c9788d",
   omitArgs = c("useCache", "doCache", "userTags"))
 
 ## /!\ the following variables have many NA's and should perhaps be excluded
@@ -132,7 +131,7 @@ ngbNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
                                   parallel = TRUE,
                                   cores = 3,
                                   useCache = doCache,
-                                  cacheId = "9a366f60217632b1",
+                                  cacheId = "c7536dcb493ad453",
                                   userTags = "ngbBurns",
                                   omitArgs = c("useCache", "userTags", "cores")) 
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")

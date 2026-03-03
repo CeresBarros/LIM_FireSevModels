@@ -1032,9 +1032,10 @@ dataPrepWrapper <- function(resolution = 30,
     }
   }
 
-  ## for the next ones deal with forest and non-forest veg differently.
+  ## Soil moisture regime -- round 1
   summaryABSK_AllData[, SMR_ord := as.integer(SMR_ord)]  ## remove levels first
 
+  ## for the next ones deal with forest and non-forest veg differently.
   nonForestDT <- summaryABSK_AllData[LandCover != "PF"]
   forestDT <- summaryABSK_AllData[LandCover == "PF"]
 
@@ -1050,7 +1051,7 @@ dataPrepWrapper <- function(resolution = 30,
     nonForestDT[is.na(nonForestDT[[col]]), (col) := "notWetland"]
   }
 
-  ## Soil moisture regime
+  ## Soil moisture regime - round 2
   nonForestDT[is.na(SMR) & LandCover %in% c("WA", "RI", "OC", "LA", "SI", "TF", "LG"),
               `:=`(SMR = "A", SMR_ord = 5L)]
   nonForestDT[is.na(SMR) & LandCover %in% c("FL"),

@@ -165,8 +165,8 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i - 1] * 2
 }
 
-## note that for binary varibles mean = proportion of 1s
-ngbNoBurns <- reproducible::Cache(calculateNgbAvgsWrapper,
+## note that for binary variables mean = proportion of 1s
+ngbAvgs <- reproducible::Cache(calculateNgbAvgsWrapper,
                                   dists = bufferDists,
                                   dataPoints = dataPoints,
                                   pointIDColID = "pixID",
@@ -174,7 +174,7 @@ ngbNoBurns <- reproducible::Cache(calculateNgbAvgsWrapper,
                                   resolution = resolution,
                                   parallel = FALSE,
                                   cores = 3,
-                                  useCache = doCache,
+                                  # useCache = doCache,
                                   useCache = FALSE,
                                   # cacheId = "",
                                   userTags = "ngbAvg",

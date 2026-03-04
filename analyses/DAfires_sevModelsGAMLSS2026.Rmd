@@ -158,7 +158,7 @@ dataPoints <- summaryABSK_AllData[, .SD, .SDcols = c("pixID", "FIRE_NAME", "Lat"
 cols <- which(unlist(as.vector(dataPoints[, lapply(.SD, is.logical)])))
 dataPoints <- dataPoints[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
 dataPoints <- st_as_sf(dataPoints, coords = c("Long", "Lat"),
-                      agr = "constant", crs = st_crs(crsProj))
+                       agr = "constant", crs = st_crs(crsProj))
 
 bufferDists <- 30
 for (i in 2:7) {
@@ -167,18 +167,18 @@ for (i in 2:7) {
 
 ## note that for binary variables mean = proportion of 1s
 ngbAvgs <- reproducible::Cache(calculateNgbAvgsWrapper,
-                                  dists = bufferDists,
-                                  dataPoints = dataPoints,
-                                  pointIDColID = "pixID",
-                                  fireColID = "FIRE_NAME",
-                                  resolution = resolution,
-                                  parallel = FALSE,
-                                  cores = 3,
-                                  # useCache = doCache,
-                                  useCache = FALSE,
-                                  # cacheId = "",
-                                  userTags = "ngbAvg",
-                                  omitArgs = c("useCache", "userTags", "cores", "parallel"))
+                               dists = bufferDists,
+                               dataPoints = dataPoints,
+                               pointIDColID = "pixID",
+                               fireColID = "FIRE_NAME",
+                               resolution = resolution,
+                               parallel = FALSE,
+                               cores = 3,
+                               # useCache = doCache,
+                               useCache = FALSE,
+                               # cacheId = "",
+                               userTags = "ngbAvg",
+                               omitArgs = c("useCache", "userTags", "cores", "parallel"))
 
 # Only add the variables that are pertinent, or the table will become immense
 # summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]

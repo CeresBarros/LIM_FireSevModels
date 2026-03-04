@@ -32,10 +32,10 @@ install.packages("Require")
 
 ## no need to load these.
 Require::Install(c(
-  "carrier" ## for in_parallel with purrr::*
+  "carrier", ## for in_parallel with purrr::*
   "future",
   "future.apply",
-  "mirai",   ## for in_parallel with purrr::*
+  "mirai"   ## for in_parallel with purrr::*
 ))
 
 Require::Require(

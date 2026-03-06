@@ -66,7 +66,6 @@ Require::Require(
   ), install = FALSE
 )
 
-Require::Require("reproducible", install = FALSE) ## for some reasons it's not being loaded above
 doCache = TRUE
 
 figDir <- "analyses/Figs"
@@ -127,18 +126,18 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i - 1] * 2
 }
 
-ngbNoBurns <- reproducible::Cache(calculateNgbBurnsWrapper,
-                                  dists = bufferDists,
-                                  sevPoints = SEV_PROPpoints, 
-                                  sevColID = "SEV_PROP",
-                                  fireColID = "FIRE_NAME",
-                                  resolution = resolution,
-                                  parallel = TRUE,
-                                  cores = 3,
-                                  useCache = doCache,
-                                  cacheId = "c7536dcb493ad453",
-                                  userTags = "ngbBurns",
-                                  omitArgs = c("useCache", "userTags", "cores")) 
+ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
+                    dists = bufferDists,
+                    sevPoints = SEV_PROPpoints, 
+                    sevColID = "SEV_PROP",
+                    fireColID = "FIRE_NAME",
+                    resolution = resolution,
+                    parallel = TRUE,
+                    cores = 3,
+                    useCache = doCache,
+                    cacheId = "c7536dcb493ad453",
+                    userTags = "ngbBurns",
+                    omitArgs = c("useCache", "userTags", "cores")) 
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
 
 cols <- grep("pixID|FIRE_NAME", names(ngbNoBurns), invert = TRUE, value = TRUE)
@@ -171,18 +170,18 @@ for (i in 2:7) {
 }
 
 ## note that for binary variables mean = proportion of 1s
-ngbAvgs <- reproducible::Cache(calculateNgbAvgsWrapper,
-                               dists = bufferDists,
-                               dataPoints = dataPoints,
-                               pointIDColID = "pixID",
-                               fireColID = "FIRE_NAME",
-                               resolution = resolution,
-                               parallel = FALSE,
-                               cores = 5,
-                               useCache = doCache,
-                               # cacheId = "",
-                               userTags = "ngbAvg",
-                               omitArgs = c("useCache", "userTags", "cores", "parallel"))
+ngbAvgs <- Cache(calculateNgbAvgsWrapper,
+                 dists = bufferDists,
+                 dataPoints = dataPoints,
+                 pointIDColID = "pixID",
+                 fireColID = "FIRE_NAME",
+                 resolution = resolution,
+                 parallel = TRUE,
+                 cores = 5,
+                 useCache = doCache,
+                 # cacheId = "",
+                 userTags = "ngbAvg",
+                 omitArgs = c("useCache", "userTags", "cores", "parallel"))
 
 # Only add the variables that are pertinent, or the table will become immense
 # summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]

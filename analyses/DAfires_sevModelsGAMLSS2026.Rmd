@@ -94,7 +94,7 @@ figDir <- "analyses/Figs"
 ```{r dataprep, include = FALSE, cache = FALSE}
 resolution = 30
 
-summaryABSK_AllData <- Cache(
+summaryABSK_AllData <- reproducible::Cache(
   dataPrepWrapper,
   resolution = resolution, 
   fireDataPath = "data/fires_Dave/fireSev",

@@ -72,7 +72,8 @@ figDir <- "analyses/Figs"
 dir.create(figDir, showWarnings = FALSE)
 
 options("reproducible.useNewDigestAlgorithm" = TRUE,
-        "reproducible.cachePath" = "analyses/cache",
+        # "reproducible.cachePath" = "analyses/cache",
+        "reproducible.cachePath" = "analyses/cacheNEW",  ## the cache above got screwed up changing reproducible versions.
         "reproducible.useMemoise" = FALSE,
         "future.globals.maxSize" = +Inf)
 

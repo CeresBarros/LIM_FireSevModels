@@ -1,6 +1,8 @@
 ## ignore the following folders/folder contents
 cache
 cache/*
+cacheNEW
+cacheNEW/*
 *_files
 *_cache
 fireDataJoins

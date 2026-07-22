@@ -1,6 +1,6 @@
 # LIM_FireSevModels
 
-Empirical models of **wildfire severity** in Alberta and Saskatchewan boreal forests (and a few montane forests) using fire, vegetation, topography, and weather covariates. This is was a side project of the  *Landscapes in Motion* project (Foothills Research Institute) aimed at developping empirical approaches to
+Empirical models of **wildfire severity** in Alberta and Saskatchewan boreal forests (and a few montane forests) using fire, vegetation, topography, and weather covariates. This was a side project of the *Landscapes in Motion* project (Foothills Research Institute) aimed at developing empirical approaches to
 parameterise wildfire severity in a simulation context. For the mechanistic lanscape simulation
 modelling project see: [`LIM_PBH`](https://github.com/CeresBarros/LIM_PBH).
 
@@ -77,3 +77,10 @@ in July 2026, preserving history for the empirical-modelling paths.
 
 Released under the **Apache License, Version 2.0**. Crown copyright applies —
 see [`LICENSE`](LICENSE) for the notice and full licence text.
+
+
+## Disclaimer
+
+Portions of this README and repository documentation were drafted with the
+assistance of Anthropic's Claude.All AI-assisted output was reviewed and edited by the
+authors, who remain responsible for the contents of this repository.

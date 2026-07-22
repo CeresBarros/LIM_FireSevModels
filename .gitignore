@@ -11,7 +11,7 @@
 *.RData
 figs/*
 packages/*
-packages_docker/*
+
 *.rds
 *.dat
 *.Rout
@@ -19,6 +19,6 @@ packages_docker/*
 GDriveTokens
 
 !packages/pkgSnapshot*.txt
-!packages_docker/pkgSnapshot*.txt
+
 
 analyses.zip

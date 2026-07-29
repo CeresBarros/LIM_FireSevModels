@@ -73,12 +73,6 @@ This repository was derived from the `xgboost` branch of the original
 [`LandscapesInMotion`](https://github.com/CeresBarros/LandscapesInMotion) repository
 in July 2026, preserving history for the empirical-modelling paths.
 
-## Licence
-
-Released under the **Apache License, Version 2.0**. Crown copyright applies —
-see [`LICENSE`](LICENSE) for the notice and full licence text.
-
-
 ## Disclaimer
 
 Portions of this README and repository documentation were drafted with the

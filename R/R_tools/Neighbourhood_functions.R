@@ -196,10 +196,7 @@ calculateNgbAvgsWrapper <- function(dists, dataPoints, fireColID,
 
   fireBufferCombos <- bufferRange[fireBufferCombos, on = "bufferID"]
   cacheExtra <- CacheDigest(dataPoints)
-  browser()
-  # Error in check_duplicate_names(x) :
-  #   x has duplicated column names [Decid_30m.x, HEIGHT_LOWER_30m.x, CTI_30m.x, Lari_30m.x, SMR_wet_30m.x, UNDERSTOREY_30m.x, FlamConif_30m.x, PctSlope_30m.x, SurfAspectRatio_30m.x, isForest_30m.x, ...]. Please remove or rename the duplicates and try again.
-  ## replace dists with buffer range table
+
   if (nrow(fireBufferCombos) > 1) {
     if (parallel) {
       message("Starting parallelization...")
@@ -242,9 +239,18 @@ calculateNgbAvgsWrapper <- function(dists, dataPoints, fireColID,
              fireColID = fireColID, pointIDColID = pointIDColID,
              resolution = resolution)
     }
-    browser()
 
-    ngbAvgsDT <- Reduce(.myMerge, ngbAvgsList)
+    names(ngbAvgsList) <- paste(fireBufferCombos$fireID, fireBufferCombos$bufferID, sep = "_")
+
+    ## we can't just merge -- for each fire we need to merge (expand the table horizontally), but across fires we need to rbind.
+    ngbAvgsList_merged <- as.character(unique(fireBufferCombos$fireID)) |>
+      map(\(fireID) {
+        subsetLs <- ngbAvgsList[grep(paste0(fireID, "_"), names(ngbAvgsList))]
+        subsetDTmerged <- Reduce(.myMerge, subsetLs)
+      })
+
+    ngbAvgsDT <- rbindlist(ngbAvgsList_merged, use.names = TRUE)
+
   } else {
     ngbAvgsDT <- calculateNgbAvgs(fireID = fireBufferCombos$fireID,
                                   bufferMin = fireBufferCombos$min,

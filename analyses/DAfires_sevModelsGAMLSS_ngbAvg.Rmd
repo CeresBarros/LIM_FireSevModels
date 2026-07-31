@@ -127,22 +127,30 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i - 1] * 2
 }
 
-ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
-                    dists = bufferDists,
-                    sevPoints = SEV_PROPpoints, 
-                    sevColID = "SEV_PROP",
-                    fireColID = "FIRE_NAME",
-                    resolution = resolution,
-                    parallel = TRUE,
-                    cores = 3,
-                    useCache = doCache,
-                    cacheId = "c7536dcb493ad453",
-                    userTags = "ngbBurns",
-                    omitArgs = c("useCache", "userTags", "cores")) 
+# opts <- options("reproducible.useDBI" = TRUE)
+# ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
+#                     dists = bufferDists,
+#                     sevPoints = SEV_PROPpoints, 
+#                     sevColID = "SEV_PROP",
+#                     fireColID = "FIRE_NAME",
+#                     resolution = resolution,
+#                     parallel = TRUE,
+#                     cores = 3,
+#                     useCache = doCache,
+#                     cacheId = "c7536dcb493ad453",
+#                     cachePath = "analyses/cache/",   ## this cache is in an older cache folder
+#                     userTags = "ngbBurns",
+#                     omitArgs = c("useCache", "userTags", "cores")) 
+# options(opts)
+
+## above is failing with Waiting for 3.6 seconds to retry; the attempt is failing - possibly due to DBI backend being used
+ngbNoBurns <- loadFromCache(cachePath = "analyses/cache", cacheId = "c7536dcb493ad453")
+
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
 
+## note that ngbPropBurns_XXm used to be buffer_XXm
 cols <- grep("pixID|FIRE_NAME", names(ngbNoBurns), invert = TRUE, value = TRUE)
-setnames(ngbNoBurns, old = cols, new = paste0("buffer_", cols, "m"))
+setnames(ngbNoBurns, old = cols, new = paste0("ngbPropBurns_", cols, "m"))
 
 summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
 
@@ -180,269 +188,285 @@ ngbAvgs <- Cache(calculateNgbAvgsWrapper,
                  parallel = TRUE,
                  cores = 5,
                  useCache = doCache,
-                 # cacheId = "",
+                 cacheId = "e66855d04c369d12",
                  userTags = "ngbAvg",
                  omitArgs = c("useCache", "userTags", "cores", "parallel"))
 
-# Only add the variables that are pertinent, or the table will become immense
-# summaryABSK_AllData <- ngbNoBurns[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
+## make sure col classes are ok.
+ngbAvgs[, pixID := as.integer(pixID)]
+summaryABSK_AllData[, pixID := as.integer(pixID)]
 
-rm(dataPoints); gc(reset = TRUE)
+ngbAvgs[, FIRE_NAME := as.factor(FIRE_NAME)]
+summaryABSK_AllData[, FIRE_NAME := as.factor(FIRE_NAME)]
+
+summaryABSK_AllData <- ngbAvgs[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
+
+rm(dataPoints, ngbAvgs, ngbNoBurns); for (i in 1:3) gc(reset = TRUE)
 
 ```
 
+## subsample data for faster fitting/variable selection:
+```{r datasubsample, cache = FALSE, eval=FALSE}
+## variables for analysis when considering all weather (first 3 days) - dropping range
+## due to lack of data in some fires, dropping:
+## crown closure, SMR (which has a proxy- CTI), cvRain, ORIGIN_*
+cols <- grep(paste("SEV_PROP", "FFMC$", "DC$", "DMC$", "ISI$", "BUI$", "FWI$",
+                   "FlamConif", "Abie$", "Lari$", "Decid",
+                   "isForest", "HEIGHT_LOWER", "UNDERSTOREY",
+                   "^CTI$", "Aspect", "Elevation", "Surf.*Ratio", "PctSlope",
+                   "FIRE_NAME", "pixID", "SMR_ord", "SMR_wet", sep = "|"), 
+             names(summaryABSK_AllData),
+             value = TRUE)
+## remove ngbhood vars
+cols <- grep("_[[:digit:]]{2,4}m$", cols, invert = TRUE, value = TRUE)
+
+## sample a fourth of the pixels in each fire
+sampDT <- na.omit(summaryABSK_AllData[, ..cols])[,.(FIRE_NAME, pixID)]
+sampDT[, noPixels :=  length(pixID), by = FIRE_NAME]
+set.seed(123)
+samp <- sampDT[, sample(pixID, size = unique(noPixels/4), replace = FALSE), by = FIRE_NAME]$V1
+rm(sampDT)
+
+modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
+
+## make a binary soil moisture variable of wet vs everything else (suggested by Dave from past analyses)
+if ("SMR_wet" %notin% names(modelData) &
+    "SMR_ord" %in% names(modelData)) {
+  modelData[, SMR_wet := grepl("4|5", SMR_ord)]
+}
+
+## check we didn't lose fires
+if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME), 
+                   unique(modelData$FIRE_NAME))))
+  stop("Fires lost in sampling!")
+```
+
+
+## GAMLSS model -- use Strategy A ?stepGAICAll.A to find best predictors excluding ngbhood variables first
+Main effects only to start
+
+```{r nonspatialpreds, cache = FALSE, eval=FALSE}
+cols <- grep("FIRE_NAME|pixID", names(modelData), invert = TRUE, value = TRUE)
+upperFormula <- as.formula(paste("~", paste(cols, collapse = " + "), "+ re(random = ~1 | FIRE_NAME)"))
+
+## stepGAICAll.A adds sequentially to each parameter then tries to remove again.
+m0 <- gamlss(formula = SEV_PROP ~ 1,
+             data = modelData,
+             family = BEINF,
+             control = gamlss.control(c.crit = 0.1))
+
+modelNgbAvg <- stepGAICAll.A(m0,
+                             scope = list(lower = ~1, upper = upperFormula),
+                             parallel = "multicore", ncpus = max(10, detectCores() - 10))
+```
+
+
+## subsample data for faster fitting/variable selection
+## here!! remove subsampling but extract cols of prevous model
+```{r datasubsample2, cache = FALSE, eval=FALSE}
+
+## list of variables retained in previous model without spatial covariates (model8.4FULL in DAfires_sevModelsGAMLSS.Rmd)
+cols <- grep(paste("SEV_PROP",
+                   "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
+                   "UNDERSTOREY", "FlamConif", "PctSlope", "SurfAspectRatio",
+                   "isForest", "ngbPropBurns", "FIRE_NAME", "pixID", sep = "|"), 
+             names(summaryABSK_AllData),
+             value = TRUE)
+
+## sample a fourth of the pixels in each fire
+sampDT <- na.omit(summaryABSK_AllData[, ..cols])[,.(FIRE_NAME, pixID)]
+sampDT[, noPixels :=  length(pixID), by = FIRE_NAME]
+set.seed(123)
+samp <- sampDT[, sample(pixID, size = unique(noPixels/4), replace = FALSE), by = FIRE_NAME]$V1
+rm(sampDT)
+
+modelData <- na.omit(summaryABSK_AllData[, ..cols])[pixID %in% samp]
+
+## make a binary soil moisture variable of wet vs everything else (suggested by Dave from past analyses)
+if ("SMR_wet" %notin% names(modelData) &
+    "SMR_ord" %in% names(modelData)) {
+  modelData[, SMR_wet := grepl("4|5", SMR_ord)]
+}
+```
 
 
 ## Include neighbours
-### Proportion of burnt neighbours
-Start from last best model, and find the best buffer sizes to add to each parameter.
-```{r burnNgbPropModels, cache = FALSE, eval=FALSE}
-model8.4 <- readRDS("analyses/model8_4.rds")
-
-upperFormula <- as.formula(paste(
-  paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),
-  "+",
-  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
-
-modelNgbSevMu <- add1(model8.4, what = "mu",
-                      scope = upperFormula,
-                      k = log(length(samp)),
-                      parallel = "multicore", ncpus = 10)
-
-modelNgbSev1 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet +
-                         re(random = ~1 | FIRE_NAME),
-                       nu.formula = ~FlamConif +
-                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-                         PctSlope * SurfReliefRatio + SMR_wet +
-                         re(random = ~1 | FIRE_NAME),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
-                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
-
-upperFormula <- as.formula(paste(
-  paste(as.character(modelNgbSev1$sigma.formula), collapse = " "),
-  "+",
-  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
-modelNgbSevSigma <- add1(modelNgbSev1, what = "sigma",
-                         scope = upperFormula,
-                         k = log(length(samp)),
-                         parallel = "multicore", ncpus = 10)
-
-modelNgbSev2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME),
-                       nu.formula = ~FlamConif +
-                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-                         PctSlope * SurfReliefRatio + SMR_wet +
-                         re(random = ~1 | FIRE_NAME),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
-                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
-
-upperFormula <- as.formula(paste(
-  paste(as.character(modelNgbSev2$nu.formula), collapse = " "),
-  "+",
-  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
-modelNgbSevNu <- add1(modelNgbSev2, what = "nu",
-                      scope = upperFormula,
-                      k = log(length(samp)),
-                      parallel = "multicore", ncpus = 10)
-
-modelNgbSev3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME),
-                       nu.formula = ~FlamConif +
-                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-                         PctSlope * SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI + SurfReliefRatio + SMR_wet +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
-                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
-
-upperFormula <- as.formula(paste(
-  paste(as.character(modelNgbSev3$tau.formula), collapse = " "),
-  "+",
-  paste(grep("buffer", names(modelData), value = TRUE), collapse = " + ")))
-modelNgbSevTau <- add1(modelNgbSev3, what = "tau",
-                       scope = upperFormula,
-                       k = log(length(samp)),
-                       parallel = "multicore", ncpus = 10)
-modelNgbSev4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                         CTI + Lari + SMR_wet + buffer_960m +
-                         re(random = ~1 | FIRE_NAME),
-                       sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
-                         re(random = ~1 | FIRE_NAME),
-                       nu.formula = ~FlamConif +
-                         Decid + UNDERSTOREY + PctSlope * SurfAspectRatio +
-                         PctSlope * SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME),
-                       tau.formula = ~isForest + isForest *
-                         UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
-                         Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                         SurfReliefRatio + SMR_wet + buffer_30m +
-                         re(random = ~1 | FIRE_NAME), family = BEINF,
-                       data = na.omit(modelData), control = gamlss.control(c.crit = 0.1))
-```
-
-### Average predictors values within buffer rings
+### Average predictor values within buffer rings, include also prop of burnt neighbours as this might still be the best variable
 Start from last best model without neighbours, and find the best buffer rings and average covarates to add to each parameter.
 
-#### HERE!!!!
-ASVASV
+```{r abgNgbPropModels, cache = FALSE, eval=FALSE}
+model8.4 <- readRDS("analyses/model8_4FULL.rds")  ## get model fit with subsample
+
+upperFormula_mu <- as.formula(paste(
+  paste(as.character(model8.4$mu.formula)[c(1,3)], collapse = " "),
+  "+",
+  paste(grep("_[[:digit:]]{2,4}m$", names(modelData), value = TRUE), collapse = " + ")))
+
+upperFormula_sigma <- as.formula(paste(
+  paste(as.character(model8.4$sigma.formula), collapse = " "),
+  "+",
+  paste(grep("_[[:digit:]]{2,4}m$", names(modelData), value = TRUE), collapse = " + ")))
+
+upperFormula_nu <- as.formula(paste(
+  paste(as.character(model8.4$nu.formula), collapse = " "),
+  "+",
+  paste(grep("_[[:digit:]]{2,4}m$", names(modelData), value = TRUE), collapse = " + ")))
+
+upperFormula_tau <- as.formula(paste(
+  paste(as.character(model8.4$tau.formula), collapse = " "),
+  "+",
+  paste(grep("_[[:digit:]]{2,4}m$", names(modelData), value = TRUE), collapse = " + ")))
+
+## stepGAICAll.A adds sequentially to each parameter then tries to remove again.
+modelNgbAvg <- stepGAICAll.A(model8.4,
+                             mu.scope = upperFormula_mu,
+                             sigma.scope = upperFormula_sigma,
+                             nu.scope = upperFormula_nu,
+                             tau.scope = upperFormula_tau,
+                             k = log(length(samp)),
+                             parallel = "multicore", ncpus = max(10, detectCores() - 5))
+```
 
 #### fit model to full dataset (and simplify if need be)
 ```{r FullburnNgbPropModel, cache = FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 
-modelNgbSev4FULL <- update(modelNgbSev4, data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
-Rsq(modelNgbSev4FULL)
-summary(modelNgbSev4FULL)
+modelNgbAvg4FULL <- update(modelNgbAvg4, data = na.omit(summaryABSK_AllData[, cols, with = FALSE]))
+Rsq(modelNgbAvg4FULL)
+summary(modelNgbAvg4FULL)
 
 ## remove non-significant effects:
-modelNgbSev4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                              CTI + Lari + SMR_wet + buffer_960m +
+modelNgbAvg4FULL2 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                              CTI + Lari + SMR_wet + ngbPropBurns_960m +
                               re(random = ~1 | FIRE_NAME),
-                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + ngbPropBurns_1920m +
                               re(random = ~1 | FIRE_NAME),
                             nu.formula = ~FlamConif + UNDERSTOREY + SurfReliefRatio +
-                              PctSlope + SMR_wet + buffer_30m +
+                              PctSlope + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1 | FIRE_NAME),
                             tau.formula = ~isForest + isForest *
                               UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                               Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1 | FIRE_NAME), family = BEINF,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
                             control = gamlss.control(c.crit = 0.1))
 
-summary(modelNgbSev4FULL2)
+summary(modelNgbAvg4FULL2)
 
 ## add level = 0 to get marginal means.
-modelNgbSev4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                              CTI + Lari + SMR_wet + buffer_960m +
+modelNgbAvg4FULL3 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                              CTI + Lari + SMR_wet + ngbPropBurns_960m +
                               re(random = ~1 | FIRE_NAME, level = 0),
-                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + ngbPropBurns_1920m +
                               re(random = ~1 | FIRE_NAME, level = 0),
-                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1 | FIRE_NAME, level = 0),
                             tau.formula = ~isForest + isForest *
                               UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                               Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1 | FIRE_NAME, level = 0), family = BEINF,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
                             control = gamlss.control(c.crit = 0.1))
 
 ## try the above with Ian's custom function (given to us by Dr Stasinopolous)
-modelNgbSev4FULL4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                              CTI + Lari + SMR_wet + buffer_960m +
+modelNgbAvg4FULL4 <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                              CTI + Lari + SMR_wet + ngbPropBurns_960m +
                               re(random = ~1|FIRE_NAME, level = 0),
-                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                            sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + ngbPropBurns_1920m +
                               re(random = ~1|FIRE_NAME, level = 0),
-                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                            nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1|FIRE_NAME, level = 0),
                             tau.formula = ~isForest + isForest *
                               UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                               Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                              SurfReliefRatio + SMR_wet + buffer_30m +
+                              SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                               re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
                             data = na.omit(summaryABSK_AllData[, cols, with = FALSE]), 
                             control = gamlss.control(c.crit = 0.1))
 
-sink("analyses/modelNgbSev4FULL4_SUMMARY.txt")
-summary(modelNgbSev4FULL4)
+sink("analyses/modelNgbAvg4FULL4_SUMMARY.txt")
+summary(modelNgbAvg4FULL4)
 sink()
 
-tiff("analyses/modelNgbSev4FULL4_RESIDS.tif")
-plot(modelNgbSev4FULL4)
+tiff("analyses/modelNgbAvg4FULL4_RESIDS.tif")
+plot(modelNgbAvg4FULL4)
 graphics.off()
 
-saveRDS(modelNgbSev4FULL4, "analyses/modelNgbSev4FULL4.rds")
+saveRDS(modelNgbAvg4FULL4, "analyses/modelNgbAvg4FULL4.rds")
 
-GAIC(modelNgbSev4FULL,
-     modelNgbSev4FULL2,
-     modelNgbSev4FULL3,
-     modelNgbSev4FULL4,
+GAIC(modelNgbAvg4FULL,
+     modelNgbAvg4FULL2,
+     modelNgbAvg4FULL3,
+     modelNgbAvg4FULL4,
      k = log(nrow(na.omit(summaryABSK_AllData[, cols, with = FALSE]))))
 #                         df      AIC
-# modelNgbSev4FULL3 172.6552 486027.6
-# modelNgbSev4FULL2 174.6581 486048.1
-# modelNgbSev4FULL  178.6594 486093.9
+# modelNgbAvg4FULL3 172.6552 486027.6
+# modelNgbAvg4FULL2 174.6581 486048.1
+# modelNgbAvg4FULL  178.6594 486093.9
 ```
 
 #### fit model to full dataset with scaled covariates
 ```{r FullburnNgbPropModelScaledPreds, cache = FALSE, eval = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "SurfReliefRatio", "isForest")
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-                "buffer_1920m", "buffer_30m", "FlamConif", 
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "ngbPropBurns_960m",
+                "ngbPropBurns_1920m", "ngbPropBurns_30m", "FlamConif", 
                 "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
-modelNgbSev4FULL4_Scaled <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
-                                     CTI + Lari + SMR_wet + buffer_960m +
+modelNgbAvg4FULL4_Scaled <- gamlss(formula = SEV_PROP ~ Decid * HEIGHT_LOWER +
+                                     CTI + Lari + SMR_wet + ngbPropBurns_960m +
                                      re(random = ~1|FIRE_NAME, level = 0),
-                                   sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + buffer_1920m +
+                                   sigma.formula = ~Decid * UNDERSTOREY + SMR_wet + ngbPropBurns_1920m +
                                      re(random = ~1|FIRE_NAME, level = 0),
-                                   nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + buffer_30m +
+                                   nu.formula = ~FlamConif + SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                                      re(random = ~1|FIRE_NAME, level = 0),
                                    tau.formula = ~isForest + isForest *
                                      UNDERSTOREY + Decid * HEIGHT_LOWER + Decid * UNDERSTOREY +
                                      Lari * HEIGHT_LOWER + Lari * UNDERSTOREY + CTI +
-                                     SurfReliefRatio + SMR_wet + buffer_30m +
+                                     SurfReliefRatio + SMR_wet + ngbPropBurns_30m +
                                      re(random = ~1|FIRE_NAME, level = 0), family = BEINF,
                                    data = na.omit(modelDataFULLScaled), 
                                    control = gamlss.control(c.crit = 0.1))
-GAIC(modelNgbSev4FULL4,
-     modelNgbSev4FULL4_Scaled,
+GAIC(modelNgbAvg4FULL4,
+     modelNgbAvg4FULL4_Scaled,
      k = log(nrow(na.omit(modelDataFULLScaled))))
 
-sink("analyses/modelNgbSev4FULL4Scaled_SUMMARY.txt")
-summary(modelNgbSev4FULL4_Scaled)
+sink("analyses/modelNgbAvg4FULL4Scaled_SUMMARY.txt")
+summary(modelNgbAvg4FULL4_Scaled)
 sink()
 
-tiff("analyses/modelNgbSev4FULL4Scaled_RESIDS.tif")
-plot(modelNgbSev4FULL4_Scaled)
+tiff("analyses/modelNgbAvg4FULL4Scaled_RESIDS.tif")
+plot(modelNgbAvg4FULL4_Scaled)
 graphics.off()
 
-saveRDS(modelNgbSev4FULL4_Scaled, "analyses/modelNgbSev4FULL4Scaled.rds")
+saveRDS(modelNgbAvg4FULL4_Scaled, "analyses/modelNgbAvg4FULL4Scaled.rds")
 
 ```
 
 #### confusion matrix with full model
 ```{r confMatrixFullModelScaled, cache = FALSE, eval = FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-                "buffer_1920m", "buffer_30m", "FlamConif", 
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "ngbPropBurns_960m",
+                "ngbPropBurns_1920m", "ngbPropBurns_30m", "FlamConif", 
                 "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
-modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+modelNgbAvg4FULL4_Scaled <- readRDS("analyses/modelNgbAvg4FULL4Scaled.rds")
 
 predictionsDT <- na.omit(modelDataFULLScaled)[, .(SEV_PROP, SEV_CLASS)]
-predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response")
+predData <- predictAll(modelNgbAvg4FULL4_Scaled, type = "response")
 predictionsDT[, predSEV_PROP := calcMeanBEINF(predData$mu, predData$nu, predData$tau)]
 
 rm(predData)
@@ -462,11 +486,11 @@ predictionsDT[, `:=`(SEV_CLASS = factor(SEV_CLASS, levels = classes),
 
 confMatrix <- caret::confusionMatrix(data = predictionsDT$predSEV_CLASS, reference = predictionsDT$SEV_CLASS)
 
-sink("analyses/modelNgbSev4FULL4Scaled_CONFMATRX.txt")
+sink("analyses/modelNgbAvg4FULL4Scaled_CONFMATRX.txt")
 confMatrix
 sink()
 
-tiff("analyses/modelNgbSev4FULL4Scaled_obsVSpred.tif", width = 7, height = 5, units = "in", res = 300)
+tiff("analyses/modelNgbAvg4FULL4Scaled_obsVSpred.tif", width = 7, height = 5, units = "in", res = 300)
 ggplot(predictionsDT, aes(x = SEV_PROP, y = predSEV_PROP)) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "gray30") +
   geom_smooth(method = "lm") +
@@ -482,19 +506,19 @@ graphics.off()
 
 #### Model validation
 
-##### On `modelNgbSev4FULL4` 
+##### On `modelNgbAvg4FULL4` 
 
-Using k-fold cross validation on `modelNgbSev4FULL4` (which was fitted on the full data), with the data partitioned in 4 chunks.
+Using k-fold cross validation on `modelNgbAvg4FULL4` (which was fitted on the full data), with the data partitioned in 4 chunks.
 ```{r crossValidationBurnNgbProp, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
-modelNgbSev4FULL4 <- readRDS("analyses/modelNgbSev4FULL4.rds")
+modelNgbAvg4FULL4 <- readRDS("analyses/modelNgbAvg4FULL4.rds")
 
 crossValidResults3 <- Cache(crossValidFunction,
                             fullDT = summaryABSK_AllData,
                             origData = na.omit(summaryABSK_AllData[, cols, with = FALSE]),
-                            statsModel = modelNgbSev4FULL4,
+                            statsModel = modelNgbAvg4FULL4,
                             k = 10, idCol = "pixID",
                             classVar = "SEV_CLASS",
                             level = 0, 
@@ -504,7 +528,7 @@ crossValidResults3 <- Cache(crossValidFunction,
                             workers = 2,
                             # useCache = "overwrite",   ## cacheId = 85b6d427b43ff53d
                             # showSimilar = TRUE,
-                            userTags = c("validation", "modelNgbSev4FULL4"),
+                            userTags = c("validation", "modelNgbAvg4FULL4"),
                             omitArgs = c("fullDT", "origData", "userTags", "parallel", "workers"))
 
 # crossValidResults3 <- loadFromCache(cacheId="85b6d427b43ff53d")
@@ -548,7 +572,7 @@ allCoefs <- rbindlist(sapply(crossValidResults3, FUN = function(x) {
 simplify = FALSE), idcol = "sampID")
 
 ## save
-sink("analyses/modelNgbSev4FULL4_crossValidOutputs.txt")
+sink("analyses/modelNgbAvg4FULL4_crossValidOutputs.txt")
 print("Validation metrics")
 allValidMetrics3
 print("******************")
@@ -573,25 +597,25 @@ allCoefs[, lapply(.SD, mean), by = .(param),
 sink()
 ```
 
-##### On `modelNgbSev4FULL4_Scaled` with standardized predictors 
+##### On `modelNgbAvg4FULL4_Scaled` with standardized predictors 
 ```{r crossValidationBurnNgbPropScaled, message=FALSE, eval=FALSE}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-                "buffer_1920m", "buffer_30m", "FlamConif", 
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "ngbPropBurns_960m",
+                "ngbPropBurns_1920m", "ngbPropBurns_30m", "FlamConif", 
                 "PctSlope", "SurfAspectRatio", "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
-modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+modelNgbAvg4FULL4_Scaled <- readRDS("analyses/modelNgbAvg4FULL4Scaled.rds")
 
 crossValidResults4 <- Cache(crossValidFunction,
                             fullDT = na.omit(modelDataFULLScaled),
                             origData = na.omit(modelDataFULLScaled),
-                            statsModel = modelNgbSev4FULL4_Scaled,
+                            statsModel = modelNgbAvg4FULL4_Scaled,
                             k = 10, 
                             classVar = "SEV_CLASS",
                             sampleGroup = "FIRE_NAME",
@@ -599,12 +623,12 @@ crossValidResults4 <- Cache(crossValidFunction,
                             level = 0, 
                             spec = 2,
                             parallel = FALSE,
-                            .cacheExtra = list(residuals(modelNgbSev4FULL4_Scaled),
+                            .cacheExtra = list(residuals(modelNgbAvg4FULL4_Scaled),
                                                a = modelDataFULLScaled$pixID,
                                                b = na.omit(modelDataFULLScaled)$pixID),
                             # useCache = "overwrite", 
                             # showSimilar = TRUE,
-                            userTags = c("validation", "modelNgbSev4FULL4_Scaled"),
+                            userTags = c("validation", "modelNgbAvg4FULL4_Scaled"),
                             omitArgs = c("fullDT", "origData", "statsModel",
                                          "userTags", "parallel", "workers"))
 rm(trainData); gc(reset = TRUE)
@@ -640,7 +664,7 @@ allCoefs <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
 simplify = FALSE), idcol = "sampID")
 
 ## save
-sink("analyses/modelNgbSev4FULL4Scaled_crossValidOutputs.txt")
+sink("analyses/modelNgbAvg4FULL4Scaled_crossValidOutputs.txt")
 print("Validation metrics")
 allValidMetrics4
 print("******************")
@@ -673,15 +697,15 @@ allTGD4 <- rbindlist(sapply(crossValidResults4, FUN = function(x) {
 },
 simplify = FALSE), idcol = "sampID")
 
-allRsquared4GAMLSS[, fullModel := Rsq(modelNgbSev4FULL4_Scaled)]
+allRsquared4GAMLSS[, fullModel := Rsq(modelNgbAvg4FULL4_Scaled)]
 
-rmseDT <- data.table(pred = calcMeanBEINF(mu = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "mu"),
-                                          nu = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "nu"),
-                                          tau = predict(modelNgbSev4FULL4_Scaled, type = "response", what = "tau")),
-                     obs = modelNgbSev4FULL4_Scaled$y)
+rmseDT <- data.table(pred = calcMeanBEINF(mu = predict(modelNgbAvg4FULL4_Scaled, type = "response", what = "mu"),
+                                          nu = predict(modelNgbAvg4FULL4_Scaled, type = "response", what = "nu"),
+                                          tau = predict(modelNgbAvg4FULL4_Scaled, type = "response", what = "tau")),
+                     obs = modelNgbAvg4FULL4_Scaled$y)
 allRMSE4[, fullModel := RMSE(rmseDT$pred, rmseDT$obs)]
 ## NOTE: don't compare TGD between full model and folds. get full deviance from model object
-allTGD4[, fullModel := modelNgbSev4FULL4_Scaled$G.deviance]
+allTGD4[, fullModel := modelNgbAvg4FULL4_Scaled$G.deviance]
 
 plotData <- rbindlist(list(
   Rsq = allRsquared4GAMLSS
@@ -717,22 +741,22 @@ See above for variance (Var(Y)) of the zero- and one-inflated Beta regression.
 ### General effects - model with scaled variables.
 Only significant covariates are plotted
 ```{r modelResults, include = FALSE, eval=FALSE}
-modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+modelNgbAvg4FULL4_Scaled <- readRDS("analyses/modelNgbAvg4FULL4Scaled.rds")
 ## plot the probabilities at 0 and 1
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-                "buffer_1920m", "buffer_30m", "FlamConif", 
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "ngbPropBurns_960m",
+                "ngbPropBurns_1920m", "ngbPropBurns_30m", "FlamConif", 
                 "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
 ## need to provide "newdata" to get marginal means
 plotData <-  na.omit(modelDataFULLScaled)
-predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response", newdata = plotData[, cols, with = FALSE])
+predData <- predictAll(modelNgbAvg4FULL4_Scaled, type = "response", newdata = plotData[, cols, with = FALSE])
 
 plotData[, `:=`(muPred = predData$mu, 
                 sigmaPred = predData$sigma, 
@@ -774,7 +798,7 @@ p0plot3 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = p0)) +
        x = "soil moisture (SMR)")
 
 p0plot4 <- ggplot(plotData, 
-                  aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
+                  aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p0)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -893,7 +917,7 @@ p1plot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled$S
        x = "% roughness")
 
 p1plot6 <- ggplot(plotData, 
-                  aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
+                  aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p1)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -929,7 +953,7 @@ ggarrange(
   p1plot1, #isForest
   p1plot4, #CTI
   p1plot5, #SRR
-  p1plot6, #buffer_30m
+  p1plot6, #ngbPropBurns_30m
   font.label = list(size = 16),
   nrow = 3, ncol = 3)
 dev.off()
@@ -973,7 +997,7 @@ meanplot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = fittedVals)) +
        x = "soil moisture (SMR)", y = "mean sev.")
 
 meanplot5 <- ggplot(plotData, 
-                    aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
+                    aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
@@ -999,7 +1023,7 @@ meanplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScaled
        x = "% roughness", y = "mean sev.")
 
 meanplot8 <- ggplot(plotData, 
-                    aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
+                    aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = fittedVals)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(0,1)) +
@@ -1029,8 +1053,8 @@ ggarrange(
   meanplot9, #isForest
   meanplot2, #CTI
   meanplot7, #SRR 
-  meanplot8, #buffer_30m
-  meanplot5, #buffer_960m
+  meanplot8, #ngbPropBurns_30m
+  meanplot5, #ngbPropBurns_960m
   nrow = 3, ncol = 3, 
   font.label = list(size = 16))
 dev.off()
@@ -1073,7 +1097,7 @@ muplot4 <- ggplot(plotData, aes(x = as.integer(SMR_wet), y = muPred)) +
        x = "soil moisture (SMR)", y = expression(mu))
 
 muplot5 <- ggplot(plotData, 
-                  aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
+                  aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = muPred)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
@@ -1088,7 +1112,7 @@ ggarrange(muplot1, #Decid
           muplot3, #Lari
           muplot4, #SMR
           muplot2, #CTI
-          muplot5, #buffer_960m
+          muplot5, #ngbPropBurns_960m
           nrow = 3, ncol = 2, 
           font.label = list(size = 16))
 dev.off()
@@ -1122,7 +1146,7 @@ varplot2 <-  ggplot(plotData, aes(x = as.integer(SMR_wet), y = varY)) +
        y = "Expected variance", x = "soil moisture (SMR)")
 
 varplot3 <- ggplot(plotData, 
-                   aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
+                   aes(x = ngbPropBurns_1920m * attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -1131,11 +1155,11 @@ varplot3 <- ggplot(plotData,
        y = "Expected variance", x = "prop. neigh. burnt")
 
 varplot4 <- ggplot(plotData, 
-                   aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
+                   aes(x = ngbPropBurns_1920m * attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:center"), y = varY)) +
   geom_point(aes(colour = as.integer(FIRE_NAME)), alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
-  geom_text_repel(data = plotData[, list(mean(buffer_1920m), mean(varY)), by = "FIRE_NAME"],
+  geom_text_repel(data = plotData[, list(mean(ngbPropBurns_1920m), mean(varY)), by = "FIRE_NAME"],
                   mapping = aes(x = V1, y = V2, label = FIRE_NAME, group = FIRE_NAME),
                   point.padding = 0.5,
                   segment.color = "grey50", 
@@ -1167,7 +1191,7 @@ varplot6 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "scal
        x = "Expected variance", colour = "height", linetype = "understorey")
 
 varplot7 <- ggplot(plotData, 
-                   aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
+                   aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -1195,7 +1219,7 @@ varplot9 <- ggplot(plotData,
        x = "% roughness", y = "Expected variance")
 
 varplot10 <- ggplot(plotData, 
-                    aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
+                    aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = varY)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 4, bs = "cs")) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
@@ -1221,14 +1245,14 @@ png(file.path(figDir, "varSevPlots_DAfires_sevModels.png"), height = 20, width =
 ggarrange(
   varplot1, #Decid
   varplot2, #SMR
-  varplot3, #buffer_1920m
-  varplot4, #buffer_1920m (with fireID)
+  varplot3, #ngbPropBurns_1920m
+  varplot4, #ngbPropBurns_1920m (with fireID)
   varplot5, #CTI
   varplot6, #Lari
-  varplot7, #buffer_960
+  varplot7, #ngbPropBurns_960
   varplot8, #Flamconif
   varplot9, #SRR
-  varplot10, #buffer_30m
+  varplot10, #ngbPropBurns_30m
   varplot11, #isForest
   nrow = 4, ncol = 3,
   font.label = list(size = 16))
@@ -1260,12 +1284,12 @@ Showing partial effects in forested pixels only, except when isForest was signif
 Note that because $\nu$ and $\tau$ influence both *p0* and *p1* we need to plot them against all $\nu$ and $\tau$ covariates.
 ```{r p0p1PEFPlots}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 ## 0 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1278,9 +1302,9 @@ p0PEFplot1 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$Flam
        x = "% cover", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1292,9 +1316,9 @@ p0PEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScale
   labs(title = "p0 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1307,14 +1331,14 @@ p0PEFplot3 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p0)) +
   labs(title = "p0 ~ moisture (SMR)",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0PEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
+p0PEFplot4 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -1323,9 +1347,9 @@ p0PEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buf
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## 0 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1340,7 +1364,7 @@ p0PEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1359,7 +1383,7 @@ p0PEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1377,9 +1401,9 @@ p0PEFplot7 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "sc
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1412,7 +1436,7 @@ ggarrange(
   p0PEFplot5 + scale_y_continuous(limits = c(0, 0.10)), #isForest
   p0PEFplot8 + scale_y_continuous(limits = c(0, 0.10)), #CTI
   p0PEFplot2 + scale_y_continuous(limits = c(0, 0.10)), #SurfReliefRatio
-  p0PEFplot4, #buffer_30m
+  p0PEFplot4, #ngbPropBurns_30m
   as_ggplot(legPlot),
   nrow = 3, ncol = 3,
   font.label = list(size = 16),
@@ -1421,9 +1445,9 @@ ggarrange(
 dev.off()
 
 ## 1 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1439,7 +1463,7 @@ p1PEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1458,7 +1482,7 @@ p1PEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1476,9 +1500,9 @@ p1PEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "sc
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1491,9 +1515,9 @@ p1PEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scal
        x = "CTI", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1505,15 +1529,15 @@ p1PEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScale
   labs(title = "p1 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1PEFplot6 <- ggplot(plotData, 
-                     aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
+                     aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -1521,9 +1545,9 @@ p1PEFplot6 <- ggplot(plotData,
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1538,9 +1562,9 @@ p1PEFplot7 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p1)) +
 
 
 ## 1 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1572,7 +1596,7 @@ ggarrange(
   p1PEFplot1, #isForest
   p1PEFplot4, #CTI
   p1PEFplot5, #SRR
-  p1PEFplot6, #buffer_30m
+  p1PEFplot6, #ngbPropBurns_30m
   as_ggplot(legPlot),
   nrow = 3, ncol = 3,
   font.label = list(size = 16),
@@ -1588,7 +1612,7 @@ Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to
 ## mean - mu covariates
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1606,9 +1630,9 @@ meanPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1622,7 +1646,7 @@ meanPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "sc
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1639,9 +1663,9 @@ meanPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1654,15 +1678,15 @@ meanPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = fittedVals)) +
   labs(title = "Severity ~ moisture (SMR)", y = "mean sev.",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanPEFplot5 <- ggplot(plotData, 
-                       aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
+                       aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -1671,9 +1695,9 @@ meanPEFplot5 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## these affect via nu/tau
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1686,9 +1710,9 @@ meanPEFplot6 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$Fl
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1700,14 +1724,14 @@ meanPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLSca
   labs(title = "Severity ~ roughness (SRR)",
        x = "% roughness", y = "mean sev.", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
+meanPEFplot8 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -1715,9 +1739,9 @@ meanPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$b
        x = "prop. neigh. burnt", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1749,8 +1773,8 @@ ggarrange(meanPEFplot1 + scale_y_continuous(limits = c(0.6, 1)), #decid
           meanPEFplot9 + scale_y_continuous(limits = c(0.6, 1)), #isForest
           meanPEFplot2 + scale_y_continuous(limits = c(0.6, 1)), #CTI
           meanPEFplot7 + scale_y_continuous(limits = c(0.6, 1)), #SRR
-          meanPEFplot8,  #buffer_30m
-          meanPEFplot5 + scale_y_continuous(limits = c(0.6, 1)), #buffer_960m
+          meanPEFplot8,  #ngbPropBurns_30m
+          meanPEFplot5 + scale_y_continuous(limits = c(0.6, 1)), #ngbPropBurns_960m
           nrow = 3, ncol = 3, 
           legend.grob = legPlot,
           font.label = list(size = 16), 
@@ -1765,7 +1789,7 @@ Showing partial effects in forested pixels only, except when isForest was signif
 ## mu
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1783,9 +1807,9 @@ muPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, "
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1798,9 +1822,9 @@ muPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "scal
        x = "CTI", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1813,9 +1837,9 @@ muPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "sc
        x = "% cover", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1828,15 +1852,15 @@ muPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = muPred)) +
   labs(title = "Severity ~ moisture (SMR)", y = expression(mu), 
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 muPEFplot5 <- ggplot(plotData, 
-                     aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
+                     aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -1854,7 +1878,7 @@ ggarrange(muPEFplot1 + scale_y_continuous(limits = c(0, 0.6)), #decid
           muPEFplot3 + scale_y_continuous(limits = c(0, 0.6)), #lari
           muPEFplot4 + scale_y_continuous(limits = c(0, 0.6)), #SMR
           muPEFplot2 + scale_y_continuous(limits = c(0, 0.6)), #CTI
-          muPEFplot5 + scale_y_continuous(limits = c(0, 0.6)), #buffer_960m
+          muPEFplot5 + scale_y_continuous(limits = c(0, 0.6)), #ngbPropBurns_960m
           as_ggplot(legPlot),
           nrow = 3, ncol = 2, 
           font.label = list(size = 16), 
@@ -1869,7 +1893,7 @@ Note that because $\mu$ and $\sigma$ both influence the variance, we need to plo
 ## variance - sigma covariates
 ## this plot includes the effect of height from mu and tau
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1889,9 +1913,9 @@ varPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid, 
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## the following also includes effect via nu
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1905,15 +1929,15 @@ varPEFplot2 <-  ggplot(plotData, aes(x = as.factor(SMR_wet), y = varY)) +
        y = "Expected variance",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_1920m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_1920m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot3 <- ggplot(plotData, 
-                      aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
+                      aes(x = ngbPropBurns_1920m * attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), size = 1) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -1923,9 +1947,9 @@ varPEFplot3 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - mu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1940,7 +1964,7 @@ varPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "sca
 
 ## includes effect of height from tau
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = TRUE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -1958,15 +1982,15 @@ varPEFplot5 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "s
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varPEFplot6 <- ggplot(plotData, 
-                      aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
+                      aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -1975,9 +1999,9 @@ varPEFplot6 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -1990,9 +2014,9 @@ varPEFplot7 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$Fla
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2004,14 +2028,14 @@ varPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLScal
   labs(title = "Var(Severity) ~ roughness (SRR)",
        x = "% roughness", y = "Expected variance", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = TRUE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
+varPEFplot9 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2021,9 +2045,9 @@ varPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$bu
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2069,9 +2093,9 @@ png(file.path(figDir, "varSevPEFPlots_DAfires_sevModels2.png"), height = 10, wid
 ggarrange(
   varPEFplot4 + scale_y_continuous(limits = c(0, 0.25)), #cti
   varPEFplot8 + scale_y_continuous(limits = c(0, 0.25)), #SurfReliefRatio
-  varPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #buffer_30m
-  varPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #buffer_960m
-  varPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #buffer_1920m
+  varPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_30m
+  varPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_960m
+  varPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_1920m
   as_ggplot(legPlot),
   nrow = 3, ncol = 2,  
   common.legend = TRUE, legend = "none",
@@ -2085,12 +2109,12 @@ Showing partial effects in non-forested pixels only, except when isForest was si
 Note that because $\nu$ and $\tau$ influence both *p0* and *p1* we need to plot them against all $\nu$ and $\tau$ covariates.
 ```{r p0p1PEFPlotsNonForest}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "PctSlope", "SurfAspectRatio", "SurfReliefRatio", "isForest")
 ## 0 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2103,9 +2127,9 @@ p0NFPEFplot1 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$Fl
        x = "% cover", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2117,9 +2141,9 @@ p0NFPEFplot2 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLSca
   labs(title = "p0 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2132,14 +2156,14 @@ p0NFPEFplot3 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p0)) +
   labs(title = "p0 ~ moisture (SMR)",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-p0NFPEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p0)) +
+p0NFPEFplot4 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p0)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2148,9 +2172,9 @@ p0NFPEFplot4 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$b
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## 0 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2166,7 +2190,7 @@ p0NFPEFplot5 <- ggplot(plotData, aes(x = as.factor(isForest), y = p0)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2185,7 +2209,7 @@ p0NFPEFplot6 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2203,9 +2227,9 @@ p0NFPEFplot7 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2237,7 +2261,7 @@ ggarrange(
   p0NFPEFplot5 + scale_y_continuous(limits = c(0, 0.10)), #isForest
   p0NFPEFplot8 + scale_y_continuous(limits = c(0, 0.10)), #CTI
   p0NFPEFplot2 + scale_y_continuous(limits = c(0, 0.10)), #SRR
-  p0NFPEFplot4, #buffer_30m
+  p0NFPEFplot4, #ngbPropBurns_30m
   as_ggplot(legPlot),
   nrow = 3, ncol = 3,
   font.label = list(size = 16),
@@ -2245,9 +2269,9 @@ ggarrange(
 dev.off()
 
 ## 1 probs - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2263,7 +2287,7 @@ p1NFPEFplot1 <- ggplot(plotData, aes(x = as.factor(isForest), y = p1)) +
 
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2282,7 +2306,7 @@ p1NFPEFplot2 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
 
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2300,9 +2324,9 @@ p1NFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "
        x = "% cover", linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2315,9 +2339,9 @@ p1NFPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "sc
        x = "CTI", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2329,15 +2353,15 @@ p1NFPEFplot5 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLSca
   labs(title = "p1 ~ roughness (SRR)",
        x = "% roughness", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 p1NFPEFplot6 <- ggplot(plotData, 
-                       aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = p1)) +
+                       aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = p1)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2345,9 +2369,9 @@ p1NFPEFplot6 <- ggplot(plotData,
        x = "prop. neigh. burnt", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2362,9 +2386,9 @@ p1NFPEFplot7 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = p1)) +
 
 
 ## 1 probs - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2395,7 +2419,7 @@ ggarrange(
   p1NFPEFplot1, #isForest
   p1NFPEFplot4, #CTI
   p1NFPEFplot5, #SRR
-  p1NFPEFplot6, #buffer_30m
+  p1NFPEFplot6, #ngbPropBurns_30m
   as_ggplot(legPlot),
   nrow = 3, ncol = 3,
   font.label = list(size = 16),
@@ -2410,7 +2434,7 @@ Note that because $\mu$, $\nu$ and $\tau$ influence the expected mean, it has to
 ## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2428,9 +2452,9 @@ meanNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Deci
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2444,7 +2468,7 @@ meanNFPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2461,9 +2485,9 @@ meanNFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari,
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2476,15 +2500,15 @@ meanNFPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = fittedVals)) 
   labs(title = "Severity ~ moisture (SMR)", y = "mean sev.",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 meanNFPEFplot5 <- ggplot(plotData, 
-                         aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = fittedVals)) +
+                         aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$fittedVals), max(plotData$fittedVals))) +
   theme_pubr() + 
@@ -2493,9 +2517,9 @@ meanNFPEFplot5 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## these affect via nu/tau
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2508,9 +2532,9 @@ meanNFPEFplot6 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$
        x = "% cover", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2522,14 +2546,14 @@ meanNFPEFplot7 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLS
   labs(title = "Severity ~ roughness (SRR)",
        x = "% roughness", y = "mean sev.", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-meanNFPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = fittedVals)) +
+meanNFPEFplot8 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = fittedVals)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2537,9 +2561,9 @@ meanNFPEFplot8 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled
        x = "prop. neigh. burnt", y = "mean sev.", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2571,8 +2595,8 @@ ggarrange(meanNFPEFplot1 + scale_y_continuous(limits = c(0.5, 1)), #Decid
           meanNFPEFplot9 + scale_y_continuous(limits = c(0.5, 1)), #isForest
           meanNFPEFplot2 + scale_y_continuous(limits = c(0.5, 1)), #CTI
           meanNFPEFplot7 + scale_y_continuous(limits = c(0.5, 1)), #SRR
-          meanNFPEFplot8, #buffer_30m
-          meanNFPEFplot5 + scale_y_continuous(limits = c(0.6, 1)), #buffer_960m
+          meanNFPEFplot8, #ngbPropBurns_30m
+          meanNFPEFplot5 + scale_y_continuous(limits = c(0.6, 1)), #ngbPropBurns_960m
           nrow = 3, ncol = 3, 
           legend.grob = legPlot,
           font.label = list(size = 16), 
@@ -2587,7 +2611,7 @@ Showing partial effects in non-forested pixels only, except when isForest was si
 ## mean
 vars <- expand.grid(UNDERSTOREY = c(FALSE, TRUE), HEIGH_LOWER = quantile(na.omit(modelDataFULLScaled$HEIGHT_LOWER), probs = c(0.05, 0.50, 0.95)))
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2605,9 +2629,9 @@ muNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid,
        linetype = "understorey", colour = "height") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2620,9 +2644,9 @@ muNFPEFplot2 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "sc
        x = "CTI", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2635,9 +2659,9 @@ muNFPEFplot3 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, "
        x = "% cover", y = expression(mu), linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2650,15 +2674,15 @@ muNFPEFplot4 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = muPred)) +
   labs(title = "Severity ~ moisture (SMR)", y = expression(mu),
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 muNFPEFplot5 <- ggplot(plotData, 
-                       aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = muPred)) +
+                       aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = muPred)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$muPred), max(plotData$muPred))) +
   theme_pubr() + 
@@ -2676,7 +2700,7 @@ ggarrange(muNFPEFplot1 + scale_y_continuous(limits = c(0, 0.6)), #Decid
           muNFPEFplot3 + scale_y_continuous(limits = c(0, 0.6)), #Lari
           muNFPEFplot4 + scale_y_continuous(limits = c(0, 0.6)), #SMR
           muNFPEFplot2 + scale_y_continuous(limits = c(0, 0.6)), #CTI
-          muNFPEFplot5 + scale_y_continuous(limits = c(0, 0.6)), #buffer_960m
+          muNFPEFplot5 + scale_y_continuous(limits = c(0, 0.6)), #ngbPropBurns_960m
           as_ggplot(legPlot),
           nrow = 3, ncol = 2, 
           font.label = list(size = 16), 
@@ -2691,7 +2715,7 @@ Note that because $\mu$ and $\sigma$ both influence the variance, we need to plo
 ## variance - sigma covariates
 ## this plot includes the effect of height from mu
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Decid", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y,  "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2711,9 +2735,9 @@ varNFPEFplot1 <- ggplot(plotData, aes(x = Decid * attr(modelDataFULLScaled$Decid
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SMR_wet",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2726,15 +2750,15 @@ varNFPEFplot2 <- ggplot(plotData, aes(x = as.factor(SMR_wet), y = varY)) +
   labs(title = "Var(Severity) ~ moisture (SMR)", y = "Expected variance",
        x = "", shape = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_1920m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_1920m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_1920m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot3 <- ggplot(plotData, 
-                        aes(x = buffer_1920m * attr(modelDataFULLScaled$buffer_1920m, "scaled:scale") + attr(modelDataFULLScaled$buffer_1920m, "scaled:center"), y = varY)) +
+                        aes(x = ngbPropBurns_1920m * attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_1920m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -2744,9 +2768,9 @@ varNFPEFplot3 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - mu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "CTI",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2760,7 +2784,7 @@ varNFPEFplot4 <- ggplot(plotData, aes(x = CTI * attr(modelDataFULLScaled$CTI, "s
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 plotData <- mapply(FUN = function(x, y) {
-  DT <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
+  DT <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "Lari", 
                    fixed.at = list("UNDERSTOREY" = x, "HEIGHT_LOWER" = y, "isForest" = FALSE))
   DT$UNDERSTOREY <- x
   DT$HEIGHT_LOWER <- y
@@ -2778,15 +2802,15 @@ varNFPEFplot5 <- ggplot(plotData, aes(x = Lari * attr(modelDataFULLScaled$Lari, 
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m", 
                        fixed.at = list("UNDERSTOREY" = FALSE,  "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_960m",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_960m",
                         fixed.at = list("UNDERSTOREY" = TRUE,  "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
 varNFPEFplot6 <- ggplot(plotData, 
-                        aes(x = buffer_960m * attr(modelDataFULLScaled$buffer_960m, "scaled:scale") + attr(modelDataFULLScaled$buffer_960m, "scaled:center"), y = varY)) +
+                        aes(x = ngbPropBurns_960m * attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_960m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(min(plotData$varY), max(plotData$varY))) +
   theme_pubr() + 
@@ -2795,9 +2819,9 @@ varNFPEFplot6 <- ggplot(plotData,
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - nu covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "FlamConif",
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2810,9 +2834,9 @@ varNFPEFplot7 <- ggplot(plotData, aes(x = FlamConif * attr(modelDataFULLScaled$F
        x = "% cover", y = "Expected variance", linetype = "understorey") +
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "SurfReliefRatio", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2824,14 +2848,14 @@ varNFPEFplot8 <- ggplot(plotData, aes(x = SurfReliefRatio * attr(modelDataFULLSc
   labs(title = "Var(Severity) ~ roughness (SRR)",
        x = "% roughness", y = "Expected variance", linetype = "understorey")
 
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                        fixed.at = list("UNDERSTOREY" = FALSE, "isForest" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "buffer_30m", 
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "ngbPropBurns_30m", 
                         fixed.at = list("UNDERSTOREY" = TRUE, "isForest" = FALSE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
 plotData <- rbind(plotData, plotData2)
-varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$buffer_30m, "scaled:scale") + attr(modelDataFULLScaled$buffer_30m, "scaled:center"), y = varY)) +
+varNFPEFplot9 <- ggplot(plotData, aes(x = ngbPropBurns_30m * attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:scale") + attr(modelDataFULLScaled$ngbPropBurns_30m, "scaled:center"), y = varY)) +
   geom_line(aes(linetype = as.factor(UNDERSTOREY)), lineend = "round", size = 1.5) +
   scale_y_continuous(limits = c(0,1)) +
   theme_pubr() + 
@@ -2841,9 +2865,9 @@ varNFPEFplot9 <- ggplot(plotData, aes(x = buffer_30m * attr(modelDataFULLScaled$
   guides(linetype = guide_legend(override.aes = list(colour = "black")))
 
 ## variance - tau covariates
-plotData <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
+plotData <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest", 
                        fixed.at = list("UNDERSTOREY" = FALSE))
-plotData2 <- PEFwrapper(modelNgbSev4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
+plotData2 <- PEFwrapper(modelNgbAvg4FULL4_Scaled, modelDataFULLScaled, term = "isForest",
                         fixed.at = list("UNDERSTOREY" = TRUE))
 plotData$UNDERSTOREY <- FALSE
 plotData2$UNDERSTOREY <- TRUE
@@ -2889,9 +2913,9 @@ png(file.path(figDir, "varSevPEFPlotsNotForest_DAfires_sevModels2.png"), height 
 ggarrange(
   varNFPEFplot4 + scale_y_continuous(limits = c(0, 0.25)), #cti
   varNFPEFplot8 + scale_y_continuous(limits = c(0, 0.25)), #SurfReliefRatio
-  varNFPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #buffer_30m
-  varNFPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #buffer_960m
-  varNFPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #buffer_1920m
+  varNFPEFplot9 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_30m
+  varNFPEFplot6 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_960m
+  varNFPEFplot3 + scale_y_continuous(limits = c(0, 0.25)), #ngbPropBurns_1920m
   as_ggplot(legPlot),
   nrow = 3, ncol = 2,  
   common.legend = TRUE, legend = "none",
@@ -2904,20 +2928,20 @@ dev.off()
 #### Maps of observed and predicted severity
 ```{r sevMaps}
 cols <- c("SEV_PROP", "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "buffer_960m", "FIRE_NAME", "UNDERSTOREY", "buffer_1920m", "buffer_30m",
+          "ngbPropBurns_960m", "FIRE_NAME", "UNDERSTOREY", "ngbPropBurns_1920m", "ngbPropBurns_30m",
           "FlamConif", "SurfReliefRatio", "isForest", "pixID",
           "SEV_CLASS", "Lat", "Long")
 
 modelDataFULLScaled <- summaryABSK_AllData[, ..cols]
-cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "buffer_960m",
-                "buffer_1920m", "buffer_30m", "FlamConif", 
+cols2scale <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "ngbPropBurns_960m",
+                "ngbPropBurns_1920m", "ngbPropBurns_30m", "FlamConif", 
                 "SurfReliefRatio")
 modelDataFULLScaled[, (cols2scale) := lapply(.SD, scale), .SDcols = cols2scale]
 
-modelNgbSev4FULL4_Scaled <- readRDS("analyses/modelNgbSev4FULL4Scaled.rds")
+modelNgbAvg4FULL4_Scaled <- readRDS("analyses/modelNgbAvg4FULL4Scaled.rds")
 
 predictionsDT <- na.omit(modelDataFULLScaled)[, .(SEV_PROP, SEV_CLASS, pixID, FIRE_NAME, Lat, Long)]
-predData <- predictAll(modelNgbSev4FULL4_Scaled, type = "response")
+predData <- predictAll(modelNgbAvg4FULL4_Scaled, type = "response")
 predictionsDT[, `:=`(predSEV_PROP = calcMeanBEINF(predData$mu, predData$nu, predData$tau),
                      p1 = calcP1BEINF(predData$nu, predData$tau),
                      varY = calcVarBEINF(predData$mu, predData$sigma, predData$nu, predData$tau))]
@@ -3017,7 +3041,7 @@ dev.off()
 # save(list = c("plotData", grep("model", ls(), value = TRUE)),
 #      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData")
 #      # file = "/mnt/storage/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_Nov1.RData")
-#      file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbSevApr21.RData")
+#      file = "/media/data/cbarros/LandscapesInMotion/analyses/modelsGAMLSS_0-3Days_30m_goodSample_NgbAvgApr21.RData")
 
 ## save to GDrive
 # library(googledrive)

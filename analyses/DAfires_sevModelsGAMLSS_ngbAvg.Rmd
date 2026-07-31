@@ -246,6 +246,57 @@ if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME),
 ## GAMLSS model -- use Strategy A ?stepGAICAll.A to find best predictors excluding ngbhood variables first
 Main effects only to start
 
+Very interesting note confirming earlier analyses: the fire ID random effect
+is the first term to be added (i.e. that provides the largest improvement). 
+Before it is added, all climate/FWIs covariates are next in-line.
+
+After the fire ID is added as a random effect, the addition of any
+climate/FWIs covariates makes the model worse. See example:
+
+```
+--------------------------------------------------- 
+Distribution parameter:  mu 
+Start:  AIC= 201624.5 
+ SEV_PROP ~ 1 
+
+                                  Df    AIC
++ re(random = ~1 | FIRE_NAME) 34.814 195462
++ cvISI                        1.000 200632
++ maxFWI                       1.000 201068
++ cvFWI                        1.000 201094
++ maxISI                       1.000 201153
++ HEIGHT_LOWER                 1.000 201220
++ Elevation                    1.000 201245
++ minISI                       1.000 201337
+(...)
+
+Step:  AIC= 195462.5 
+ SEV_PROP ~ (re(random = ~1 | FIRE_NAME)) 
+
+                       Df    AIC
++ FlamConif       1.00296 195343
++ Decid           1.00750 195345
++ CTI             1.00116 195366
++ LandCover       5.00101 195374
++ isForest        1.00114 195407
++ SMR_wet         1.00125 195431
++ SurfReliefRatio 0.99896 195431
++ HEIGHT_LOWER    1.00160 195431
++ Elevation       1.06246 195437
++ Lari            1.00196 195440
++ PctSlope        1.00028 195447
++ DIST1           4.00257 195456
++ Abie            1.00070 195460
++ UNDERSTOREY     1.00200 195462
+<none>                    195462
++ maxFWI          0.95864 195464
++ maxISI          0.96708 195464
++ cvISI           0.97879 195464
++ Aspect          1.00132 195464
++ cvFWI           0.98515 195464
+(...)
+```
+
 ```{r nonspatialpreds, cache = FALSE, eval=FALSE}
 cols <- grep("FIRE_NAME|pixID|SEV_PROP", names(modelData), invert = TRUE, value = TRUE)
 if ("SMR_ord" %in% cols) {

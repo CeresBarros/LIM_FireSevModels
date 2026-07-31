@@ -246,7 +246,11 @@ if (length(setdiff(unique(summaryABSK_AllData$FIRE_NAME),
 Main effects only to start
 
 ```{r nonspatialpreds, cache = FALSE, eval=FALSE}
-cols <- grep("FIRE_NAME|pixID", names(modelData), invert = TRUE, value = TRUE)
+cols <- grep("FIRE_NAME|pixID|SEV_PROP", names(modelData), invert = TRUE, value = TRUE)
+if ("SMR_ord" %in% cols) {
+  cols <- unique(sub("SMR_ord", "SMR_wet", cols))
+}
+
 upperFormula <- as.formula(paste("~", paste(cols, collapse = " + "), "+ re(random = ~1 | FIRE_NAME)"))
 
 ## stepGAICAll.A adds sequentially to each parameter then tries to remove again.

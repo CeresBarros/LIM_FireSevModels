@@ -24,7 +24,7 @@ analyses/
 ├── DAfires_expAnalyses.Rmd            # exploratory analyses
 ├── DAfires_sevModelsBoost.Rmd         # XGBoost and GPBoost severity models
 ├── DAfires_sevModelsGAMLSS.Rmd        # GAMLSS severity models (old version)
-├── DAfires_sevModelsGAMLSS2026.Rmd    # GAMLSS severity models (current)
+├── DAfires_sevModelsGAMLSS_ngbAvg.Rmd # GAMLSS severity models (current)
 ├── Fires_CNFD.Rmd / .R                # CNFD fire database prep
 ├── FiresDA_FMAs.R                     # fires × Forest Management Areas
 ├── FI2CASFRI_checkerrors.R            # CASFRI cross-check

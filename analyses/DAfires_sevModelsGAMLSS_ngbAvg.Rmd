@@ -207,18 +207,19 @@ rm(dataPoints, ngbAvgs, ngbNoBurns); for (i in 1:3) gc(reset = TRUE)
 
 ## subsample data for faster fitting/variable selection:
 ```{r datasubsample, cache = FALSE, eval=FALSE}
-## variables for analysis when considering all weather (first 3 days) - dropping range
-## due to lack of data in some fires, dropping:
-## crown closure, SMR (which has a proxy- CTI), cvRain, ORIGIN_*
+## variables for analysis when considering all weather (first 3 days) - 
+## dropping range due to lack of data in some fires, dropping:
+## crown closure, cvRain, ORIGIN_*
 cols <- grep(paste("SEV_PROP", "FFMC$", "DC$", "DMC$", "ISI$", "BUI$", "FWI$",
                    "FlamConif", "Abie$", "Lari$", "Decid",
                    "isForest", "HEIGHT_LOWER", "UNDERSTOREY",
                    "^CTI$", "Aspect", "Elevation", "Surf.*Ratio", "PctSlope",
-                   "FIRE_NAME", "pixID", "SMR_ord", "SMR_wet", sep = "|"), 
+                   "FIRE_NAME", "pixID", "SMR_ord", "SMR_wet", "DIST1$", "LandCover", 
+                   sep = "|"), 
              names(summaryABSK_AllData),
              value = TRUE)
-## remove ngbhood vars
-cols <- grep("_[[:digit:]]{2,4}m$", cols, invert = TRUE, value = TRUE)
+## remove ngbhood vars and range
+cols <- grep("_[[:digit:]]{2,4}m$|range", cols, invert = TRUE, value = TRUE)
 
 ## sample a fourth of the pixels in each fire
 sampDT <- na.omit(summaryABSK_AllData[, ..cols])[,.(FIRE_NAME, pixID)]

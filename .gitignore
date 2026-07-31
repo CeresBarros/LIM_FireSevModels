@@ -5,7 +5,6 @@
 .httr-oauth
 .Rprofile
 .Renviron
-.posit/
 
 *.pdf
 *.RData

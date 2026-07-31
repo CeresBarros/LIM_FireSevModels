@@ -1,0 +1,24 @@
+{
+  "permission": {
+    "edit": {
+      "*.md": "allow"
+    },
+    "bash": {
+      "git -C c:/Users/cbarros/GitHub/LIM_FireSevModels status *": "allow",
+      "echo *": "allow",
+      "git -C c:/Users/cbarros/GitHub/LIM_FireSevModels log *": "allow",
+      "head *": "allow",
+      "git remote *": "allow",
+      "git filter-repo *": "allow",
+      "python *": "allow",
+      "where *": "allow",
+      "pip install *": "allow",
+      "tail *": "allow",
+      "git clone *": "allow",
+      "git remote add *": "allow",
+      "git log *": "allow",
+      "git branch *": "allow",
+      "git tag *": "allow"
+    }
+  }
+}

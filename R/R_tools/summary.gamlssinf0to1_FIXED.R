@@ -2,11 +2,25 @@
 ## SUMMARY FOR GAMLSSINF0TO1 FUNCTION
 ## --------------------------------------
 
-## this is a fix for the gamlss.inf:::summary.gamlssinf0to1 function which has issues when
-## random terms were included in the model.
-## because these random terms have NA's in the covariante matrix, the t-values and p-values
-## would not be calcualted, and the summary would be screwed up (like variables were missing,
-## when the random terms were simply missing, but names were not updated)
+#' Summary method for `gamlssinf0to1` models with random terms (patched)
+#'
+#' Local patch of `gamlss.inf:::summary.gamlssinf0to1()`. The upstream
+#' summary method mis-handles fits that include random terms: those
+#' random effects have `NA`s in the variance-covariance matrix, which
+#' cascades to missing t- and p-values and column-name mis-alignment
+#' (so predictors appear to be missing when they are actually just the
+#' random terms). This patched version preserves the parameter names
+#' and skips t/p-value computation for rows with `NA` standard errors
+#' instead of dropping them.
+#'
+#' For arguments (`object`, `type`, `robust`, `save`, `hessian.fun`,
+#' `digits`, `...`) see `?gamlss.inf::summary.gamlssinf0to1`.
+#'
+#' @inheritParams gamlss.inf::summary.gamlssinf0to1
+#'
+#' @return Same as `gamlss.inf:::summary.gamlssinf0to1()`.
+#' @note Keep this shim sourced whenever the active GAMLSS Rmd is run.
+#' @seealso `gamlss.inf:::summary.gamlssinf0to1`
 
 
 summary.gamlssinf0to1_2 <- function (object, type = c("vcov", "qr"), robust = FALSE, save = FALSE,

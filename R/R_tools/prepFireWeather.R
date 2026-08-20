@@ -7,9 +7,32 @@
 
 ## this script should be sourced
 
-## FUNCTION TO COMPILE FIRE WEATHER DATA - adapted from Colin Ferter's script (processFireWeather.R)
-## folder is the directory path where the converted shapefiles will be saved
-
+#' Compile CNFD-style fire weather tables for Alberta and Saskatchewan
+#'
+#' Reads the LFDB / CNFD 20-day interpolated weather files
+#' (`interp_50s.tab` ... `interp_90s.tab`), separates fire-description
+#' lines from daily weather lines, filters to Alberta and Saskatchewan,
+#' merges with GIS-matched fire names and overview / duration tables,
+#' and returns clean descriptions and per-fire daily weather.
+#'
+#' Adapted from Colin Ferster's `processFireWeather.R` (Oct 2014).
+#'
+#' @param folder character. Path to `fireWeather/` containing
+#'   `20DayInterpolations/extracted/`,
+#'   `../fireWeatherCode/Overview.csv`,
+#'   `../fireWeatherCode/fireDuration.csv` and `fire_weather.dbf`.
+#'
+#' @return A named list with:
+#'   * `fireDescriptions` - `data.table` of fire-level metadata
+#'     (year, month, day, province, lat/lon, cause, size, ecoregion,
+#'     ecozone, `fireNum`).
+#'   * `fireWeather` - `data.table` of daily weather lines (`julDay`,
+#'     `temp`, `rh`, `ws`, `rain`, FWI system codes) joined to fire
+#'     name, `Duration`, `Area` and `Pre.`.
+#' @author Ceres Barros; adapted from Colin Ferster
+#' @details Emits a warning if fires >175 ha between 1959-2001 have no
+#'   GIS match. Links the `ALGAR` and `ALGARITA` fires to the
+#'   `BASELINE` weather row (co-occurring same-area fires).
 prepFireWeather <- function(folder) {
   ## LOAD DATA -----------------------------------------
   ## files to load

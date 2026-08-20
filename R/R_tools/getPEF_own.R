@@ -1,5 +1,28 @@
-## added "mean" and level to gamlss:getPEF
-## added output to chose between function of predicted values
+#' Partial-effect function for a GAMLSS term (patched)
+#'
+#' Local patch of `gamlss::getPEF()` that (i) additionally accepts
+#' `how = "mean"` for holding non-focal covariates fixed, (ii) forwards
+#' a `level` argument to [gamlss::predict.gamlss()] /
+#' [gamlss::predictAll()] so random-effect levels can be selected, and
+#' (iii) can return spline functions for one distributional parameter
+#' (`mu`, `sigma`, `nu`, `tau`) or all four at once.
+#'
+#' For the arguments shared with the upstream function (`obj`, `term`,
+#' `data`, `n.points`, `parameter`, `type`, `fixed.at`, `plot`) see
+#' `?gamlss::getPEF`.
+#'
+#' @inheritParams gamlss::getPEF
+#' @param level level argument forwarded to [gamlss::predict.gamlss()]
+#'   / [gamlss::predictAll()]. Added by this patch.
+#' @param how as in `gamlss::getPEF()`, but this patch additionally
+#'   accepts `"mean"` alongside `"median"` and `"last"`.
+#' @param output currently unused; kept for interface compatibility.
+#'   # TODO: confirm intent.
+#'
+#' @return Invisibly, a named list of `splinefun` objects - one per
+#'   requested distributional parameter - that map `term` values to
+#'   fitted partial effects.
+#' @seealso `gamlss::getPEF`
 getPEF.own <- function(obj = NULL, term = NULL, data = NULL, n.points = 100,
                        parameter = c("mu", "sigma", "nu", "tau", "all"), level = NULL,
                        type = c("response", "link"), how = c("mean", "median", "last"), fixed.at = list(),

@@ -1,12 +1,28 @@
 
 ## CALCULATE NEIGHBOURHOOD SEVERITY -----------------------
-## Calculates the average severity of neighbours according
-## to a given distance or set of distances
 
-## dist is a vector of distances in meters - note that sevPoints much be in a meter-based projection
-## sevPoints is an sf object of points and severity
-## sevColID is the columns name of the severity column
-
+#' Average neighbourhood severity around each point
+#'
+#' Wrapper that computes, for each pixel in `sevPoints`, the mean
+#' severity of its neighbouring pixels within one or more buffer
+#' distances. Buffers are drawn with `sf::st_buffer` and `st_touches`
+#' is used to avoid self-joins. When multiple distances are given the
+#' per-distance tables are merged on `pixID`; results can be produced
+#' sequentially or via `future.apply::future_lapply` under
+#' `plan(multisession)`.
+#'
+#' @param dists numeric vector of buffer distances in meters.
+#'   `sevPoints` must be in a meter-based projection.
+#' @param sevPoints `sf` POINTS object with a per-pixel `pixID` column
+#'   and the severity column named by `sevColID`.
+#' @param sevColID character. Name of the severity column in
+#'   `sevPoints`.
+#' @param parallel logical. Parallelise across distances. Default
+#'   `TRUE`.
+#'
+#' @return A `data.table` keyed by `pixID` with one
+#'   `meanngb<sevColID>_<d>m` column per buffer distance.
+#' @author Ceres Barros
 calculateNgbSevWrapper <- function(dists, sevPoints, sevColID, parallel = TRUE) {
   if (length(dists) > 1) {
     if (parallel) {
@@ -28,6 +44,19 @@ calculateNgbSevWrapper <- function(dists, sevPoints, sevColID, parallel = TRUE) 
   return(ngbSEVDT)
 }
 
+#' Average severity within a single buffer distance
+#'
+#' Internal worker for [calculateNgbSevWrapper()]; computes mean
+#' neighbour severity within `dist` for each `pixID`.
+#'
+#' @param dist numeric. Buffer distance in meters.
+#' @param sevPoints `sf` POINTS object.
+#' @param sevColID character. Severity column name.
+#'
+#' @return `data.table` with `pixID` and
+#'   `meanngb<sevColID>_<dist>m`.
+#' @keywords internal
+#' @noRd
 .calculateNgbSev <- function(dist, sevPoints, sevColID) {
   if (sum(names(sevPoints) %in% sevColID) > 1)
     stop("Several column names match 'sevColID")
@@ -64,14 +93,30 @@ calculateNgbSevWrapper <- function(dists, sevPoints, sevColID, parallel = TRUE) 
 
 
 ## CALCULATE NEIGHBOURHOOD NO. BURNT PIXELS -----------------------
-## Calculates the proportion of burnt neighbours according
-## to a given distance or set of distances. Points with 0 severity are assumed to not be burnt.
 
-## dist is a vector of distances in meters - note that sevPoints much be in a meter-based projection
-## sevPoints is an sf object of points and severity
-## sevColID is the columns name of the severity column
-## cores is the number of cores to use for parallelisation
-
+#' Proportion of burnt neighbours per pixel
+#'
+#' Wrapper that computes, per pixel and per buffer distance, the
+#' proportion of neighbouring pixels that burned (severity > 0).
+#' Points with 0 severity are assumed to be unburnt. Computation loops
+#' over each (fire, distance) combination and can be parallelised via
+#' `future.apply`.
+#'
+#' @param dists numeric vector of buffer distances in meters.
+#'   `sevPoints` must be in a meter-based projection.
+#' @param sevPoints `sf` POINTS object with `pixID`, `sevColID` and
+#'   `fireColID` columns.
+#' @param sevColID character. Name of the severity column.
+#' @param fireColID character. Name of the fire ID column.
+#' @param resolution numeric. Raster resolution used to rasterize each
+#'   fire perimeter (meters).
+#' @param parallel logical. Parallelise across (fire, distance) combos.
+#' @param cores integer. Number of workers; defaults to
+#'   `future::availableCores()` when `NULL`.
+#'
+#' @return A row-bound `data.table` with `pixID`, `ngbPropBurns`,
+#'   `fireColID` and `bufferSize`.
+#' @author Ceres Barros
 calculateNgbBurnsWrapper <- function(dists, sevPoints, sevColID, fireColID,
                                      resolution = resolution, parallel = TRUE, cores = NULL) {
   ## make a list of combinations of fire ID and buffer distance
@@ -108,6 +153,23 @@ calculateNgbBurnsWrapper <- function(dists, sevPoints, sevColID, fireColID,
   return(ngbSEVDT)
 }
 
+#' Proportion of burnt neighbours for one fire and one buffer distance
+#'
+#' Internal worker for [calculateNgbBurnsWrapper()]. Rasterizes the
+#' fire's severity and pixel-ID layers, then uses `raster::focal()`
+#' with a circular window of radius `dist * 3` to count the fraction
+#' of neighbouring pixels with severity > 0.
+#'
+#' @param dist numeric. Buffer distance in meters.
+#' @param fireID identifier of the fire perimeter (matches values in
+#'   `sevPoints[[fireColID]]`).
+#' @param sevPoints,sevColID,fireColID,resolution as in
+#'   [calculateNgbBurnsWrapper()].
+#'
+#' @return `data.table` with `pixID`, `ngbPropBurns`, `fireColID` and
+#'   `bufferSize`.
+#' @keywords internal
+#' @noRd
 .calculateNgbBurns <- function(dist, fireID, sevPoints, sevColID, fireColID, resolution) {
   if (sum(names(sevPoints) %in% sevColID) > 1)
     stop("Several column names match 'sevColID")
@@ -157,25 +219,33 @@ calculateNgbBurnsWrapper <- function(dists, sevPoints, sevColID, fireColID,
 }
 
 
-#' CALCULATE NEIGHBOURHOOD VARIABLE AVERAGES
-#' Calculates average values of predictor variables within "ring-like" buffers
-#' around each data point.
+#' Average predictor values within ring-buffers around each point
 #'
-#' @param dists vector of distances in meters, used as the maximum width of each ring-buffer.
-#'   the minimum width is taken as the previous distance (after ordering), or 0 in the case of the first distance.
-#'   Note that dataPoints much be in a meter-based projection.
-#' @param dataPoints sf object. Points shapefile with variables to average.
-#' @param fireColID character. Name of the fire ID column
-
-#' @param parallel logical. Controls parallelisation
-#' @param cores number of cores to use for parallelisation
-#' @param ... additional arguments passed to 'calculateNgbAvgs'
+#' Computes mean values of predictor variables inside ring-shaped
+#' neighbourhoods around each point. Rings are defined by consecutive
+#' entries in `dists`: the inner radius is the previous distance (0 for
+#' the first), and the outer radius is the current distance. Ring
+#' construction and averaging run per (fire, ring) combination and can
+#' be parallelised via `mirai` daemons.
 #'
-#' @details
-#'  Computations are done in parallel (or sequentially) per buffer and per fire
-#'  perimeter.
+#' @param dists numeric vector of ring outer radii in meters (ordered).
+#'   `dataPoints` must be in a meter-based projection.
+#' @param dataPoints `sf` POINTS object carrying the variables to
+#'   average plus `pointIDColID` and `fireColID`.
+#' @param fireColID character. Name of the fire ID column.
+#' @param pointIDColID character. Name of the point/pixel ID column.
+#'   Default `"pixID"`.
+#' @param parallel logical. Parallelise across (fire, ring) combos.
+#' @param cores integer. Number of workers; defaults to
+#'   `future::availableCores()` when `NULL`.
+#' @param ... additional arguments forwarded to [calculateNgbAvgs()]
+#'   (notably `varColID`, `resolution`).
 #'
+#' @return A `data.table` with per-pixel averaged predictor columns
+#'   suffixed `_<ring>m`, one row per
+#'   (`pointIDColID`, `fireColID`, ring).
 #' @importFrom purrr pmap
+#' @author Ceres Barros
 calculateNgbAvgsWrapper <- function(dists, dataPoints, fireColID,
                                     pointIDColID = "pixID", parallel = TRUE, cores = NULL, ...) {
   ## checks
@@ -265,16 +335,28 @@ calculateNgbAvgsWrapper <- function(dists, dataPoints, fireColID,
   return(ngbAvgsDT)
 }
 
-#' CALCULATE NEIGHBOURHOOD VARIABLE AVERAGES - Internal
-#' Calculates average values of predictor variables within "ring-like" buffers
+#' Average predictor values within one ring buffer for one fire
+#'
+#' Internal worker for [calculateNgbAvgsWrapper()]. Draws buffers of
+#' radii `bufferMax` and (if `bufferMin > 0`) `bufferMin` around each
+#' point in the given fire, subtracts the smaller buffer to form a
+#' ring, finds neighbours inside the ring, and averages the predictor
+#' columns across neighbours. Uses `reproducible::Cache` on the
+#' expensive steps.
 #'
 #' @inheritParams calculateNgbAvgsWrapper
-#' @param fireID name of fire perimeter.
-#' @param varColID character. Name of the variable columns that will be averaged.
-#' @param bufferMin numeric. Minimum buffer distance (i.e. starting distance of buffer) in m.
-#' @param bufferMax numeric. maximum buffer distance (i.e. ending distance of buffer) in m. Also used as buffer ID.
-#' @param resolution original resolution
+#' @param fireID identifier of the fire perimeter to process.
+#' @param bufferMin numeric. Ring inner radius (m). Use 0 for a disk.
+#' @param bufferMax numeric. Ring outer radius (m); also used as ring
+#'   ID in output column names.
+#' @param varColID character vector of column names to average. If
+#'   `NULL`, all columns except `pointIDColID` and `fireColID` are
+#'   averaged.
+#' @param resolution numeric. Original raster resolution (m) - currently
+#'   used for caching keys.
 #'
+#' @return `data.table` with `pointIDColID`, `fireColID` and one
+#'   averaged column per input variable (suffixed `_<bufferMax>m`).
 #' @importFrom purrr map map_lgl
 #' @importFrom reproducible Cache CacheDigest
 #' @importFrom sf st_buffer st_drop_geometry st_intersects
@@ -401,14 +483,19 @@ calculateNgbAvgs <- function(fireID, bufferMin, bufferMax, dataPoints,
 }
 
 
-#' Make buffer rings
+#' Build ring buffers by differencing large and small buffers
 #'
-#' Internal function
+#' Internal helper: for each row, returns the ring
+#' `buffers[i] \ smallBuffers[i]` while preserving the point ID column.
 #'
-#' @param buffers
-#' @param smallBuffers
-#' @param pointIDColID
-
+#' @param buffers,smallBuffers `sf` polygon collections of matching
+#'   length. Large / outer and small / inner buffers respectively.
+#' @param pointIDColID character. Name of the point/pixel ID column
+#'   kept on the output.
+#'
+#' @return `sf` object of ring polygons.
+#' @keywords internal
+#' @noRd
 .makeRings <- function(buffers, smallBuffers, pointIDColID) {
   rings <- 1:nrow(buffers) |>
     map(\(poly) {
@@ -421,24 +508,43 @@ calculateNgbAvgs <- function(fireID, bufferMin, bufferMax, dataPoints,
   rings <- do.call(rbind, rings)
 }
 
+#' Merge two ring-buffer average tables on point and fire IDs
+#'
+#' Internal helper used inside `Reduce()` to horizontally merge
+#' per-ring outputs of [calculateNgbAvgs()]. Column names
+#' `pointIDColID` and `fireColID` are resolved from the calling frame
+#' via `dynGet()`.
+#'
+#' @param x,y `data.table`s of averaged neighbour values.
+#' @return Full outer join `data.table`.
+#' @keywords internal
+#' @noRd
 .myMerge <- function(x, y) {
   pointIDColID <- dynGet("pointIDColID")
   fireColID <- dynGet("fireColID")
   merge(x, y, by = c(pointIDColID, fireColID), all = TRUE)
 }
 
-#' Wrapper function to calculate averaged neighbour properties
+#' Average predictor values across each point's neighbour list
 #'
-#' @param pointsInBuffer
-#' @param st_drop_geometry
-#' @param dataPoints
-#' @param pointIDColID
-#' @param varColID
+#' Internal helper used by [calculateNgbAvgs()]. For every focal point,
+#' subsets `dataPoints` to its listed neighbours and takes the
+#' column-wise mean of `varColID`.
 #'
-#' @returns data.table of average neighbour attributes by focal point
+#' @param pointsInBuffer named list whose names are focal point IDs and
+#'   whose entries are character vectors of neighbour IDs.
+#' @param dataPoints `sf` POINTS object holding the predictor
+#'   variables.
+#' @param pointIDColID character. Name of the point ID column.
+#' @param varColID character vector of columns to average.
+#'
+#' @return `data.table` of per-focal-point averaged predictor values,
+#'   with `pointIDColID` populated from the list names.
 #' @importFrom purrr map
 #' @import data.table
 #' @importFrom sf st_drop_geometry
+#' @keywords internal
+#' @noRd
 .calcAvgs <- function(pointsInBuffer, dataPoints, pointIDColID, varColID) {
   ngbhoodAvgsDT <- pointsInBuffer |>
     map(\(ngbs) {

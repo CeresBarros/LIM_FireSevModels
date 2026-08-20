@@ -6,21 +6,38 @@
 
 ## this script should be sourced
 
-## CROSS-CALIDATION FUNCTION
-
-## fullDT - data.table with full dataset
-## statsModel - the statistical model to validate. Only works with gamlss models
-## level - passed to gamlss:::predict
-## k - integer with number of chunks that the data should be partioned in
-## idCol - column with pixel/observation IDs (optional)
-## origDataVars - the data used to fit the statsModule, needs to be passed to gamlss::predictAll
-##   (it may not be able to access it) bu also to make sure newdata in gamlss::predictAll
-##  has the same variables (even if they're not used in the model)
-## cacheObj1/2 - an object used by Cache for digesting, to avoid digesting the (potentially) large data arguments
-## parallel - logical. Uses future.apply::future_lapply to parallelise model fiting across the k-folds, using plan(multiprocess).
-##    Defauls to FALSE
-## ... further arguments passed to future::plan like workers
-
+#' k-fold cross-validation for GAMLSS severity models
+#'
+#' Partitions `fullDT` into `k` folds (stratified by `FIRE_NAME`) and
+#' refits `statsModel` on each training fold, evaluating on the
+#' held-out fold. Wraps [calcCrossValidMetrics()] and optionally
+#' parallelises across folds via `future.apply`.
+#'
+#' @param fullDT `data.table` with the full dataset (may contain more
+#'   columns than the model uses).
+#' @param statsModel a fitted `gamlss` model to be re-fit on each
+#'   training fold via [stats::update()].
+#' @param origData the data originally used to fit `statsModel`.
+#'   Determines which columns of `fullDT` are retained when subsetting
+#'   train/test folds.
+#' @param level passed through to [gamlss::predict.gamlss()] (e.g. for
+#'   random effects). Default `NULL`.
+#' @param k integer number of folds. Default 4.
+#' @param idCol character. Column of `fullDT` uniquely identifying each
+#'   pixel / observation.
+#' @param cacheObj1,cacheObj2 optional objects used for
+#'   `reproducible::Cache` digesting so the large data arguments don't
+#'   have to be digested directly.
+#' @param parallel logical. If `TRUE`, folds are fit in parallel with
+#'   `future.apply::future_lapply` under `plan(multicore)` (Linux/macOS)
+#'   or `plan(multisession)` (Windows). Default `FALSE`.
+#' @param ... further arguments passed to `future::plan()` (e.g.
+#'   `workers`).
+#'
+#' @return A list of length `k` with per-fold outputs from
+#'   [calcCrossValidMetrics()].
+#' @author Ceres Barros
+#' @seealso [calcCrossValidMetrics()]
 crossValidFunction <- function(fullDT, statsModel, origData, level = NULL,
                                k = 4, idCol, cacheObj1, cacheObj2,
                                parallel = FALSE, ...) {
@@ -66,17 +83,32 @@ crossValidFunction <- function(fullDT, statsModel, origData, level = NULL,
 }
 
 
-## CALCULATE VALIDATION METRICS AND CONFUSION MATRIX
-## to allow caching without digesting the large data table
-
-## samp - the sample number to pick to use as the test data set
-## fullDT - the full dataset (not necessarily the one used to fit `statsModel`, which could have been a subset (e.g. fewer columns))
-## origData - the data used to fit `statsModel`
-## statsModel - the fitted model
-## origDataVars - a character vector of the variables used in model fitting (including response variable and random effects.)
-
-
-## outputs a list with 2 entries
+#' Compute cross-validation metrics for one GAMLSS fold
+#'
+#' Given a fold index, refits `statsModel` on the training partition,
+#' predicts the response on the held-out partition, discretises
+#' predictions into severity classes and returns validation metrics
+#' (RMSE, R^2, multi-class summary and confusion matrix) plus GAMLSS
+#' diagnostics (`Rsq`, `getTGD`, model coefficients).
+#'
+#' Structured so the large data arguments can be excluded from
+#' `reproducible::Cache` digesting.
+#'
+#' @param samp integer. Fold ID picked as the test set.
+#' @param fullDT `data.table` of the full dataset (may include extra
+#'   columns beyond those used to fit `statsModel`).
+#' @param origData the data used to fit `statsModel`.
+#' @param level passed to [gamlss::predict.gamlss()].
+#' @param idCol character. Column of `fullDT` uniquely identifying each
+#'   pixel / observation.
+#' @param statsModel the fitted `gamlss` (BEINF-family) model.
+#' @param origDataVars character vector of the variables used in model
+#'   fitting (response, predictors, random effects, plus `idCol`).
+#'
+#' @return A list with entries `validMetrics`, `confMatrix`,
+#'   `Rsquared`, `RsqGAMLSS`, `TGD` and `coefs`.
+#' @keywords internal
+#' @noRd
 calcCrossValidMetrics <- function(samp, fullDT, origData, level = NULL, idCol, statsModel, origDataVars) {
   ## predict requires the original and new data to have the same columns
   if (!all(names(origData) %in% names(fullDT)))

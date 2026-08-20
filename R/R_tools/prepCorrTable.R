@@ -1,4 +1,9 @@
-## this has been moved to ToolsCB
+## The `prepCorrTable()` helper has been moved to the `ToolsCB` package
+## (`CeresBarros/ToolsCB`); load it from there. The commented block below is
+## kept as a historical reference of the original implementation, which
+## produced a lower-triangular correlation table with significance stars
+## for LaTeX / R Markdown reports. Adapted from
+## <http://myowelt.blogspot.com/2008/04/beautiful-correlation-tables-in-r.html>.
 
 
 # ## ------------------------------------

@@ -5,15 +5,36 @@
 ## ----------------------------------------
 
 ## this script should be sourced
-## sevDataSf - an sf object of severity polygons
-## vegDataSf - an sf object of vegetation polygons
-## topoDataSf - an sf object of topography data polygons that match the fire severity polygons (IDs).
-## weatherDataDt - a dataframe of weather data per fire ID which matches the severity fire IDs.
-## resolution is the resolution of output raster in meters. Defaults to 100.
-## doAll = controls whether all data joins must be re-done/saved (joins are made by fire)
-## saveDir is the directory where joint data tables are saved for each fire
 
-## FUNCTION WRAPPER JOIN VEGETATION, TOPOGRAPHY AND WEATHER DATASETS, AFTER THEY'VE BEEN PREP'ED
+#' Join fire severity with vegetation, topography and weather data
+#'
+#' Wrapper that rasterizes fire severity polygons to a common pixel
+#' grid, then joins pre-prepared vegetation, topography and weather
+#' data to each fire's pixels. Joins are done one fire at a time and
+#' cached as per-fire `.RData` files under `saveDir`; the wrapper then
+#' row-binds everything into one `data.table`.
+#'
+#' @param sevDataSf `sf` object of fire severity polygons. Must contain
+#'   a `FIRE_NAME` column used to loop over fires.
+#' @param vegDataSf `sf` object of vegetation polygons covering (at
+#'   least) the fire perimeters.
+#' @param topoDataSf `sf` object of topographic covariates. Fires
+#'   falling entirely outside its extent get NA topography.
+#' @param weatherDataDt `data.table` of weather covariates keyed by
+#'   fire. Must contain a `fireName` column (renamed internally to
+#'   `FIRE_NAME`) that matches (upper-cased) values in
+#'   `sevDataSf$FIRE_NAME`.
+#' @param resolution numeric. Resolution of the internal template
+#'   raster used for pixel IDs, in meters. Defaults to 100.
+#' @param doAll logical. If `FALSE` (default) skip fires whose per-fire
+#'   table already exists in `saveDir`; if `TRUE` redo everything.
+#' @param saveDir character. Directory where per-fire
+#'   `dataTable_<FIRE>.RData` files are written and later re-read.
+#'
+#' @return A `data.table` binding all per-fire joined tables (one row
+#'   per burnt pixel, with severity + veg + topo + weather columns).
+#' @author Ceres Barros
+#' @seealso [joinPerFire()]
 joinSevVegTopoWeatherData <- function(sevDataSf, vegDataSf, topoDataSf, weatherDataDt,
                                       resolution = 100, doAll = FALSE, saveDir) {
   ## make a template raster that will be used to extract pixIDs
@@ -66,8 +87,25 @@ joinSevVegTopoWeatherData <- function(sevDataSf, vegDataSf, topoDataSf, weatherD
   return(allDataDT)
 }
 
-## FUNCTION TO JOIN VEGETATION, TOPOGRAPHY AND WEATHER DATASETS, AFTER THEY'VE BEEN PREP'ED
-## BY FIRE - INTERNAL
+#' Join severity, vegetation, topography and weather data for one fire
+#'
+#' Internal worker called by [joinSevVegTopoWeatherData()]. Extracts
+#' pixel IDs from `rasterToMatch` for one fire perimeter, then
+#' intersects severity, topography, vegetation and weather to produce a
+#' wide `data.table` saved as `dataTable_<FIRE>.RData` under `saveDir`.
+#'
+#' @param smallSevDataSf `sf` object with severity polygons for one
+#'   fire only.
+#' @param vegDataSf,topoDataSf,weatherDataDt as in
+#'   [joinSevVegTopoWeatherData()].
+#' @param rasterToMatch `Raster*` layer with unique pixel IDs (values
+#'   `1:ncell(.)`); used to align severity, veg and topo joins.
+#' @param saveDir character. Output directory for the `.RData` file.
+#'
+#' @return Called for its side effect (writes
+#'   `dataTable_<FIRE>.RData`). Returns `NULL` invisibly.
+#' @keywords internal
+#' @noRd
 joinPerFire <- function(smallSevDataSf, vegDataSf, topoDataSf, weatherDataDt,
                         rasterToMatch, saveDir) {
   amc::.gc()

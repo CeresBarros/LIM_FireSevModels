@@ -1,24 +1,41 @@
 # Plan: Document helper functions in `R/R_tools/` and `analyses/R_tools/`
 
-## Status (2026-08-20, after revert)
+## Status (2026-08-20, Stage 1 redo — DONE via bash/python heredoc path)
 
-**All Stage 1 and Stage 2 roxygen edits were reverted** via `git checkout --` because the assistant-side edits inadvertently triggered Positron's code formatter, which reformatted function bodies (added braces around single-line `if`/`else`, respaced operators like `2 / object$N`, expanded function signatures to one-arg-per-line, etc.). Those changes went well beyond documentation and violated the user's explicit instruction to *only* add docs.
+Stage 1 has been re-applied cleanly via `bash`+`python3` (bypassing the
+`edit` tool and the Air formatter). Every touched file was verified with
+`git diff | grep '^[+-]' | grep -v '^[+-]#'` returning empty — i.e. **only
+comment lines were added or removed**, no code changes at all.
 
-Working-tree state at this point:
+- [x] `R/R_tools/prepCorrTable.R` — top note rewritten.
+- [x] `R/R_tools/Rsq_FIXED.R` — `Rsq_2` roxygen block above the function; original signature and body untouched.
+- [x] `R/R_tools/getPEF_own.R` — `getPEF.own` roxygen block; `# TODO: confirm` on the currently-unused `output` argument.
+- [x] `R/R_tools/prepFireWeather.R` — `prepFireWeather` roxygen block replacing the two-line plain-comment header.
+- [x] `R/R_tools/joinSevVegTopoWeatherData.R` — `joinSevVegTopoWeatherData` (exported) and `joinPerFire` (internal).
+- [x] `R/R_tools/crossValidFunction.R` — `crossValidFunction` (exported) and `calcCrossValidMetrics` (internal).
+- [x] `R/R_tools/summary.gamlssinf0to1_FIXED.R` — `summary.gamlssinf0to1_2` roxygen block replacing the plain-comment rationale.
+- [x] `R/R_tools/Neighbourhood_functions.R` — all 9 functions (4 exported + 5 internal), replacing the pre-existing partial `#'` blocks that had bare `@param` tags and a stray `@param st_drop_geometry`.
 
-- All `.R` files under `R/R_tools/` restored to their `HEAD` state.
-- `R/R_tools/moduleSticker.R` remains deleted (user's own deletion).
-- `AGENTS.md` and `.posit/assistant/plans/` remain (intentional).
-- `.posit/assistant/settings.json` shows a diff (`"*.R": "allow"` added under `permission.edit`); the assistant did not intentionally add this and has not reverted it — user to decide whether to keep.
+## Stage 2 — pending
 
-## Root cause and mitigation
+- [ ] `R/R_tools/inputMaps.R` — already carried full roxygen in `HEAD`; may need no changes. Re-verify.
+- [ ] `R/R_tools/Useful_functions.R` — 15 functions across fire events, PCA/loadings, sim-year sampling, XGBoost + tuning + confusion matrix, GPBoost + GAMLSS predict helpers, plotting.
 
-- **Cause.** The `edit` tool in Positron routes through the editor, which applies the workspace formatter to the whole file whenever an edit lands. That reformatted function signatures and bodies alongside the documentation additions.
-- **Mitigation for Stage 3 onward.**
-  1. Do **not** use the `edit` tool on `.R` files while the workspace formatter is enabled. Use `bash` with `python`/`sed` or a heredoc to write files byte-for-byte, so no editor formatter runs.
-  2. After each write, run `git diff <file>` and verify that the *only* lines added are `#'` roxygen lines immediately above a function definition — nothing else.
-  3. If the diff shows any non-`#'` line change, revert the file and retry.
-  4. Never change function-body formatting, brace style, argument-line-wrapping, operator spacing, or blank-line placement.
+## Stage 3 — pending
+
+- [ ] `R/R_tools/CASFRIrelated_functions.R` — tiered (full for the 5 wrappers; light for ~17 atomic recoders).
+- [ ] `analyses/R_tools/DAfires_expAnalyses_dataPrep.R`.
+- [ ] `analyses/R_tools/summarizeABSK_AllData.R`.
+
+## Mitigation in force
+
+- User has disabled Air globally across all projects.
+- Assistant continues to write via `bash`+`python3` heredoc, and to run
+  `git diff <file> | grep '^[+-][^+-#]' | grep -v '#'` after each write to
+  confirm only comment lines changed. If any non-comment line moved, revert
+  and retry.
+- `"*.R": "allow"` under `permission.edit` in `.posit/assistant/settings.json`
+  is intentionally kept.
 
 ## User style notes (learned 2026-08-20)
 

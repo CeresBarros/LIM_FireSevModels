@@ -94,3 +94,18 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 
 - Edits to `*.md` are pre-approved via `.posit/assistant/settings.json`; other file edits should be surfaced before writing.
 - Prefer plan-then-implement flow; plans live under `.posit/assistant/plans/`.
+- **Document R functions with `#'` roxygen blocks, always.** This is unconditional — it does not depend on whether the code lives in a package. Do not substitute `##` comment blocks or a summary index for per-function roxygen.
+- **Never modify R files with the `edit`/`write` tools — they trigger format-on-save (Air-style) reformatting even though Air is nominally disabled, producing large unwanted whitespace/brace/argument-splitting diffs.** Edit R files via a `bash` heredoc or an in-place `python3` script instead, so the editor formatter never runs.
+- **After any R-file change, verify the diff is comment-only** with `git diff <file> | grep '^[+-]' | grep -v '^[+-]#'` (expect no output) and check `git diff --stat`. Confirm zero incidental deletions and that function signatures/bodies are untouched.
+- **Preserve original code style when documenting** — do not reformat: keep original function signatures, single-line `if`/`else` (do not add braces), original operator spacing, and original blank-line layout. Only comment/`#'` lines should change.
+- **Roxygen conventions**: internal (`.`-prefixed) helpers get short docs plus `@keywords internal` and `@noRd`; preserve `@author` attributions; inherit upstream parameter docs with `@inheritParams pkg::fn` rather than duplicating; for the `_FIXED.R` shims add an `@note` describing the upstream bug and target version and `@seealso` the patched original (`gamlss::Rsq`, `gamlss.inf::summary.gamlssinf0to1`). Document best-guess argument shapes with a `# TODO: confirm` marker; fix wrong `@param` names/descriptions but **never reorder arguments in code**.
+- **CASFRI docs are tiered** (Stage 3): full roxygen for the wrappers (`ABToCASFRI`, `SKToCASFRI`, `meltPreFireABInv`, `meltPreFireSKInv`, `invent2CASFRI`); short title + `@param` only for the ~17 atomic recoders.
+- **Flag known code issues rather than touching them**: leftover `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~468, `runGPBOOST` ~785/~832); `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`; comment typos in `Rsq_FIXED.R` (`design`→`designed`) and `summary.gamlssinf0to1_FIXED.R` (`covariante`→`covariance`, `calcualted`→`calculated`).
+
+## Documentation pass status
+
+Staged roxygen documentation of `R/R_tools/` and `analyses/R_tools/` (plan under `.posit/assistant/plans/`):
+
+- **Stage 1 — done**, committed as `f503e1c` ("doc clean-up. Stage 1."): `joinSevVegTopoWeatherData.R`, `Neighbourhood_functions.R`, `crossValidFunction.R`, `prepFireWeather.R`, `prepCorrTable.R`, `getPEF_own.R`, `Rsq_FIXED.R`, `summary.gamlssinf0to1_FIXED.R`.
+- **Stage 2 — in progress**: `Useful_functions.R` (per-function `#'` roxygen, not a `##` summary index) and `inputMaps.R` re-verify. NB `inputMaps.R` was removed as dead code (see Gotchas).
+- **Stage 3 — pending**: `CASFRIrelated_functions.R` (tiered) and `analyses/R_tools/DAfires_expAnalyses_dataPrep.R`, `summarizeABSK_AllData.R`.

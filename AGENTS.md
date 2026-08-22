@@ -72,7 +72,6 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 | `crossValidFunction.R` | k-fold cross-validation for `gamlss` models (parallel via `future`) |
 | `prepFireWeather.R` | Assembles CNFD-style fire weather (adapted from Colin Ferster) |
 | `prepCorrTable.R` | Correlation-table prep for predictor screening |
-| `inputMaps.R` | Input-map loading utilities |
 | `getPEF_own.R` | Partial-effect helpers |
 | `CASFRIrelated_functions.R` | CASFRI utilities |
 | `Useful_functions.R` | Misc utilities |
@@ -89,6 +88,7 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 - Two `*_FIXED.R` helpers patch upstream `gamlss`/`gamlss.inf` bugs — keep them sourced whenever the active GAMLSS Rmd is run.
 - `simLinks.sh` is present but not currently used; ignore its paths.
 - `.posit/assistant/settings.json` contains a `git -C c:/Users/cbarros/GitHub/LIM_FireSevModels` allowlist that won't match this Linux checkout.
+- `R/R_tools/inputMaps.R` was **removed** (Aug 2026) as dead code: its four `sp`/`raster`/`rgeos`-based study-region helpers (`loadShpAndMakeValid`, `loadStudyRegions`, `shpStudyRegionCreate`, `createPrjFile`) had no callers here, and a cross-repo check of the upstream `LandscapesInMotion` confirmed they were unused on the `development`, `master`, and `xgboost` branches too. Recover from git history if study-region loading is ever needed (expect to modernize to `sf`/`terra`/`geodata`).
 
 ## Assistant conventions in this repo
 

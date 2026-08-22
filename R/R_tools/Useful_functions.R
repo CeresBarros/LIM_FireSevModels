@@ -5,22 +5,30 @@
 ## ------------------------------------------------------
 
 ## DEFINE FIRE EVENTS -----------------------
-## wrapper around .calculateFireEvents
 
-## Method from Andison (2012), defines a fire event composed of
-## disturbed patches (severity/mortality >= 95%)
-## island remnants (severity < 95%, surrounded by disturbed patches)
-## matrix remnants (undisturbed, and partially surrouned by disturbed patches)
-
-## sfObj is a Simple Features object from sf package
-## fireNAMES should be a column/attribute with fire ID/names
-## fireVARS can be NULL, or a vector of variable names/indices to retain
-## crsProj is a string of the projection to use. If NULL (default) will use the same projection as sfObj, otherwise sfObj will be reprojected
-## buff.dist if the buffer distance to define fire events
-## PLOT, SAVE and overwrite determine if plotting, saving and overwriting should be done
-## outputDIR and fileNAME define the directory and fileNAME to save the fire events shapefile (".shp" will be added to the name string),
-## outputDIR will be created if non-existent
-
+#' Define fire events from severity polygons
+#'
+#' Wrapper around [.calculateFireEvents()] that builds fire events for every
+#' fire in `sfObj`. Following Andison (2012), a fire event is composed of
+#' disturbed patches (severity/mortality >= 95%), island remnants
+#' (severity < 95%, surrounded by disturbed patches) and matrix remnants
+#' (undisturbed, partially surrounded by disturbed patches).
+#'
+#' @param sfObj a Simple Features (`sf`) object of severity polygons.
+#' @param fireNAMES character. Name of the column/attribute holding fire IDs/names.
+#' @param fireVARS `NULL`, or a vector of variable names/indices to retain.
+#' @param crsProj projection string to use. If `NULL` (default) the projection
+#'   of `sfObj` is used; otherwise `sfObj` is reprojected.
+#' @param buff.dist numeric. Buffer distance used to define fire events.
+#' @param PLOT logical. Whether to plot the resulting fire events.
+#' @param SAVE logical. Whether to save the fire events as a shapefile.
+#' @param outputDIR directory to save into (created if non-existent). Required when `SAVE = TRUE`.
+#' @param fileNAME output file name prefix (".shp" is appended). Required when `SAVE = TRUE`.
+#' @param overwrite logical. Passed to `sf::st_write(delete_layer = )`.
+#'
+#' @return an `sf` object binding the fire events for all fires.
+#' @author Ceres Barros
+#' @seealso [.calculateFireEvents()]
 defineFireEvents <- function(sfObj, fireNAMES = NULL, fireVARS = NULL, crsProj = NULL, buff.dist = NULL, PLOT = TRUE, SAVE = TRUE,
                              outputDIR = NULL, fileNAME = NULL, overwrite = TRUE) {
   ## checks
@@ -68,17 +76,25 @@ defineFireEvents <- function(sfObj, fireNAMES = NULL, fireVARS = NULL, crsProj =
 }
 
 ## CALCULATE FIRE EVENTS -----------------------
-## Method from Andison (2012), defines a fire event composed of
-## disturbed patches (severity/mortality >= 95%)
-## island remnants (severity < 95%, surrounded by disturbed patches)
-## matrix remnants (undisturbed, and partially surrouned by disturbed patches)
 
-## sfObj is a Simple Features object from sf package
-## fireNAMES should be a column/attribute with fire ID/names
-## fireVARS can be NULL, or a vector of variable names/indices to retain
-## crsProj is a string of the projection to use. If NULL (default) will use the same projection as sfObj, otherwise sfObj will be reprojected
-## buff.dist if the buffer distance to define fire events
-
+#' Build a fire event for a single fire
+#'
+#' Internal worker for [defineFireEvents()]. For one fire, buffers the fire
+#' perimeter out then in to derive the event perimeter, and classifies the
+#' resulting geometry into disturbed patches, island remnants and matrix
+#' remnants following Andison (2012).
+#'
+#' @param fire the fire ID/name to process (an element of `sfObj[[fireNAMES]]`).
+#' @param sfObj a Simple Features (`sf`) object of severity polygons.
+#' @param fireNAMES character. Name of the column/attribute holding fire IDs/names.
+#' @param fireVARS `NULL`, or a vector of variable names/indices to retain.
+#' @param crsProj projection to use for the constructed geometries.
+#' @param buff.dist numeric. Buffer distance used to define the fire event.
+#'
+#' @return an `sf` object for the single fire, with a `PatchType` column.
+#' @author Ceres Barros
+#' @keywords internal
+#' @noRd
 .calculateFireEvents <- function(fire, sfObj, fireNAMES, fireVARS,
                                  crsProj, buff.dist) {
   print(as.character(fire))
@@ -199,11 +215,21 @@ defineFireEvents <- function(sfObj, fireNAMES = NULL, fireVARS = NULL, crsProj =
 }
 
 ## WRAPPER FUNCTION TO ESTIMATE HYPERVOLUME BANDWIDTHS  -----------------------
-##
-## allData is a data.table with the data for both hypervolumes and an ID column (HVidvar) fo
-##   that identifies the data for each hypervolume
-## ... further arguments passed to ToolsCB::HVordination
 
+#' Estimate hypervolume bandwidths for a pair of hypervolumes
+#'
+#' Ordinates the data with `ToolsCB::HVordination`, then estimates Silverman
+#' bandwidths (`hypervolume::estimate_bandwidth`) and standard deviations per
+#' ordination axis for each of the two hypervolumes.
+#'
+#' @param allData a `data.table` holding the data for both hypervolumes, plus an
+#'   ID column (`HVidvar`) identifying which hypervolume each row belongs to.
+#' @param HVidvar character. Name of the column identifying the hypervolume.
+#' @param ... further arguments passed to `ToolsCB::HVordination`.
+#'
+#' @return a `data.frame` with per-axis Silverman bandwidths and standard
+#'   deviations for both hypervolumes, the PC index, and the `HVpair` label.
+#' @author Ceres Barros
 estimateBW_wrapper <- function(allData, HVidvar, ...) {
   HVnames <- unique(allData[, HVidvar])
 
@@ -226,8 +252,22 @@ estimateBW_wrapper <- function(allData, HVidvar, ...) {
 }
 
 ## GET PCA LOADINGS -----------------------
-## code from \code{biplot.prcomp} and \code{biplot.default}
-## x is \code{prcomp} object
+
+#' Rescale PCA loadings to fit within a scores biplot
+#'
+#' Adapted from `biplot.prcomp` and `biplot.default`: computes variable
+#' loadings scaled so that loading arrows fit within the range of the plotted
+#' scores.
+#'
+#' @param x a `prcomp` object.
+#' @param choices integer vector of length 2. Which principal components to use.
+#' @param scale numeric in `[0, 1]`. Scaling exponent applied to the singular values.
+#' @param pc.biplot logical. If `TRUE`, use the principal-component biplot scaling.
+#' @param xlim,ylim optional plotting limits (as in `biplot.default`).
+#' @param expand numeric. Expansion factor for the loadings relative to the scores.
+#'
+#' @return a matrix of rescaled loadings for the chosen components.
+#' @author code adapted from `stats::biplot.prcomp` / `stats::biplot.default`
 getLoadings4Plot <- function(x, choices = c(1,2), scale = 1, pc.biplot = FALSE,
                              xlim, ylim, expand = 1) {
   if (!length(scores <- x$x[,choices])) {
@@ -282,15 +322,18 @@ getLoadings4Plot <- function(x, choices = c(1,2), scale = 1, pc.biplot = FALSE,
 
 
 ## SAMPLE SIMULATION YEARS -----------------------
-#' SAMPLE SIMULATION YEARS
-#' samples 5 years (per rep) at regular intervals (every century) within the last 500 years of sampling
-#'
-#' @param yearRepTable a table of years and repetitions (unique combos will be extracted)
-#' @param .seed a numeric passed to `set.seed`. If NA, seed won't be set.
-#'
-#' @return a table with years to sample per rep
 
-
+#' Sample simulation years
+#'
+#' Samples 5 years per rep at regular (roughly centennial) intervals within the
+#' last 500 years of sampling. The prior random seed is restored on exit so the
+#' call does not perturb the global RNG state.
+#'
+#' @param yearRepTable a table of years and repetitions (unique combinations are extracted).
+#' @param .seed numeric passed to `set.seed`. If `NA`, the seed is not set.
+#'
+#' @return a table with the years to sample per rep.
+#' @author Ceres Barros
 sample5SimYears <- function(yearRepTable, .seed = 123) {
   yearSamples <- setkeyv(unique(yearRepTable), c("rep", "year"))
   yearSamples[, group := cut(year, breaks = 5, right = FALSE, labels = FALSE), by = rep]
@@ -317,15 +360,22 @@ sample5SimYears <- function(yearRepTable, .seed = 123) {
 
 
 ## Average AllPixelCDMntEnd columns across sampled years -----------------------
+
 #' Average AllPixelCDMntEnd columns across sampled years
 #'
-#' Averages, takes the unique values, or the most frequent values
-#' across years (per rep, pixel and species)
-#' for all colums in allPixelCDMntEnd, except pixelGroup, which is
-#' ignored and therefore excluded
+#' Summarises each column of `allPixelCDMntEnd` across years, per `scenario`,
+#' `rep`, `pixelIndex` and `speciesCode` — taking the mean of numeric columns,
+#' the most frequent value of categorical columns, or the unique value where
+#' one is expected. `pixelGroup` is ignored and therefore excluded. Exists
+#' mainly to be a cacheable unit of work.
 #'
-#' This function exists for caching purposes.
-
+#' @param allPixelCDMntEnd a `data.table` of per-pixel/species cohort data with
+#'   (at least) the columns summarised in the body and the grouping columns
+#'   `scenario`, `rep`, `pixelIndex`, `speciesCode`.
+#'
+#' @return a `data.table` with one row per scenario/rep/pixel/species and the
+#'   summarised columns.
+#' @author Ceres Barros
 averagAllPixelCDMntEnd <- function(allPixelCDMntEnd) {
   allPixelCDMntEnd <- allPixelCDMntEnd[, list(
     vegType = as.integer(names(which.max(table(vegType)))),
@@ -577,6 +627,8 @@ runXGBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SEV_PROP",
 #' @importFrom caret trainControl train caretTheme
 #' @importFrom reproducible Cache
 #' @importFrom lattice trellis.par.set
+#' @keywords internal
+#' @noRd
 .tunexgboost <- function(dig, dat, colnamesResp, figDir) {
   ## use devtools::load_all("C:/Users/cbarros/GitHub/caret/pkg/caret/")
   ## bug reported at: https://github.com/topepo/caret/issues/1412
@@ -732,22 +784,26 @@ runXGBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SEV_PROP",
   return(paramsF)
 }
 
-#' Calculate confidence matrices from continuous prediction from
-#' XGBoost model
+#' Confusion matrix from continuous XGBoost predictions
 #'
-#' @param mod a list containing `valData`, a `data.table` containing the
-#'   validation data, predictions, observations and residuals from an xgboost
-#'   cross-validation fold.
-#' @param classMap a data.table of class to continuous value correspondences,
-#'   with column names being `classVar` and `contVar`
-#' @param classes vector of classes.
-#' @param classVar the class variable/column name
-#' @param contVAR the continuous variable/column name
+#' Bins the continuous XGBoost predictions into severity classes using the
+#' quantiles that correspond to the observed class proportions, then builds a
+#' confusion matrix against the observed classes.
 #'
-#' @returns
-#' @export
+#' @param mod a list containing `valData`, a `data.table` of validation data,
+#'   predictions, observations and residuals from an xgboost cross-validation fold.
+#' @param classMap a `data.table` of class-to-continuous-value correspondences,
+#'   with columns named by `classVar` and `contVAR`.
+#' @param classes vector of class levels.
+#' @param classVar character. Name of the class variable/column.
+#' @param contVAR character. Name of the continuous variable/column.
 #'
-#' @examples
+#' @return a `caret::confusionMatrix` object.
+#' @note Unlike [gpboostConfMat()], this function has no explicit `return()`, so
+#'   only its last expression (the confusion matrix) is returned; the computed
+#'   `validMetrics` are discarded. Left as-is pending a decision on aligning the
+#'   two functions' return shapes.
+#' @author Ceres Barros
 xgboostConfMat <- function(mod, classMap, classes, classVar = "SEV_CLASS", contVAR = "SEV_PROP") {
   predictionsDT <- copy(mod$valData)
   setnames(predictionsDT, "obs", "SEV_PROP")
@@ -778,8 +834,21 @@ xgboostConfMat <- function(mod, classMap, classes, classVar = "SEV_CLASS", contV
 
 
 ## GPBoost wrapper -----------------------
-#' Wrapper for gpboost
+
+#' Wrapper for GPBoost
+#'
+#' Analogue of [runXGBOOST()] for GPBoost (Gaussian-process / grouped
+#' mixed-effects tree boosting): sets up k-folds, fits per fold with SHAP-based
+#' feature selection, and returns per-fold outputs.
+#'
 #' @inheritParams runXGBOOST
+#' @param colnamesGrp character. Name of the grouping (random-effect) column.
+#' @param colnamesCat character vector. Names of categorical feature columns.
+#'
+#' @return a list (one entry per fold) of per-fold results (validation data,
+#'   fitted model, cross-validation object, and SHAP values).
+#' @author Ceres Barros
+#' @seealso [runXGBOOST()]
 runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
                        colnamesGrp, colnamesCat, SHAPthresh = 0) {
   browser() ## check order of fucniton as in runxgboost
@@ -977,6 +1046,18 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
   return(mm)
 }
 
+#' Mean-BEINF prediction wrapper for shapr::explain (GAMLSS)
+#'
+#' Internal predict function passed to `shapr::explain`. Note that the first
+#' argument must be named `x` (the `shapr` docs are misleading on this).
+#'
+#' @param x a fitted `gamlss` model.
+#' @param newdata a `data.frame`/`data.table` of predictor values.
+#'
+#' @return numeric vector of predicted means of the (zero-one-inflated) beta
+#'   response.
+#' @keywords internal
+#' @noRd
 .predfunGAMLSS <- function(x, newdata) {
   ## note shapr::explain documentation is wrong, first arg needs to be called x
   dig <- .robustDigest(newdata)
@@ -988,6 +1069,17 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
   calcMeanBEINF(preds$mu, preds$nu, preds$tau)
 }
 
+#' Feature-spec extractor for shapr::explain (GAMLSS)
+#'
+#' Internal helper that assembles the `feature_specs` list `shapr::explain`
+#' expects (labels, classes, factor levels) from the term objects of a fitted
+#' `gamlss` model, collapsing `FIRE_NAME` dummy terms back to a single factor.
+#'
+#' @param x a fitted `gamlss` model.
+#'
+#' @return a list with `labels`, `classes` and `factor_levels`.
+#' @keywords internal
+#' @noRd
 .modelspecsfunGAMLSS <- function(x) {
   featlabs <- c(labels(x$mu.terms),
                 labels(x$nu.terms),
@@ -1018,26 +1110,40 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
   return(feature_specs)
 }
 
+#' Build a cache function name by pasting parts
+#'
+#' Internal helper: pastes its arguments into a single `.functionName` string
+#' used as a `reproducible::Cache` key.
+#'
+#' @param ... parts to paste together.
+#' @param sep separator, default `"_"`.
+#'
+#' @return a single character string.
+#' @keywords internal
+#' @noRd
 .functionNameHelper <- function(..., sep = "_") {
   paste(..., sep = sep)
 }
 
-#' Calculate confidence matrices from continuous prediction from
-#' GPBoost model
+#' Confusion matrix from continuous GPBoost predictions
 #'
-#' @param mod a list containing `valData`, a `data.table` containing the
-#'   validation data, predictions, observations and residuals from an xgboost
-#'   cross-validation fold.
-#' @param classMap a data.table of class to continuous value correspondences,
-#'   with column names being `classVar` and `contVar`
-#' @param classes vector of classes.
-#' @param classVar the class variable/column name
-#' @param contVAR the continuous variable/column name
+#' Back-transforms the survival-scale predictions and observations to severity
+#' (`1 - x`), bins them into severity classes using the quantiles that
+#' correspond to the observed class proportions, and builds a confusion matrix
+#' against the observed classes.
 #'
-#' @returns
-#' @export
+#' @param mod a list containing `valData`, a `data.table` of validation data,
+#'   predictions, observations and residuals from a GPBoost cross-validation fold.
+#' @param classMap a `data.table` of class-to-continuous-value correspondences,
+#'   with columns named by `classVar` and `contVAR`.
+#' @param classes vector of class levels.
+#' @param classVar character. Name of the class variable/column.
+#' @param contVAR character. Name of the continuous variable/column.
 #'
-#' @examples
+#' @return a list with `validMetrics` (multi-class summary) and `confMatrix`
+#'   (a `caret::confusionMatrix`).
+#' @author Ceres Barros
+#' @seealso [xgboostConfMat()]
 gpboostConfMat <- function(mod, classMap, classes, classVar = "SEV_CLASS", contVAR = "SEV_PROP") {
   predictionsDT <- copy(mod$valData)
   predictionsDT[, `:=`(pred = 1 - pred,
@@ -1073,6 +1179,20 @@ gpboostConfMat <- function(mod, classMap, classes, classVar = "SEV_CLASS", contV
 
 
 ## Plotting functions -------------
+
+#' Map a per-pixel severity variable for one fire
+#'
+#' Plots the requested column of a fire's points, coloured on a red-yellow-blue
+#' scale spanning `[0, 1]`.
+#'
+#' @param firePoints an `sf`/`SpatVector` of fire points with a `FIRE_NAME` column.
+#' @param var character. Name of the column to map to colour.
+#' @param fireID character. Fire to plot; trailing `_obs`/`_pred`/`_p1`/`_varY`
+#'   suffixes are stripped before matching `FIRE_NAME`.
+#' @param varTitle character. Plot title.
+#'
+#' @return a `ggplot` object.
+#' @author Ceres Barros
 plotFun <- function(firePoints, var, fireID, varTitle) {
   fireID <- sub("_(obs|pred|p1|varY)", "", fireID)
   ggplot(firePoints[firePoints$FIRE_NAME == fireID]) +
@@ -1085,6 +1205,17 @@ plotFun <- function(firePoints, var, fireID, varTitle) {
 }
 
 
+#' Residual diagnostic panels
+#'
+#' Arranges four residual diagnostics for a set of validation data: residuals
+#' vs. fitted, residuals vs. index, a residual density, and a normal QQ plot.
+#'
+#' @param valData a `data.frame`/`data.table` with `pred` and `resid` columns.
+#' @param filename optional path. If supplied, the 2x2 panel is written to a PNG.
+#'
+#' @return a `ggpubr::ggarrange` object (invisibly written to file when
+#'   `filename` is given).
+#' @author Ceres Barros
 plotResiduals <- function(valData, filename = NULL) {
   plot1 <- ggplot(valData, aes(x = pred, y = resid)) +
     geom_point() +

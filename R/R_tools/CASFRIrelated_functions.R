@@ -6,15 +6,25 @@
 
 ## NOTE: CASFRI functions follow SK_conversion06MISTIK.pm for SK and AB_conversion31.pm for AbB
 
-## CONVERT VALUES TO CASFIR USING A MAPPING TABLE -------
-## dt is a data.table containing the columns to be converted
-## correspTab is a correspondence/conversion table
-## dtVar is the column contaning the values to be replaced
-## correspVar is the column in the correspTab that matches dtVar
-## newVar is the the column in correspTab containing the values to use as replacement
-## newName is the name to give to the "converted" column, if NULL dtVar will be used
-## keepOld determines wheter the original colum is kept or not. Defaults to FALSE, which removes the column
+## CONVERT VALUES TO CASFRI USING A MAPPING TABLE -------
 
+#' Convert a column to CASFRI codes via a mapping table
+#'
+#' Joins a correspondence/conversion table onto `dt` to translate the values of
+#' one column into their CASFRI equivalents. Character columns are upper-cased
+#' before matching.
+#'
+#' @param dt a `data.table` containing the column to be converted.
+#' @param correspTab a correspondence/conversion table.
+#' @param dtVar character. Name of the column in `dt` holding the values to be replaced.
+#' @param correspVar character. Name of the column in `correspTab` that matches `dtVar`.
+#' @param newVar character. Name of the column in `correspTab` holding the replacement values.
+#' @param newName character. Name to give the converted column; if `NULL`, `dtVar` is used.
+#' @param keepOld logical. Whether to keep the original column. Defaults to `FALSE`
+#'   (the original column is removed).
+#'
+#' @return `dt` with the converted (and optionally the original) column.
+#' @author Ceres Barros
 invent2CASFRI <- function(dt, correspTab, dtVar, correspVar, newVar,
                           newName = NULL, keepOld = FALSE) {
   if (is.null(newName)) newName <- dtVar
@@ -896,11 +906,22 @@ SMRAdjustAB <- function(moist, layerID) {
 
 
 ## CONVERT VEGETATION INVENTORIES FUNCTIONS ----
-## inv is a shapefile containing inventory polygons
-## tablesDir is the directory containing the conversion tables .xlsx file
-## folder is the directory path where the converted shapefiles will be saved
-## dim is used for faster caching - omit "inv"
 
+#' Convert Alberta inventory data to the CASFRI standard
+#'
+#' Translates an Alberta (AVI-style) vegetation inventory into CASFRI variables,
+#' applying the atomic recoders (`soilMoistureRegime`, `spLatinName`, `spPercent`,
+#' `spPercentAdjust`, `originUpper`/`originLower`, `wetlandCodesAB`, the AB
+#' adjusters, and `invent2CASFRI` table joins) following `AB_conversion31.pm`.
+#'
+#' @param inv an `sf` object of inventory polygons (Alberta).
+#' @param tablesDir path to the `.xlsx` file holding the conversion tables (one sheet per table).
+#' @param folder directory where converted shapefiles are saved.
+#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#'
+#' @return an `sf` object of the inventory with CASFRI-standard attributes.
+#' @author Ceres Barros
+#' @seealso [SKToCASFRI()], [invent2CASFRI()]
 ## Alberta
 ABToCASFRI <- function(inv, tablesDir, folder, dim) {
   message("Converting Alberta inventory data to CASFRI standard...")
@@ -1322,6 +1343,22 @@ ABToCASFRI <- function(inv, tablesDir, folder, dim) {
   return(invOut)
 }
 
+#' Convert Saskatchewan inventory data to the CASFRI standard
+#'
+#' Translates a Saskatchewan (SFVI-style) vegetation inventory into CASFRI
+#' variables, applying the atomic recoders (`nonVegNatSK`, `nonForestVegSK`,
+#' `nonVegAnthSK`, `wetlandCodesSK2`, `spLatinName`, `spPercent`,
+#' `spPercentAdjust`, `originUpper`/`originLower`, and `invent2CASFRI` table
+#' joins) following `SK_conversion06MISTIK.pm`.
+#'
+#' @param inv an `sf` object of inventory polygons (Saskatchewan).
+#' @param tablesDir path to the `.xlsx` file holding the conversion tables (one sheet per table).
+#' @param folder directory where converted shapefiles are saved.
+#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#'
+#' @return an `sf` object of the inventory with CASFRI-standard attributes.
+#' @author Ceres Barros
+#' @seealso [ABToCASFRI()], [invent2CASFRI()]
 ## Saskatchewan
 SKToCASFRI <- function(inv, tablesDir, folder, dim) {
   message("Converting Saskatchewan inventory data to CASFRI standard...")
@@ -1663,13 +1700,24 @@ SKToCASFRI <- function(inv, tablesDir, folder, dim) {
 }
 
 ## MELT PRE-FIRE DATA FUNCTIONS -------
-## these functions transform the Alberta/Saskatchewan pre-fire data from
-## an extended table format to a molten format before the data can be converted to
-## CASFRI standards
-## inv is a shapefile containing inventory polygons
-## allVars is a vector of final variables that should be present in the molten data (only for Alberta).
-## folder is the directory path where the molten shapefiles will be saved
-## dim is used for faster caching - omit "inv"
+
+#' Melt Alberta pre-fire inventory data to long (per-layer) format
+#'
+#' Transforms the Alberta pre-fire inventory from a wide, extended-table format
+#' (canopy/understory columns side by side) into a molten per-layer format, so
+#' it can then be converted to the CASFRI standard. Writes the molten `sf` to a
+#' shapefile and returns it.
+#'
+#' @param inv an `sf` object of inventory polygons (Alberta).
+#' @param invName character. Base name for the output (the molten file is named `<invName>Melt`).
+#' @param allVars character vector of final variables that must be present in the
+#'   molten data; any missing are added as `NA` (Alberta only).
+#' @param folder directory where the molten shapefile is saved.
+#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#'
+#' @return the molten inventory as an `sf` object.
+#' @author Ceres Barros
+#' @seealso [meltPreFireSKInv()], [ABToCASFRI()]
 ## Alberta
 meltPreFireABInv <- function(inv, invName, allVars, folder, dim) {
   tmpDT <- st_set_geometry(inv, NULL) %>%
@@ -1834,6 +1882,21 @@ meltPreFireABInv <- function(inv, invName, allVars, folder, dim) {
   return(invOut)
 }
 
+#' Melt Saskatchewan pre-fire inventory data to long (per-layer) format
+#'
+#' Transforms the Saskatchewan pre-fire inventory from a wide, extended-table
+#' format (numbered layer / shrub / herb columns) into a molten per-layer
+#' format, so it can then be converted to the CASFRI standard. Writes the molten
+#' `sf` to a shapefile and returns it.
+#'
+#' @param inv an `sf` object of inventory polygons (Saskatchewan).
+#' @param invName character. Base name for the output (the molten file is named `<invName>Melt`).
+#' @param folder directory where the molten shapefile is saved.
+#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#'
+#' @return the molten inventory as an `sf` object.
+#' @author Ceres Barros
+#' @seealso [meltPreFireABInv()], [SKToCASFRI()]
 ## Saskatechewan
 meltPreFireSKInv <- function(inv,  invName, folder, dim) {
   tmpDT <- st_set_geometry(inv, NULL) %>%

@@ -2,7 +2,8 @@
   "permission": {
     "edit": {
       "*.md": "allow",
-      "*.R": "allow"
+      "*.R": "allow",
+      "*.json": "allow"
     },
     "bash": {
       "git -C c:/Users/cbarros/GitHub/LIM_FireSevModels status *": "allow",
@@ -20,7 +21,10 @@
       "git log *": "allow",
       "git branch *": "allow",
       "git tag *": "allow",
-      "git checkout *": "allow"
+      "git checkout *": "allow",
+      "python3 *": "allow",
+      "git add *": "allow",
+      "git commit *": "allow"
     }
   }
 }

@@ -118,5 +118,5 @@ Commits `d43ee3c`, `f0fa101`, `74e5e90`, `3be14db`, `0ae2fe2`, `917cfd2` are loc
 
 ## Open items
 
-- `.posit/assistant/settings.json` is rewritten live by the permission system. Currently the `bash` allowlist has `"python *"` but not `"python3 *"`; the heredoc workflow invokes `python3`, so re-adding `"python3 *": "allow"` would avoid repeated prompts (pending user decision).
+- `.posit/assistant/settings.json` is rewritten live by the permission system. Current state: `permission.edit` allows `*.md`, `*.json`, and `*.R` (the last is intentionally kept by the user — the heredoc-only rule for R files is a behavioural convention, not permission-enforced); the `bash` allowlist now includes both `"python *"` and `"python3 *"` (resolved); `git add`/`git commit`/`git push` are set to `"ask"`.
 - The stale Windows-path `git -C c:/Users/cbarros/...` allowlist entries in `.posit/assistant/settings.json` still don't match this Linux checkout (optional cleanup).

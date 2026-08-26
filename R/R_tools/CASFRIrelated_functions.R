@@ -914,7 +914,7 @@ SMRAdjustAB <- function(moist, layerID) {
 #' `spPercentAdjust`, `originUpper`/`originLower`, `wetlandCodesAB`, the AB
 #' adjusters, and `invent2CASFRI` table joins) following `AB_conversion31.pm`.
 #'
-#' @param inv an `sf` object of inventory polygons (Alberta).
+#' @param inv an `sf` object of inventory polygons.
 #' @param tablesDir path to the `.xlsx` file holding the conversion tables (one sheet per table).
 #' @param folder directory where converted shapefiles are saved.
 #' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
@@ -1351,10 +1351,7 @@ ABToCASFRI <- function(inv, tablesDir, folder, dim) {
 #' `spPercentAdjust`, `originUpper`/`originLower`, and `invent2CASFRI` table
 #' joins) following `SK_conversion06MISTIK.pm`.
 #'
-#' @param inv an `sf` object of inventory polygons (Saskatchewan).
-#' @param tablesDir path to the `.xlsx` file holding the conversion tables (one sheet per table).
-#' @param folder directory where converted shapefiles are saved.
-#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#' @inheritParams ABToCASFRI
 #'
 #' @return an `sf` object of the inventory with CASFRI-standard attributes.
 #' @author Ceres Barros
@@ -1708,12 +1705,10 @@ SKToCASFRI <- function(inv, tablesDir, folder, dim) {
 #' it can then be converted to the CASFRI standard. Writes the molten `sf` to a
 #' shapefile and returns it.
 #'
-#' @param inv an `sf` object of inventory polygons (Alberta).
+#' @inheritParams ABToCASFRI
 #' @param invName character. Base name for the output (the molten file is named `<invName>Melt`).
 #' @param allVars character vector of final variables that must be present in the
 #'   molten data; any missing are added as `NA` (Alberta only).
-#' @param folder directory where the molten shapefile is saved.
-#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
 #'
 #' @return the molten inventory as an `sf` object.
 #' @author Ceres Barros
@@ -1889,10 +1884,7 @@ meltPreFireABInv <- function(inv, invName, allVars, folder, dim) {
 #' format, so it can then be converted to the CASFRI standard. Writes the molten
 #' `sf` to a shapefile and returns it.
 #'
-#' @param inv an `sf` object of inventory polygons (Saskatchewan).
-#' @param invName character. Base name for the output (the molten file is named `<invName>Melt`).
-#' @param folder directory where the molten shapefile is saved.
-#' @param dim used only to speed up caching (so `inv` itself can be omitted from the digest).
+#' @inheritParams meltPreFireABInv
 #'
 #' @return the molten inventory as an `sf` object.
 #' @author Ceres Barros

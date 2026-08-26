@@ -1,16 +1,20 @@
 # Plan: Document helper functions in `R/R_tools/` and `analyses/R_tools/`
 
-## Status (2026-08-21) — Stage 2 DONE
+## Status (2026-08-25) — Stage 3 IN PROGRESS (CASFRI wrappers done)
 
-Stage 1 (committed `f503e1c`) and Stage 2 (committed `f0fa101`) are complete.
-All writes go via `bash`+`python3` heredoc (never the `edit` tool, which
-triggers Air/format-on-save), verified with a comment-only `git diff` check.
-Air is disabled globally. Also note: `R/R_tools/inputMaps.R` was **removed as
-dead code** (its four study-region helpers had no callers here or across the
-upstream `LandscapesInMotion` development/master/xgboost branches; recorded in
-`AGENTS.md`), and `R/R_tools/moduleSticker.R` was deleted earlier by the user.
+Stage 1 (`f503e1c`) and Stage 2 (`f0fa101`) are complete. Stage 3 has started:
+the 5 CASFRI wrappers are documented (`0ae2fe2`) and DRY-ed with `@inheritParams`
+(`917cfd2`). Remaining: the 17 CASFRI atomic recoders, then the two
+`analyses/R_tools/` scripts. All writes go via `bash`+`python3` heredoc (never
+the `edit` tool, which triggers Air/format-on-save), verified with a
+comment-only `git diff` check. Air is disabled globally. `R/R_tools/inputMaps.R`
+was **removed as dead code** (its four study-region helpers had no callers here
+or across the upstream `LandscapesInMotion` development/master/xgboost branches;
+recorded in `AGENTS.md`), and `R/R_tools/moduleSticker.R` was deleted earlier by
+the user. Commits `d43ee3c`, `f0fa101`, `74e5e90`, `3be14db`, `0ae2fe2`,
+`917cfd2` are local and **not yet pushed**.
 
-**Next step: Stage 3.**
+**Next step: the 17 CASFRI atomic recoders.**
 
 - [x] `R/R_tools/prepCorrTable.R` — top note rewritten.
 - [x] `R/R_tools/Rsq_FIXED.R` — `Rsq_2` roxygen block above the function; original signature and body untouched.
@@ -26,9 +30,10 @@ upstream `LandscapesInMotion` development/master/xgboost branches; recorded in
 - [x] `R/R_tools/inputMaps.R` — REMOVED as dead code (no callers here or upstream); not documented.
 - [x] `R/R_tools/Useful_functions.R` — per-function `#'` roxygen on all 16 functions (11 exported + 5 internal). Full blocks for exported functions; `@keywords internal`/`@noRd` for `.calculateFireEvents`, `.tunexgboost`, `.predfunGAMLSS`, `.modelspecsfunGAMLSS`, `.functionNameHelper`; `@inheritParams runXGBOOST` on `.tunexgboost` and `runGPBOOST`; filled the empty `@returns`/`@examples` stubs on `xgboostConfMat`/`gpboostConfMat`; `@note` on `xgboostConfMat` flagging the missing explicit `return()`. Comment-only diff (202/71), parses under R.
 
-## Stage 3 — pending (NEXT)
+## Stage 3 — IN PROGRESS
 
-- [ ] `R/R_tools/CASFRIrelated_functions.R` — tiered (full for the 5 wrappers; light for ~17 atomic recoders).
+- [x] `R/R_tools/CASFRIrelated_functions.R` **wrappers** — full roxygen for the 5 wrappers (`invent2CASFRI`, `ABToCASFRI`, `SKToCASFRI`, `meltPreFireABInv`, `meltPreFireSKInv`); committed `0ae2fe2` (+ `CASFIR`→`CASFRI` typo fix), then DRY-ed via `@inheritParams` in `917cfd2` (SK/melt wrappers inherit shared params; `ABToCASFRI`'s `@param inv` made province-neutral).
+- [ ] `R/R_tools/CASFRIrelated_functions.R` **atomic recoders** (17) — light title + `@param` pass: `spLatinName`, `TypeForest`, `spPercent`, `spPercentAdjust`, `originUpper`, `originLower`, `nonVegNatSK`, `nonVegAnthSK`, `nonForestVegSK`, `wetlandCodesSK`, `wetlandCodesSK2`, `wetlandCodesAB`, `soilMoistureRegime`, `NFLAdjustAB`, `SMRAdjustAB`, `addWaterInfo`, `correctCSGPFTTYPE`.
 - [ ] `analyses/R_tools/DAfires_expAnalyses_dataPrep.R`.
 - [ ] `analyses/R_tools/summarizeABSK_AllData.R`.
 
@@ -40,7 +45,11 @@ upstream `LandscapesInMotion` development/master/xgboost branches; recorded in
   confirm only comment lines changed. If any non-comment line moved, revert
   and retry.
 - `"*.R": "allow"` under `permission.edit` in `.posit/assistant/settings.json`
-  is intentionally kept.
+  was **removed** (`3be14db`) so R edits fall back to the default prompt; only
+  `"*.md"`/`"*.json"` remain allowed. Note the `bash` allowlist has `"python *"`
+  but not `"python3 *"` — re-adding `"python3 *": "allow"` would spare the
+  heredoc workflow repeated prompts (pending user decision). The stale
+  Windows-path `git -C c:/...` entries still don't match this Linux checkout.
 
 ## User style notes (learned 2026-08-20)
 

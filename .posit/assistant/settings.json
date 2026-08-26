@@ -23,8 +23,9 @@
       "git tag *": "allow",
       "git checkout *": "allow",
       "python3 *": "allow",
-      "git add *": "allow",
-      "git commit *": "allow"
+      "git add *": "ask",
+      "git commit *": "ask",
+      "git push *": "ask"
     }
   }
 }

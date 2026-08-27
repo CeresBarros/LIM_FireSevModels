@@ -1,12 +1,23 @@
-## FUNCTIONS TO SUMMARIZE DATA
-## calculates summary statistics on weather data and reshapes species data to species columns containing
-## percent cover values per pixel. Ignores understory layer, but creates a column of understory presence/absence
-
-## dim (dim of DT) is used for caching purposes to avoid caching DT
-## days (passed to summarizeClimateVars) can be used to index the days that enter the summary ('1' is the first day)
-##   the if more days are listed than those available for a fire, all days for that fire will be used.
-##   Defaults to 'NULL' to use all available days.
-
+#' Summarize fire weather and reshape species cover for the ABSK fire dataset
+#'
+#' Computes per-pixel summary statistics on the fire-weather columns (via
+#' [summarizeClimateVars()]) and reshapes the species data so each species
+#' becomes a column of percent-cover values per pixel. The understorey layer is
+#' dropped (it cannot be reliably trusted; Andison pers. comm.), but a
+#' presence/absence `UNDERSTOREY` column is retained.
+#'
+#' @param DT a `data.table` of the joined ABSK fire/veg/topo/weather data.
+#' @param dim the dimensions of `DT`, used only for caching so that `DT` itself
+#'   need not be digested.
+#' @param days numeric vector indexing the days to enter the weather summary
+#'   (`1` is the first day); forwarded to [summarizeClimateVars()]. If more days
+#'   are requested than are available for a fire, all of that fire's days are
+#'   used. Defaults to `NULL` (use all available days).
+#'
+#' @return a `data.table` with per-pixel weather summaries and one column per
+#'   species.
+#' @author Ceres Barros
+#' @seealso [summarizeClimateVars()]
 summarizeABSK_AllData <- function(DT, dim,
                                   days = NULL) {
   if (!is.null(days) & !is.numeric(days))
@@ -82,12 +93,17 @@ summarizeABSK_AllData <- function(DT, dim,
   summaryDT
 }
 
-## Function to summarize fire weather columns.
-## Used internally by summarizeABSK_AllData to enable caching
-## dim (dim of DT) is used for caching purposes to avoid caching DT
-## days can be used to index the days that enter the summary ('1' is the first day)
-##   the if more days are listed than those available for a fire, all days for that fire will be used.
-##   Defaults to 'NULL' to use all available days.
+#' Summarize fire-weather columns per pixel
+#'
+#' Computes per-pixel summary statistics (mean, min, max, cv, range) for the
+#' fire-weather and fire-behaviour-index columns. Used internally by
+#' [summarizeABSK_AllData()] to enable caching.
+#'
+#' @inheritParams summarizeABSK_AllData
+#'
+#' @return a `data.table` of per-pixel fire-weather summary statistics.
+#' @author Ceres Barros
+#' @keywords internal
 summarizeClimateVars <- function(DT, dim, days = NULL) {
   if (!is.null(days)) {
     ## make a temp table of fires and julian days

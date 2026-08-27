@@ -1,13 +1,24 @@
-## ---------------------------------
-## DAVID ANDISON FIRE DATA
-##
-## Dataprep function for statiscal analyses
-## ---------------------------------
-
-## resolution is passed to joinSevVegTopoWeatherData
-## doCache controls all caching
-## bindAllFires controls whether all fire data binding should be repeated
-
+#' Prepare and join the David Andison ABSK fire data for statistical analyses
+#'
+#' Loads, cleans and joins the post-fire severity, pre-fire vegetation
+#' (converted to the CASFRI standard), topography and fire-weather datasets for
+#' the Alberta and Saskatchewan fires, returning a single per-pixel
+#' `data.table`. Most heavy steps are wrapped in [reproducible::Cache()].
+#'
+#' @param fireDataPath character. Folder path to the fire-severity data.
+#' @param vegDataPath character. Folder path to the pre-fire vegetation data.
+#' @param topoDataPath character. Folder path to the topography data.
+#' @param weatherDataPath character. Folder path to the fire-weather data.
+#' @param resolution numeric. Rasterization resolution in metres, passed to
+#'   [joinSevVegTopoWeatherData()]. Defaults to 20.
+#' @param doCache logical. Controls all caching. Defaults to `TRUE`.
+#' @param bindAllFires logical. Whether the all-fire data binding should be
+#'   repeated. Defaults to `FALSE`.
+#'
+#' @return a `data.table` of the joined severity/vegetation/topography/weather
+#'   data, with ecoregion attributes.
+#' @author Ceres Barros
+#' @seealso [dataPrepWrapper()], [cleanAndBindFireData()]
 ABSKfires_DataPrep <- function(
     fireDataPath = "data/fires_Dave/fireSev",
     vegDataPath = "data/fires_Dave/prefireVeg",
@@ -558,6 +569,21 @@ ABSKfires_DataPrep <- function(
 }
 
 
+#' Load, clean and bind the ABSK post-fire severity shapefiles
+#'
+#' Reads the Alberta and Saskatchewan post-fire severity shapefiles, renames and
+#' cleans their fields, harmonizes column classes, recodes severity classes onto
+#' a common percent-mortality scale (with a continuous `SEV_CONT`), fixes known
+#' fire-year errors, and row-binds them. Called internally by
+#' [ABSKfires_DataPrep()].
+#'
+#' @param files character vector of shapefile base names to read.
+#' @param fireDataPath character. Folder path holding the shapefiles and their
+#'   field-correspondence tables.
+#'
+#' @return an `sf` object of the bound, cleaned post-fire data.
+#' @author Ceres Barros
+#' @keywords internal
 cleanAndBindFireData <- function(files, fireDataPath) {
   for (x in files) {
     suppressWarnings(
@@ -838,13 +864,8 @@ cleanAndBindFireData <- function(files, fireDataPath) {
 #' @param topoDataPath character. Folder path to topography data.
 #' @param weatherDataPath character. Folder path to fire weather data.
 #'
-#' @returns
-#' @export
+#' @returns a `data.table` of the cleaned, summarized per-pixel analysis data.
 #'
-#' @importFrom amc .gc
-#' @importFrom reproducible Cache
-#' @importFrom crayon cyan
-
 dataPrepWrapper <- function(resolution = 30,
                             fireDataPath = "data/fires_Dave/fireSev",
                             vegDataPath = "data/fires_Dave/prefireVeg",

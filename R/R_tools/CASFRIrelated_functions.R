@@ -54,7 +54,8 @@ invent2CASFRI <- function(dt, correspTab, dtVar, correspVar, newVar,
 ## GET SPP LATIN NAMES ---------
 #' Look up a species' CASFRI Latin name
 #'
-#' Equivalent to the `Latine` function in the CASFRI `.pm` files (AB & SK).
+#' Follows a function by the same name (`Latine`) in the CASFRI `.pm` files
+#' (`AB_conversion31.pm` and `SK_conversion06MISTIK.pm`).
 #'
 #' @param sp character. A single species code (one species per layer, per stand).
 #' @param spTable a two-column table of species-code correspondences; one column
@@ -101,8 +102,9 @@ spLatinName <- function(sp, spTable,
 #' Classify a species as hardwood or softwood
 #'
 #' Determines whether a species is softwood (`"S"`) or hardwood (`"H"`), used
-#' for verification in species-percentage determination. Only Saskatchewan is
-#' implemented. `TypeForest` is the function name in `SK_conversion06MISTIK.pm`.
+#' for verification in species-percentage determination. Follows a function by
+#' the same name (`TypeForest`) in `SK_conversion06MISTIK.pm`. Only Saskatchewan
+#' is implemented.
 #'
 #' @inheritParams spLatinName
 #' @param province character. Full name or acronym of the inventory's province.
@@ -568,8 +570,8 @@ nonForestVegSK <- function(sp1, cover, moist, layerID,
 ## WETLAND CODES SASKATCHEWAN --------
 #' Assign wetland codes (Saskatchewan, from NVSL)
 #'
-#' Applied per stand across all layers, following `SK_conversion06MISTIK.pm`.
-#' Only first-layer values are used.
+#' Follows `SK_conversion06MISTIK.pm` and the CASFRI manual. Applied per stand
+#' across all layers; only first-layer values are used.
 #'
 #' @param moist character vector. Original soil moisture regime across layers.
 #' @param cover numeric vector. Original crown closure across layers (first layer used).

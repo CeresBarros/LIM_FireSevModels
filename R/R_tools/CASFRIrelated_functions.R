@@ -56,6 +56,19 @@ invent2CASFRI <- function(dt, correspTab, dtVar, correspVar, newVar,
 ## sp: is the species code, on species at ta time
 ## spTable: is the table with species name correspondences
 
+#' Look up a species' CASFRI Latin name
+#'
+#' Equivalent to the `Latine` function in the CASFRI `.pm` files (AB & SK).
+#'
+#' @param sp character. A single species code (one species per layer, per stand).
+#' @param spTable a two-column table of species-code correspondences; one column
+#'   must be named `CASFRI`, the other holding the province codes.
+#' @param ERRCODE value returned when `sp` is not found in `spTable`.
+#' @param MISSCODE value returned when `sp` is `NA`.
+#'
+#' @return character. The CASFRI Latin name, or `ERRCODE`/`MISSCODE`.
+#' @author Ceres Barros
+#' @keywords internal
 spLatinName <- function(sp, spTable,
                         ERRCODE = "XXXX ERRC", MISSCODE = "XXXX MISS") {
   if (!any(grepl("data.table", class(spTable))))
@@ -97,6 +110,18 @@ spLatinName <- function(sp, spTable,
 ## sp: is the species code
 ## province: full name or acronym of province of the vegetation inventory data
 
+#' Classify a species as hardwood or softwood
+#'
+#' Determines whether a species is softwood (`"S"`) or hardwood (`"H"`), used
+#' for verification in species-percentage determination. Only Saskatchewan is
+#' implemented. `TypeForest` is the function name in `SK_conversion06MISTIK.pm`.
+#'
+#' @inheritParams spLatinName
+#' @param province character. Full name or acronym of the inventory's province.
+#'
+#' @return character. `"S"`, `"H"`, or `"NA"`.
+#' @author Ceres Barros
+#' @keywords internal
 TypeForest <- function(sp, province = NULL) {
   ## checks
   if (length(sp) > 1)
@@ -146,6 +171,20 @@ TypeForest <- function(sp, province = NULL) {
 ## spPer: is the original species cover
 ## province: full name or acronym of province of the vegetation inventory data
 
+#' Convert a species cover value to a CASFRI percentage
+#'
+#' Rescales an original per-species cover value to the CASFRI percentage
+#' convention. Alberta and Saskatchewan are implemented.
+#'
+#' @param spPer numeric. Original species cover for a single species (one per
+#'   layer, per stand).
+#' @param province character. Full name or acronym of the inventory's province.
+#' @param MISSCODE value used for missing entries.
+#' @param ERRCODE value used for unrecognized/erroneous entries.
+#'
+#' @return numeric. The CASFRI species percentage.
+#' @author Ceres Barros
+#' @keywords internal
 spPercent <- function(spPer, province = NULL) {
   ## checks
   if (length(spPer) > 1)
@@ -179,6 +218,18 @@ spPercent <- function(spPer, province = NULL) {
 ##  this funciton adjusts the percentage when <100
 ## it needs to be applied across all calculated percentages for each stand PER LAYER
 ## sppPer: vector of percentage cover of all species in a layer
+#' Adjust per-layer species percentages summing to less than 100
+#'
+#' Applies province-specific corrections to a vector of species percentage
+#' covers within a layer (max 10 species). Alberta and Saskatchewan are
+#' implemented.
+#'
+#' @param sppPer numeric vector. Percentage cover of all species in one layer.
+#' @inheritParams spPercent
+#'
+#' @return a list of the adjusted per-species percentages.
+#' @author Ceres Barros
+#' @keywords internal
 spPercentAdjust <- function(sppPer, province = NULL) {
   ## checks
   sppPer <- unlist(sppPer)
@@ -249,6 +300,17 @@ spPercentAdjust <- function(sppPer, province = NULL) {
 ## this function should be applied to each layer
 ## year: is the original year
 
+#' Compute the upper bound of a stand's year of origin
+#'
+#' Derives the CASFRI upper origin year from an original year, applied per
+#' layer. Alberta and Saskatchewan are implemented.
+#'
+#' @param year numeric. A single original year of origin.
+#' @inheritParams spPercent
+#'
+#' @return numeric. The upper origin year, or `MISSCODE`/`ERRCODE`.
+#' @author Ceres Barros
+#' @keywords internal
 originUpper <- function(year, province = NULL,
                         MISSCODE = -1111L, ERRCODE = -9999L) {
   ## checks
@@ -287,6 +349,16 @@ originUpper <- function(year, province = NULL,
   return(year)
 }
 
+#' Compute the lower bound of a stand's year of origin
+#'
+#' Derives the CASFRI lower origin year from an original year, applied per
+#' layer. Alberta and Saskatchewan are implemented.
+#'
+#' @inheritParams originUpper
+#'
+#' @return numeric. The lower origin year, or `MISSCODE`/`ERRCODE`.
+#' @author Ceres Barros
+#' @keywords internal
 originLower <- function(year,  province = NULL,
                         MISSCODE = -1111L, ERRCODE = -9999L) {
   ## checks
@@ -332,6 +404,18 @@ originLower <- function(year,  province = NULL,
 ## aquatic: is AQUATIC CLASS in SFVI (in Dave's data use TYPE)
 ##        of the three canopy layers (not CASFRI CC)
 
+#' Assess the naturally non-vegetated class (Saskatchewan)
+#'
+#' Follows `SK_conversion06.pm` and the CASFRI manual. Applied per stand (not
+#' per layer) and only to the first three canopy layers.
+#'
+#' @param nonForest character vector. NVSL in SFVI, across canopy layers.
+#' @param aquatic character vector. Aquatic class in SFVI (`TYPE` in Dave's data).
+#' @inheritParams spPercent
+#'
+#' @return character. The naturally non-vegetated CASFRI class, repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 nonVegNatSK <- function(nonForest, aquatic,
                         MISSCODE = -1111L, ERRCODE = -9999L) {
   ## checks:
@@ -375,6 +459,17 @@ nonVegNatSK <- function(nonForest, aquatic,
 ## landUse: is LUC in SFVI
 ## nonForest: is NVSL in SFVI
 
+#' Assess the anthropogenic non-vegetated class (Saskatchewan)
+#'
+#' Applied per stand across all layers (canopy, shrub, herb).
+#'
+#' @param landUse character vector. LUC in SFVI.
+#' @param nonForest character vector. NVSL in SFVI.
+#' @inheritParams spPercent
+#'
+#' @return character. The anthropogenic non-vegetated CASFRI class, repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 nonVegAnthSK <- function(landUse, nonForest,
                          MISSCODE = -1111L, ERRCODE = -9999L) {
   ## checks:
@@ -424,6 +519,19 @@ nonVegAnthSK <- function(landUse, nonForest,
 ## layerID: is a vector of layer type indices. In Saskatchewan 1:3 are crown layers 1, 2 and 3,
 ##      4 is the shrub layer and 5 is the herbaceous layer (LAYER_RANK is casfri).
 
+#' Assess the vegetated non-forested class (Saskatchewan)
+#'
+#' Applied per stand across all layers (canopy, shrub, herb).
+#'
+#' @param sp1 character vector. Dominant species; only shrub and herb layers are used.
+#' @param cover numeric vector. Original crown closure across layers (not CASFRI CC).
+#' @param moist character vector. Original soil moisture regime across layers.
+#' @param layerID integer vector. Layer indices: 1:3 crown layers, 4 shrub, 5 herb.
+#' @inheritParams spPercent
+#'
+#' @return character. The vegetated non-forested CASFRI class, repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 nonForestVegSK <- function(sp1, cover, moist, layerID,
                            MISSCODE = -1111L, ERRCODE = -9999L) {
   ## checks:
@@ -507,6 +615,25 @@ nonForestVegSK <- function(sp1, cover, moist, layerID,
 ## layerID: is a vector of layer type indices. In Saskatchewan 1:3 are crown layers 1, 2 and 3,
 ##      4 is the shrub layer and 5 is the herbaceous layer (LAYER_RANK is casfri).
 
+#' Assign wetland codes (Saskatchewan, from NVSL)
+#'
+#' Applied per stand across all layers, following `SK_conversion06MISTIK.pm`.
+#' Only first-layer values are used.
+#'
+#' @param moist character vector. Original soil moisture regime across layers.
+#' @param cover numeric vector. Original crown closure across layers (first layer used).
+#' @param height numeric vector. Original height across layers (first layer used).
+#' @param nonForest character vector. NVSL in SFVI (one unique value per stand).
+#' @param sp1 character vector. Original dominant species (first layer used).
+#' @param sp2 character vector. Original second-dominant species (first layer used).
+#' @param sp1Per numeric vector. CASFRI `SPEC1_PER` for `sp1` (first layer used).
+#' @param layerID integer vector. Layer indices: 1:3 crown layers, 4 shrub, 5 herb.
+#' @inheritParams spPercent
+#'
+#' @return a list of `WETLAND_CLASS`, `WETLAND_VEG_MOD`, `WETLAND_LAND_MOD` and
+#'   `WETLAND_LOCAL_MOD`, each repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 wetlandCodesSK <- function(moist, cover, height, nonForest, sp1,
                            sp2, sp1Per,  layerID, province = NULL,
                            MISSCODE = -1111L, ERRCODE = -9999L) {
@@ -611,6 +738,18 @@ wetlandCodesSK <- function(moist, cover, height, nonForest, sp1,
 }
 
 ## because Dave's data has no info on NVSL, use stand type instead
+#' Assign wetland codes (Saskatchewan, from stand type)
+#'
+#' Variant of [wetlandCodesSK()] using stand type instead of NVSL, because
+#' Dave's data has no NVSL information. Only first-layer values are used.
+#'
+#' @param standType character vector. Stand type, used in place of NVSL.
+#' @inheritParams wetlandCodesSK
+#'
+#' @return a list of `WETLAND_CLASS`, `WETLAND_VEG_MOD`, `WETLAND_LAND_MOD` and
+#'   `WETLAND_LOCAL_MOD`, each repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 wetlandCodesSK2 <- function(moist, cover, height, standType, sp1,
                             sp2, sp1Per,  layerID, province = NULL,
                             MISSCODE = -1111L, ERRCODE = -9999L) {
@@ -726,6 +865,25 @@ wetlandCodesSK2 <- function(moist, cover, height, standType, sp1,
 ## sp1Per:  is a vector of  % cover of the sp1 from canopy layer (although only first layer is used)  (original data not CASFRI SPEC1_PER)
 ## layerID: is a vector of layer type indices. In Alberta 1 is canopy 2 is understory
 
+#' Assign wetland codes (Alberta)
+#'
+#' Applied per stand across all layers, though only the first (canopy) layer's
+#' values are used.
+#'
+#' @param moist character vector. CASFRI SMR codes across layers.
+#' @param cover character vector. Original crown closure of layers (first layer used).
+#' @param nonForestLand character vector. NFL in AVI across layers.
+#' @param natNonVeg character vector. NAT_NON in AVI across layers.
+#' @param sp1 character vector. Dominant canopy species (first layer used).
+#' @param sp2 character vector. Second-dominant canopy species (first layer used).
+#' @param sp1Per numeric vector. Original percent cover of `sp1` (first layer used).
+#' @param layerID integer vector. Layer indices: 1 canopy, 2 understory.
+#' @inheritParams spPercent
+#'
+#' @return a list of `WETLAND_CLASS`, `WETLAND_VEG_MOD`, `WETLAND_LAND_MOD` and
+#'   `WETLAND_LOCAL_MOD`, each repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 wetlandCodesAB <- function(moist, cover, nonForestLand, natNonVeg,
                            sp1, sp2, sp1Per, layerID,
                            MISSCODE = -1111L, ERRCODE = -9999L) {
@@ -808,6 +966,18 @@ wetlandCodesAB <- function(moist, cover, nonForestLand, natNonVeg,
 ## sp1: is the dominant species, only species from the canopy layer are considered (use original or casfri names)
 ## moist: is a vector of original soil moisture regime cross all layers
 
+#' Derive the CASFRI soil moisture regime
+#'
+#' For some provinces the SMR is not a plain code conversion. Only Alberta is
+#' implemented.
+#'
+#' @param moist character vector. Original soil moisture regime across layers.
+#' @param sp1 character. Dominant canopy species (original or CASFRI name).
+#' @inheritParams spPercent
+#'
+#' @return character. The CASFRI SMR code, or `MISSCODE`/`ERRCODE`.
+#' @author Ceres Barros
+#' @keywords internal
 soilMoistureRegime <- function(moist, sp1, province = NULL,
                                MISSCODE = -1111L, ERRCODE = -9999L) {
 
@@ -868,6 +1038,17 @@ soilMoistureRegime <- function(moist, sp1, province = NULL,
 ## sp1: is a vector of dominant species from canopy layer (although only first layer is used)  (original data, not CASFRI SPEC1)
 ## layerID: is a vector of layer type indices. In Alberta 1 is canopy 2 is understory
 
+#' Adjust NFL codes (Alberta)
+#'
+#' Applied per stand across layers.
+#'
+#' @param nonForestLand character vector. NFL in AVI across layers.
+#' @param sp1 character vector. Dominant canopy species (first layer used).
+#' @param layerID integer vector. Layer indices: 1 canopy, 2 understory.
+#'
+#' @return the adjusted `nonForestLand` vector.
+#' @author Ceres Barros
+#' @keywords internal
 NFLAdjustAB <- function(nonForestLand, sp1, layerID) {
   ## checks:
   if (length(nonForestLand) > 2 |
@@ -892,6 +1073,17 @@ NFLAdjustAB <- function(nonForestLand, sp1, layerID) {
 ## moist: is a vector of CASFRI SMR codes across layers
 ## layerID: is a vector of layer type indices. In Alberta 1 is canopy 2 is understory
 
+#' Adjust SMR codes (Alberta)
+#'
+#' Applied per stand across layers; fills a missing understory SMR from the
+#' canopy value.
+#'
+#' @param moist character vector. CASFRI SMR codes across layers.
+#' @param layerID integer vector. Layer indices: 1 canopy, 2 understory.
+#'
+#' @return the adjusted `moist` vector.
+#' @author Ceres Barros
+#' @keywords internal
 SMRAdjustAB <- function(moist, layerID) {
   ## checks:
   if (length(moist) > 2 |
@@ -2037,6 +2229,19 @@ meltPreFireSKInv <- function(inv,  invName, folder, dim) {
 ## TYPE, CSG and PFT (final columns names, not original) colums
 
 ## add missing water info, if none other is available
+#' Add missing water TYPE information (Saskatchewan)
+#'
+#' Fills a missing `TYPE` with `"WAT"` when the polygon is aquatic and no other
+#' water class is available; warns on inconsistent CSG/PFT.
+#'
+#' @param AQUATIC_CLASS numeric. Aquatic-class indicator.
+#' @param TYPE character. Final TYPE column (not original).
+#' @param CSG character. Final CSG column (not original).
+#' @param PFT character. Final PFT column (not original).
+#'
+#' @return the (possibly updated) `TYPE` value.
+#' @author Ceres Barros
+#' @keywords internal
 addWaterInfo <- function(AQUATIC_CLASS, TYPE, CSG, PFT) {
   if (AQUATIC_CLASS > 0 & is.na(TYPE)) {
     if (is.na(CSG) & is.na(PFT))
@@ -2048,6 +2253,21 @@ addWaterInfo <- function(AQUATIC_CLASS, TYPE, CSG, PFT) {
 }
 
 ## correct mismatches between TYPE, CSG and PFT
+#' Correct mismatches between TYPE, CSG and PFT (Saskatchewan)
+#'
+#' Reconciles the final `TYPE`, `CSG` and `PFT` columns per stand, inferring a
+#' `TYPE` class from vegetation cover and soil moisture when it is missing.
+#'
+#' @param LAYER character vector. Layer indices (up to 5 layers per stand).
+#' @param TYPE character vector. Final TYPE column (one unique value per stand).
+#' @param CSG character vector. Final CSG column (one unique value per stand).
+#' @param PFT character vector. Final PFT column (one unique value per stand).
+#' @param SP1_COVER numeric vector. Dominant-species cover across layers.
+#' @param SMR character vector. CASFRI SMR (one unique value per stand).
+#'
+#' @return a list of the reconciled `TYPE`, `CSG` and `PFT`, each repeated per layer.
+#' @author Ceres Barros
+#' @keywords internal
 correctCSGPFTTYPE <- function(LAYER, TYPE, CSG, PFT, SP1_COVER, SMR) {
   ## checks
   if (length(LAYER) > 5 |

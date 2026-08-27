@@ -108,7 +108,6 @@ crossValidFunction <- function(fullDT, statsModel, origData, level = NULL,
 #' @return A list with entries `validMetrics`, `confMatrix`,
 #'   `Rsquared`, `RsqGAMLSS`, `TGD` and `coefs`.
 #' @keywords internal
-#' @noRd
 calcCrossValidMetrics <- function(samp, fullDT, origData, level = NULL, idCol, statsModel, origDataVars) {
   ## predict requires the original and new data to have the same columns
   if (!all(names(origData) %in% names(fullDT)))

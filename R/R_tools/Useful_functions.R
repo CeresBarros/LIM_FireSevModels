@@ -94,7 +94,6 @@ defineFireEvents <- function(sfObj, fireNAMES = NULL, fireVARS = NULL, crsProj =
 #' @return an `sf` object for the single fire, with a `PatchType` column.
 #' @author Ceres Barros
 #' @keywords internal
-#' @noRd
 .calculateFireEvents <- function(fire, sfObj, fireNAMES, fireVARS,
                                  crsProj, buff.dist) {
   print(as.character(fire))
@@ -628,7 +627,6 @@ runXGBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SEV_PROP",
 #' @importFrom reproducible Cache
 #' @importFrom lattice trellis.par.set
 #' @keywords internal
-#' @noRd
 .tunexgboost <- function(dig, dat, colnamesResp, figDir) {
   ## use devtools::load_all("C:/Users/cbarros/GitHub/caret/pkg/caret/")
   ## bug reported at: https://github.com/topepo/caret/issues/1412
@@ -1057,7 +1055,6 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
 #' @return numeric vector of predicted means of the (zero-one-inflated) beta
 #'   response.
 #' @keywords internal
-#' @noRd
 .predfunGAMLSS <- function(x, newdata) {
   ## note shapr::explain documentation is wrong, first arg needs to be called x
   dig <- .robustDigest(newdata)
@@ -1079,7 +1076,6 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
 #'
 #' @return a list with `labels`, `classes` and `factor_levels`.
 #' @keywords internal
-#' @noRd
 .modelspecsfunGAMLSS <- function(x) {
   featlabs <- c(labels(x$mu.terms),
                 labels(x$nu.terms),
@@ -1120,7 +1116,6 @@ runGPBOOST <- function(dat, dig, nFolds = 5, colnamesResp = "SURV_PROP",
 #'
 #' @return a single character string.
 #' @keywords internal
-#' @noRd
 .functionNameHelper <- function(..., sep = "_") {
   paste(..., sep = sep)
 }

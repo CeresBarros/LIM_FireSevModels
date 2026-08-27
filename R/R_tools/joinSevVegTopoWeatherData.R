@@ -105,7 +105,6 @@ joinSevVegTopoWeatherData <- function(sevDataSf, vegDataSf, topoDataSf, weatherD
 #' @return Called for its side effect (writes
 #'   `dataTable_<FIRE>.RData`). Returns `NULL` invisibly.
 #' @keywords internal
-#' @noRd
 joinPerFire <- function(smallSevDataSf, vegDataSf, topoDataSf, weatherDataDt,
                         rasterToMatch, saveDir) {
   amc::.gc()

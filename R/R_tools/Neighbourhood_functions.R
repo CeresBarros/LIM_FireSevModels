@@ -56,7 +56,6 @@ calculateNgbSevWrapper <- function(dists, sevPoints, sevColID, parallel = TRUE) 
 #' @return `data.table` with `pixID` and
 #'   `meanngb<sevColID>_<dist>m`.
 #' @keywords internal
-#' @noRd
 .calculateNgbSev <- function(dist, sevPoints, sevColID) {
   if (sum(names(sevPoints) %in% sevColID) > 1)
     stop("Several column names match 'sevColID")
@@ -169,7 +168,6 @@ calculateNgbBurnsWrapper <- function(dists, sevPoints, sevColID, fireColID,
 #' @return `data.table` with `pixID`, `ngbPropBurns`, `fireColID` and
 #'   `bufferSize`.
 #' @keywords internal
-#' @noRd
 .calculateNgbBurns <- function(dist, fireID, sevPoints, sevColID, fireColID, resolution) {
   if (sum(names(sevPoints) %in% sevColID) > 1)
     stop("Several column names match 'sevColID")
@@ -495,7 +493,6 @@ calculateNgbAvgs <- function(fireID, bufferMin, bufferMax, dataPoints,
 #'
 #' @return `sf` object of ring polygons.
 #' @keywords internal
-#' @noRd
 .makeRings <- function(buffers, smallBuffers, pointIDColID) {
   rings <- 1:nrow(buffers) |>
     map(\(poly) {
@@ -518,7 +515,6 @@ calculateNgbAvgs <- function(fireID, bufferMin, bufferMax, dataPoints,
 #' @param x,y `data.table`s of averaged neighbour values.
 #' @return Full outer join `data.table`.
 #' @keywords internal
-#' @noRd
 .myMerge <- function(x, y) {
   pointIDColID <- dynGet("pointIDColID")
   fireColID <- dynGet("fireColID")
@@ -544,7 +540,6 @@ calculateNgbAvgs <- function(fireID, bufferMin, bufferMax, dataPoints,
 #' @import data.table
 #' @importFrom sf st_drop_geometry
 #' @keywords internal
-#' @noRd
 .calcAvgs <- function(pointsInBuffer, dataPoints, pointIDColID, varColID) {
   ngbhoodAvgsDT <- pointsInBuffer |>
     map(\(ngbs) {

@@ -17,7 +17,6 @@
 #' @param how as in `gamlss::getPEF()`, but this patch additionally
 #'   accepts `"mean"` alongside `"median"` and `"last"`.
 #' @param output currently unused; kept for interface compatibility.
-#'   # TODO: confirm intent.
 #'
 #' @return Invisibly, a named list of `splinefun` objects - one per
 #'   requested distributional parameter - that map `term` values to

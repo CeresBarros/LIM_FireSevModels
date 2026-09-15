@@ -21,7 +21,7 @@
 Rsq_2 <- function (object, type = c("Cox Snell", "Cragg Uhler", "both")) {
   type <- match.arg(type)
   if (!is.gamlss(object))
-    stop("this is design for gamlss objects only")
+    stop("this is designed for gamlss objects only")
   Y <- if (object$family[1] %in% .gamlss.bi.list)
     cbind(object$y, object$bd - object$y) else object$y
 

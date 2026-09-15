@@ -103,7 +103,7 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 - **Internal helpers always get `@keywords internal` (and only that — never `@noRd` alongside it, since `@noRd` suppresses the `.Rd` entirely and would override `@keywords internal`).** This applies to every non-user-facing (internal) function — not just `.`-prefixed helpers but also the internal recoders and any function only called internally by a wrapper (e.g. the CASFRI internal recoders, `calcCrossValidMetrics`, `joinPerFire`). Exported/user-facing wrappers, the `_FIXED.R` shims, and plotting/analysis entry points do **not** get this tag. When documenting a new function, decide its tier first (exported/user-facing vs. internal) and tag accordingly.
 - **Other roxygen conventions**: preserve `@author` attributions; inherit upstream parameter docs with `@inheritParams pkg::fn` rather than duplicating; for the `_FIXED.R` shims add an `@note` describing the upstream bug and target version and `@seealso` the patched original (`gamlss::Rsq`, `gamlss.inf::summary.gamlssinf0to1`). Document best-guess argument shapes with a `# TODO: confirm` marker; fix wrong `@param` names/descriptions but **never reorder arguments in code**. CASFRI docs are tiered (see Stage 3 below): full roxygen for the 5 wrappers, short title + `@param` for the 17 internal recoders.
 - **Git safety: never stage, commit, or push without explicit permission.** Before any `git add`/`git commit`/`git push`, stop and ask. Draft the proposed commit message and present it for review/approval. After the user approves, re-confirm approval immediately before running the commit or push. (Enforced in `.posit/assistant/settings.json`: `git add`/`commit`/`push` are set to `"ask"`.)
-- **Flag known code issues rather than touching them**: leftover `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~468, `runGPBOOST` ~785/~832); `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`; comment typos in `Rsq_FIXED.R` (`design`→`designed`) and `summary.gamlssinf0to1_FIXED.R` (`covariante`→`covariance`, `calcualted`→`calculated`).
+- **Flag known code issues rather than touching them**: leftover `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~468, `runGPBOOST` ~785/~832); `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`.
 
 ## Documentation pass status
 
@@ -119,7 +119,9 @@ Staged roxygen documentation of `R/R_tools/` and `analyses/R_tools/` (plan under
 
 The roxygen documentation pass across `R/R_tools/` and `analyses/R_tools/` is **complete** (Stage 4 committed as `a113253`; AGENTS.md status `6cb10a7`). Verified 2026-09-15: 129 roxygen titles, 31 internal helpers tagged `@keywords internal`, zero `@noRd`/`@export` remaining. The plan is archived at `.posit/assistant/plans/archive/2026-07-31-1206-onboard-to-lim-firesevmodels-repo.md`.
 
-All doc-pass commits through `38a8a11` are pushed to `origin/main`.
+**Typo fix** (`2026-09-15`): Fixed comment typo in `Rsq_FIXED.R` line 24 (`"this is design for gamlss objects only"` → `"this is designed for gamlss objects only"`). The two typos previously flagged in `summary.gamlssinf0to1_FIXED.R` (`covariante`→`covariance`, `calcualted`→`calculated`) do not appear in the current file.
+
+All commits through the latest typo fix are pushed to `origin/main`.
 
 ## Open items
 

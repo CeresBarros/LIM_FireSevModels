@@ -89,6 +89,36 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 - `simLinks.sh` is present but not currently used; ignore its paths.
 - `R/R_tools/inputMaps.R` was **removed** (Aug 2026) as dead code: its four `sp`/`raster`/`rgeos`-based study-region helpers (`loadShpAndMakeValid`, `loadStudyRegions`, `shpStudyRegionCreate`, `createPrjFile`) had no callers here, and a cross-repo check of the upstream `LandscapesInMotion` confirmed they were unused on the `development`, `master`, and `xgboost` branches too. Recover from git history if study-region loading is ever needed (expect to modernize to `sf`/`terra`/`geodata`). `moduleSticker.R` was deleted earlier by the user.
 
+## Manuscript
+
+`manuscript/manuscript.qmd` is a Quarto document using the Elsevier journal
+format (`quarto-journals/elsevier` extension, vendored and committed under
+`manuscript/_extensions/quarto-journals/elsevier/`). Currently holds the
+extension's placeholder/starter content only (title, authors, abstract,
+equations, bibliography-style notes) — no manuscript text has been written
+yet, and no figures/tables from `analyses/` have been pulled in.
+
+- Render with `quarto render manuscript/manuscript.qmd` from the repo root
+  (or `cd manuscript && quarto render manuscript.qmd`). Produces
+  `manuscript.pdf` via TinyTeX/XeLaTeX; TinyTeX (v2026.01) is already
+  installed on this machine, no LaTeX setup needed.
+- Bibliography: `manuscript/references.bib`, cited with `@key` and
+  natbib/`elsarticle-harv.bst` (author-year style, set via
+  `format.elsevier-pdf.journal.cite-style: authoryear` in the YAML).
+- The upstream template's example content includes R chunks
+  (`knitr::kable()`, `plot()`) to generate a demo figure/table; those were
+  replaced with static markdown figure/table placeholders because this R
+  installation's library path lacks `knitr`/`rmarkdown`. Install those
+  packages first if executable R chunks are wanted later.
+- Journal formatting is controlled by the Elsevier `elsarticle.cls` LaTeX
+  class shipped with the extension (`manuscript/elsarticle.cls`), not by
+  Quarto/pandoc defaults — margins, headers, section numbering, and
+  title-page layout follow Elsevier's house style via the `journal.formatting`
+  YAML key (currently `preprint`; do not also set `journal.model` alongside
+  `preprint` — they're mutually exclusive per the class).
+- Plan for this setup is archived at
+  `.posit/assistant/plans/archive/2026-09-15-1533-quarto-elsevier-manuscript.md`.
+
 ## Assistant conventions in this repo
 
 - Edits to `*.md` are pre-approved via `.posit/assistant/settings.json`; other file edits should be surfaced before writing.

@@ -3,7 +3,9 @@
     "edit": {
       "*.md": "allow",
       "*.R": "allow",
-      "*.json": "allow"
+      "*.json": "allow",
+      "*.bib": "allow",
+      "*.qmd": "allow"
     },
     "bash": {
       "git -C c:/Users/cbarros/GitHub/LIM_FireSevModels status *": "allow",
@@ -25,7 +27,15 @@
       "python3 *": "allow",
       "git add *": "ask",
       "git commit *": "ask",
-      "git push *": "ask"
+      "git push *": "ask",
+      "mkdir *": "allow",
+      "cd *": "allow",
+      "quarto add *": "allow",
+      "ls *": "allow",
+      "quarto render *": "allow"
+    },
+    "webfetch": {
+      "https://raw.githubusercontent.com/*": "allow"
     }
   }
 }

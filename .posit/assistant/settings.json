@@ -32,10 +32,16 @@
       "cd *": "allow",
       "quarto add *": "allow",
       "ls *": "allow",
-      "quarto render *": "allow"
+      "quarto render *": "allow",
+      "pdftotext *": "allow",
+      "wc *": "allow",
+      "sed *": "allow"
     },
     "webfetch": {
       "https://raw.githubusercontent.com/*": "allow"
+    },
+    "external_directory": {
+      "/tmp/*": "allow"
     }
   }
 }

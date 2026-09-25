@@ -551,43 +551,41 @@ for the corresponding image files to be added later. -->
 
 **Figure 1.** The 36 fire perimeters (in black) with severity, topography, pre-fire vegetation and fire weather data included in the zero-one-inflated beta regression models. Canadian Ecozones (top legend) and Natural Regions of Alberta (bottom legend and colour-outlined polygons) are also shown.
 
-*[FIGURE PLACEHOLDER: fig-1]*
-
 {{< pagebreak >}}
-
-**Figure 2.** Cross-validation results and model fit. The Cox and Snell R2 and global deviance were calculated for each fold of a k-fold cross-validation (k = 10) and their distributions are shown in the boxplots. The red dots show the R2 and global deviance of the model fitted with the full dataset.
 
 *[FIGURE PLACEHOLDER: fig-2]*
 
-{{< pagebreak >}}
+**Figure 2.** Cross-validation results and model fit. The Cox and Snell R2 and global deviance were calculated for each fold of a k-fold cross-validation (k = 10) and their distributions are shown in the boxplots. The red dots show the R2 and global deviance of the model fitted with the full dataset.
 
-**Figure 3.** Covariate partial effects on mean severity in forested cells. The expected mean of a ZOIB regression is affected by parameters $\mu$, $\nu$ and $\tau$; hence, the figure shows the partial effects of covariates entering the $\mu$, $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-3]*
 
-{{< pagebreak >}}
+**Figure 3.** Covariate partial effects on mean severity in forested cells. The expected mean of a ZOIB regression is affected by parameters $\mu$, $\nu$ and $\tau$; hence, the figure shows the partial effects of covariates entering the $\mu$, $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
-**Figure 4.** Covariate partial effects on expected probabilities of observing maximum severity, p1 (i.e. 100% mortality) in forested cells. Given that p1 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-4]*
 
-{{< pagebreak >}}
+**Figure 4.** Covariate partial effects on expected probabilities of observing maximum severity, p1 (i.e. 100% mortality) in forested cells. Given that p1 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
-**Figure 5.** Covariate partial effects on expected probabilities of observing no severity, p0 (i.e. a zero - 0% mortality) in forested cells. Given that p0 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-5]*
 
-{{< pagebreak >}}
+**Figure 5.** Covariate partial effects on expected probabilities of observing no severity, p0 (i.e. a zero - 0% mortality) in forested cells. Given that p0 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
-**Figure 6.** Covariate partial effects on the expected variance of severity in forested cells. Given that the expected variance is affected by all parameters of the ZOIB regression, the figure shows the partial effects of all covariates included in the ZOIB regression model (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID). See Figure 7 for remaining covariates.
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-6]*
 
+**Figure 6.** Covariate partial effects on the expected variance of severity in forested cells. Given that the expected variance is affected by all parameters of the ZOIB regression, the figure shows the partial effects of all covariates included in the ZOIB regression model (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID). See Figure 7 for remaining covariates.
+
 {{< pagebreak >}}
 
-**Figure 7.** Continued from Figure 6.
-
 *[FIGURE PLACEHOLDER: fig-7]*
+
+**Figure 7.** Continued from Figure 6.
 
 {{< pagebreak >}}
 
@@ -595,9 +593,9 @@ for the corresponding image files to be added later. -->
 \begin{landscape}
 ```
 
-**Figure 8.** Maps of observed and predicted severity for the a) Buffalo Head and b) Livock fires, for which there was high agreement between predictions and observations. Predicted severity maps show expected mean severity (second column) and the probability of stand-replacement (i.e., maximum severity, p1; third column).
-
 *[FIGURE PLACEHOLDER: fig-8]*
+
+**Figure 8.** Maps of observed and predicted severity for the a) Buffalo Head and b) Livock fires, for which there was high agreement between predictions and observations. Predicted severity maps show expected mean severity (second column) and the probability of stand-replacement (i.e., maximum severity, p1; third column).
 
 ```{=latex}
 \end{landscape}

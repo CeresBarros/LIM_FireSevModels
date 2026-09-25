@@ -93,10 +93,12 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 
 `manuscript/manuscript.qmd` is a Quarto document using the Elsevier journal
 format (`quarto-journals/elsevier` extension, vendored and committed under
-`manuscript/_extensions/quarto-journals/elsevier/`). Currently holds the
-extension's placeholder/starter content only (title, authors, abstract,
-equations, bibliography-style notes) — no manuscript text has been written
-yet, and no figures/tables from `analyses/` have been pulled in.
+`manuscript/_extensions/quarto-journals/elsevier/`). It now holds the **full
+text of `manuscript/old/FireSeverity_MS.pdf`** ("Predictive models of fire
+severity: from complex distribution modelling to machine learning"),
+transcribed section-by-section (Introduction through Discussion, References,
+Tables 1–4, Figure captions, Appendices 1–3), not just the extension's
+starter placeholder content.
 
 - Render with `quarto render manuscript/manuscript.qmd` from the repo root
   (or `cd manuscript && quarto render manuscript.qmd`). Produces
@@ -105,19 +107,60 @@ yet, and no figures/tables from `analyses/` have been pulled in.
 - Bibliography: `manuscript/references.bib`, cited with `@key` and
   natbib/`elsarticle-harv.bst` (author-year style, set via
   `format.elsevier-pdf.journal.cite-style: authoryear` in the YAML).
-- The upstream template's example content includes R chunks
+  **`references.bib` is not yet populated with the manuscript's real
+  sources** — the body currently uses `[CITE: Author-YYYY]` placeholder
+  markers (plain bracketed text, not pandoc `@key` citations) in place of
+  every resolvable in-text citation, plus `[REF]` markers preserved as-is
+  from the source PDF's own unresolved citations. The full original
+  reference list (needed to build `references.bib`) is recorded in an HTML
+  comment near the end of `manuscript.qmd`, just before the References
+  section.
+- **Outstanding citation TODOs**: four in-text citations are cited in the
+  PDF body but do **not** appear in the PDF's own reference list, so their
+  full bibliographic details still need to be tracked down before they can
+  be resolved: **Belote et al. (2015)** and **Lydersen et al. (2016)** (cited
+  in the Discussion, re: pre-fire vegetation/tree-density effects on
+  post-fire mortality in Montana/Sierra Nevada), and **Bolker et al. (2009)**
+  and **McCullagh & Nelder (1989)** (cited in Methods, re: GLM framing of
+  beta regression). Each occurrence in `manuscript.qmd` is marked inline
+  with `-- TODO: full citation not found in source PDF's reference list`
+  next to the `[CITE: ...]` placeholder, so they're easy to grep for
+  (`grep -n "TODO: full citation" manuscript/manuscript.qmd`).
+- Figures (Fig. 1–8, S2.1–S2.2, S3.1–S3.8) were not extracted from the
+  source PDF — captions are preserved with `*[FIGURE PLACEHOLDER: fig-id]*`
+  markers for images to be added later.
+- The upstream template's example content included R chunks
   (`knitr::kable()`, `plot()`) to generate a demo figure/table; those were
-  replaced with static markdown figure/table placeholders because this R
-  installation's library path lacks `knitr`/`rmarkdown`. Install those
-  packages first if executable R chunks are wanted later.
+  removed (replaced with static markdown figure/table placeholders, then
+  with the real manuscript content) because this R installation's library
+  path lacks `knitr`/`rmarkdown`. Install those packages first if executable
+  R chunks are wanted later.
 - Journal formatting is controlled by the Elsevier `elsarticle.cls` LaTeX
   class shipped with the extension (`manuscript/elsarticle.cls`), not by
-  Quarto/pandoc defaults — margins, headers, section numbering, and
-  title-page layout follow Elsevier's house style via the `journal.formatting`
-  YAML key (currently `preprint`; do not also set `journal.model` alongside
-  `preprint` — they're mutually exclusive per the class).
+  Quarto/pandoc defaults — margins, headers, and title-page layout follow
+  Elsevier's house style via the `journal.formatting` YAML key (currently
+  `preprint`; do not also set `journal.model` alongside `preprint` — they're
+  mutually exclusive per the class).
+  - Author affiliation markers use `classoption: numafflabel` (numbered
+    superscripts) instead of the class's own default (lettered
+    superscripts, `\alph{affn}`) — this is a class-level option, not a
+    Quarto/extension default.
+  - Section numbering is explicitly disabled with `number-sections: false`
+    in the document YAML — the extension's `_extension.yml` defaults this
+    to `true`, but numbering is not enforced by `elsarticle.cls` itself.
+- **Page breaks and landscape pages (done, 2026-09-25)**: `{{< pagebreak >}}`
+  shortcodes precede every table caption (Tables 1–4), every figure
+  placeholder/caption (Figures 1–8, S2.1–S2.2, S3.1–S3.8), and every
+  Appendix heading (1, 2, 3). Table 1, Figure 8, and Figure S3.8 are each
+  wrapped in a raw-LaTeX `` ```{=latex} \begin{landscape} ... \end{landscape} ```
+  block so those pages render rotated; this requires `\usepackage{pdflscape}`,
+  added via `include-in-header` in the YAML (`elsarticle.cls` doesn't ship
+  landscape support itself). Verified by rendering to PDF (47 pages) and
+  confirming 8 pages carry `/Rotate 90` via `qpdf --qdf`.
 - Plan for this setup is archived at
   `.posit/assistant/plans/archive/2026-09-15-1533-quarto-elsevier-manuscript.md`.
+
+
 
 ## Assistant conventions in this repo
 

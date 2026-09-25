@@ -529,18 +529,16 @@ Table 3. Importance of model covariate towards the variation of each component o
 
 {{< pagebreak >}}
 
-Table 4. Confusion matrix for the final ZOIB regression model. True positives (diagonal) are underlined and the observed percent occurrence of each class is shown in parentheses.
+Table 4. Confusion matrix for the final ZOIB regression model. True positives (diagonal) are in bold and the observed percent occurrence of each class is shown in parentheses across column headers.
 
-| Predicted severity class | 0 (9%) | 1 (6%) | 2 (6%) | 3 (7%) | 4 (9%) | 5 (62%) |
-| --- | --- | --- | --- | --- | --- | --- |
-| 0 | <u>76%</u> | 4% | 5% | 5% | 4% | 2% |
-| 1 | 11% | <u>18%</u> | 13% | 10% | 8% | 3% |
-| 2 | 4% | 14% | <u>13%</u> | 12% | 7% | 5% |
-| 3 | 2% | 12% | 15% | <u>13%</u> | 7% | 5% |
-| 4 | 3% | 12% | 14% | 14% | <u>13%</u> | 9% |
-| 5 | 5% | 41% | 40% | 47% | 62% | <u>76%</u> |
-
-Observed severity class (% occurrence) is shown across columns.
+| Predicted severity class | 0 (9%)  | 1 (6%)  | 2 (6%)  | 3 (7%)  | 4 (9%)  | 5 (62%) |
+|-----------|-----------|-----------|-----------|-----------|-----------|-----------|
+| 0                        | **76%** | 4%      | 5%      | 5%      | 4%      | 2%      |
+| 1                        | 11%     | **18%** | 13%     | 10%     | 8%      | 3%      |
+| 2                        | 4%      | 14%     | **13%** | 12%     | 7%      | 5%      |
+| 3                        | 2%      | 12%     | 15%     | **13%** | 7%      | 5%      |
+| 4                        | 3%      | 12%     | 14%     | 14%     | **13%** | 9%      |
+| 5                        | 5%      | 41%     | 40%     | 47%     | 62%     | **76%** |
 
 : {#tbl-4}
 

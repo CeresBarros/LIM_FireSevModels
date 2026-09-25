@@ -70,6 +70,11 @@ format:
     # Quarto/extension default (extension.yml), not enforced by
     # elsarticle.cls itself -- disable it here.
     number-sections: false
+    # pdflscape provides the `landscape` environment used below to rotate
+    # Table 1, Figure 8, and Figure S3.8 onto landscape-oriented pages.
+    include-in-header:
+      text: |
+        \usepackage{pdflscape}
     journal:
       name: Journal Name
       formatting: preprint
@@ -130,7 +135,7 @@ Fire severity and vegetation polygons were gridded (i.e. rasterized) using a 30m
 
 ## Zero-and-one-inflated beta regression models
 
-Beta regressions are similar to generalised linear models (GLMs; [CITE: Bolker-2009]; [CITE: McCullagh-Nelder-1989]) in that they are composed of three components: the random component (the beta distribution), the systematic component (the linear predictor) and the link function (the link between the random and systematic component; please see [CITE: Ferrari-2004] for a comprehensive explanation). The beta distribution is a member of the exponential family defined by two parameters, a and b (both bound to (0,1)), that allow for a variety of shapes (unimodal, 'U', 'J', inverted 'J', uniform; [CITE: Ospina-2010]). In a regression context, the $\mu$ (expected mean) and $\sigma$ parameterisation, Beta($\mu$, $\sigma$), is used instead of Beta(a,b) (see [CITE: Douma-2019] for how the two parameterisations are related). Using the Beta($\mu$, $\sigma$) parameterisation, the expected mean $\mu$ (E(Y) = $\mu$) is related to the expected variance via the precision parameter $\sigma$ [CITE: Ospina-2010]:
+Beta regressions are similar to generalised linear models (GLMs; [CITE: Bolker-2009 -- TODO: full citation not found in source PDF's reference list]; [CITE: McCullagh-Nelder-1989 -- TODO: full citation not found in source PDF's reference list]) in that they are composed of three components: the random component (the beta distribution), the systematic component (the linear predictor) and the link function (the link between the random and systematic component; please see [CITE: Ferrari-2004] for a comprehensive explanation). The beta distribution is a member of the exponential family defined by two parameters, a and b (both bound to (0,1)), that allow for a variety of shapes (unimodal, 'U', 'J', inverted 'J', uniform; [CITE: Ospina-2010]). In a regression context, the $\mu$ (expected mean) and $\sigma$ parameterisation, Beta($\mu$, $\sigma$), is used instead of Beta(a,b) (see [CITE: Douma-2019] for how the two parameterisations are related). Using the Beta($\mu$, $\sigma$) parameterisation, the expected mean $\mu$ (E(Y) = $\mu$) is related to the expected variance via the precision parameter $\sigma$ [CITE: Ospina-2010]:
 
 $$
 \text{var}(y) = \frac{\mu (1 - \mu)}{1 + \sigma}
@@ -217,15 +222,15 @@ Two Alberta fires, Buffalo Head and Livock, had the highest agreement values bet
 
 We present a statistical model of fire severity that overcomes the challenges associated with modelling zero-and-one-inflated proportional data while accounting, at least partially, for distinct ways in which different biophysical drivers affect fire severity. Our zero-and-one-inflated beta (ZOIB) regression model based on a GAMLSS framework partitions the effects of distinct sets of covariates on average severity, on the probability of stand-replacement or non-burning, and on the variability of severity, all of which are important from a forest and fire management perspective. For instance, the probabilities of a stand-replacement event (or, conversely, of an unburnt patch) can be combined with estimates of average fire severity to weight predictions in areas where fire damage is expected to be highest (or lowest). Similarly, modelling variance as a function of potentially distinct covariates not only improves model fit, but also provides information on the processes that drive variance [CITE: Goldstein-2005] and that in this case may decrease certainty in estimated fire severity. This can inform managers and decision makers about areas where management actions may need to remain flexible or "prepare for the worst", but also allow them to reduce this variance by controlling factors that drive it. In our case, higher variance was in general associated with the same covariate values that led to lower average severity and to more unburnt patches (Figs. 3, 5-7), and appeared highest around predicted unburnt patches (Fig. 8). Forest and fire management may want to focus on these interface areas when assessing opportunities to manipulate fire attributes to lower the risk of high severity fires, e.g. by increasing the cover of mature broadleaf stands and controlling the abundance and composition of ladder fuels (the understorey).
 
-Fire severity is driven by bottom-up (fuel and topography) and top-down drivers (climate; [REF]). Weather, in particular, has been shown to override the effects of fuel when conditions are extremely warm and dry (often called extreme fire weather conditions; [REF]). Yet, despite our efforts, weather variables did not show any significant effects on severity and were not retained in the final model. There might be several explanations as to why this happened. First, the a-spatial nature of our weather data may be behind our inability to detect significant weather effects on severity. In our model, fire ID was added as a random effect and the lack of a signal of weather on severity suggests that most of the weather variability is likely tied to fire ID. It is possible that in our dataset, weather is playing a more important role in explaining differences between fires and fire properties like size, the proportion of patches of a given severity and the level of heterogeneity in severity within a fire perimeter (things we did not analyse). Second, temporal variation in weather likely influences fire severity as the fire progresses, but we did not have information on fire progression that could have allowed temporally pairing fire weather and severity. These data limitations may also explain why our model underpredicted stand-replacement, which is probably largely driven by extreme fire weather conditions [REF]. Finally, it is also possible that, in our case, within-fire spatial severity patterns were indeed more influenced by topographic and fuel factors than by variation in weather conditions during fire. Ferster et al.'s [REF] analysis using multinomial logistic models also showed fuel characteristics, followed by topography and soil moisture, were the most important drivers of severity patterns within fire, while fire weather (via drought code, DC) was a driver of severity variability between fires. Pre-fire vegetation structure and composition have also been shown to be important drivers of fire severity in mixed-conifer forests in Montana ([CITE: Belote-2015]) and Sierra Nevada ([CITE: Lydersen-2016]), USA, where pre-fre species composition, size and tree density all affected post-fire mortality levels.
+Fire severity is driven by bottom-up (fuel and topography) and top-down drivers (climate; [REF]). Weather, in particular, has been shown to override the effects of fuel when conditions are extremely warm and dry (often called extreme fire weather conditions; [REF]). Yet, despite our efforts, weather variables did not show any significant effects on severity and were not retained in the final model. There might be several explanations as to why this happened. First, the a-spatial nature of our weather data may be behind our inability to detect significant weather effects on severity. In our model, fire ID was added as a random effect and the lack of a signal of weather on severity suggests that most of the weather variability is likely tied to fire ID. It is possible that in our dataset, weather is playing a more important role in explaining differences between fires and fire properties like size, the proportion of patches of a given severity and the level of heterogeneity in severity within a fire perimeter (things we did not analyse). Second, temporal variation in weather likely influences fire severity as the fire progresses, but we did not have information on fire progression that could have allowed temporally pairing fire weather and severity. These data limitations may also explain why our model underpredicted stand-replacement, which is probably largely driven by extreme fire weather conditions [REF]. Finally, it is also possible that, in our case, within-fire spatial severity patterns were indeed more influenced by topographic and fuel factors than by variation in weather conditions during fire. Ferster et al.'s [REF] analysis using multinomial logistic models also showed fuel characteristics, followed by topography and soil moisture, were the most important drivers of severity patterns within fire, while fire weather (via drought code, DC) was a driver of severity variability between fires. Pre-fire vegetation structure and composition have also been shown to be important drivers of fire severity in mixed-conifer forests in Montana ([CITE: Belote-2015 -- TODO: full citation not found in source PDF's reference list]) and Sierra Nevada ([CITE: Lydersen-2016 -- TODO: full citation not found in source PDF's reference list]), USA, where pre-fre species composition, size and tree density all affected post-fire mortality levels.
 
-[CITE: Belote-2015] also show a strong effect of pre-fire community composition, tree characteristics (species, i.e. traits, and size) on post-fire tree mortality at the community level. [CITE: Lydersen-2016] show strong effects of tree density on post-fire mortality. They noted that plots with greeter shrub cover tended to have higher severity class. With respect to pre-fire forest characteristics, severity classes varied more in terms of pre-fire tree density than in species composition - they only saw that hardwood basal area was greater in moderate and high severity plots, compared to low severity plots.
+[CITE: Belote-2015 -- TODO: full citation not found in source PDF's reference list] also show a strong effect of pre-fire community composition, tree characteristics (species, i.e. traits, and size) on post-fire tree mortality at the community level. [CITE: Lydersen-2016 -- TODO: full citation not found in source PDF's reference list] show strong effects of tree density on post-fire mortality. They noted that plots with greeter shrub cover tended to have higher severity class. With respect to pre-fire forest characteristics, severity classes varied more in terms of pre-fire tree density than in species composition - they only saw that hardwood basal area was greater in moderate and high severity plots, compared to low severity plots.
 
 had relatively good performance in predicting both continuous and class-based values of severity, when compared with previous similar work. For instance, [CITE: Fang-2018] reported overall accuracy levels 52.4-67.1% when using boosted regression trees to predict fire severity (in three classes) in 2000 and 2010 fires in Chinese boreal forests, while [CITE: Ferster-2016] reported an 39% overall accuracy level when using multinomial logistic models to predict fire severity in six classes using the same dataset as we used here. Unlike what we expected and what was found by [CITE: Ferster-2016], fire weather did not have a significant effect on driving maximum severity values or any other component of severity (mean, variance, or no severity), despite our attempts to summarise and include fire weather variables in different ways.
 
 - weather variables not retained
-  - [CITE: Belote-2015] show a strong effect of pre-fire community composition, tree characteristics (species, i.e. traits, and size) on post-fire tree mortality at the community level.
-  - [CITE: Lydersen-2016] show strong effects of tree density on post-fire mortality. They noted that plots with greeter shrub cover tended to have higher severity class. With respect to pre-fire forest characteristics, severity classes varied more in terms of pre-fire tree density than in species composition - they only saw that hardwood basal area was greater in moderate and high severity plots, compared to low severity plots.
+  - [CITE: Belote-2015 -- TODO: full citation not found in source PDF's reference list] show a strong effect of pre-fire community composition, tree characteristics (species, i.e. traits, and size) on post-fire tree mortality at the community level.
+  - [CITE: Lydersen-2016 -- TODO: full citation not found in source PDF's reference list] show strong effects of tree density on post-fire mortality. They noted that plots with greeter shrub cover tended to have higher severity class. With respect to pre-fire forest characteristics, severity classes varied more in terms of pre-fire tree density than in species composition - they only saw that hardwood basal area was greater in moderate and high severity plots, compared to low severity plots.
   - It may also be that our weather data was limited because it was not spatially explicit and because we don't have information about the temporal development of fires. Using a soil moisture variable like Fang et al did could be a potential solution. This could explain why our model was not as good in detecting very high severity (notice that at very high severity values the model underpredicted severity)
 - Our model reveals strong effects of fuels on fire severity which, in a way, is good news because we can control fuels but not the weather.
   - presence of understorey - wasn't always significant but throughout it seems to have a general effect of decreasing severity and increasing its variance.
@@ -367,6 +372,12 @@ PDF's reference list.
 
 # Tables
 
+{{< pagebreak >}}
+
+```{=latex}
+\begin{landscape}
+```
+
 Table 1. Full set of covariates initially investigated as potential drivers of severity. Covariates in bold entered were selected for model fitting, but not all were kept in the final model. All vegetation covariates, except for 'isForest', 'SMR', 'SMRwet' and 'understorey' refer to the overstory layer.
 
 | Type | Name | Description | Unit |
@@ -403,6 +414,12 @@ Table 1. Full set of covariates initially investigated as potential drivers of s
 | Other | **FireID** | Fire name | -- |
 
 : {#tbl-1}
+
+```{=latex}
+\end{landscape}
+```
+
+{{< pagebreak >}}
 
 Table 2. Final zero-and-one-inflated beta regression model. A different set of covariates was fit for the parameters $\mu$, $\sigma$, $\nu$ and $\tau$ of the zero-and-one-inflated beta distribution (ZOIB($\mu$, $\sigma$, $\nu$, $\tau$)). Covariates were re-scaled between 0 and 1 to compare estimated effects. t-values in bold are significant at p-value < 0.05.
 
@@ -444,6 +461,8 @@ Table 2. Final zero-and-one-inflated beta regression model. A different set of c
 
 : {#tbl-2}
 
+{{< pagebreak >}}
+
 Table 3. Importance of model covariate towards the variation of each component of severity. Covariates entering the models of any group of parameters affecting a given component of severity are shown in decreasing order of their absolute t-value (interpreted as covariate importance; see Table 2 for values). We noted in parentheses when a covariate affects a severity component via two or more parameters.
 
 **Expected mean, E(Y^r) -- ZOIB parameters: $\mu$, $\nu$, $\tau$**
@@ -457,6 +476,8 @@ Covariate importance (decreasing): ngbPropBurn30m (via $\nu$ and $\tau$); Height
 **Expected variance, Var(Y) -- ZOIB parameters: $\mu$, $\sigma$, $\nu$, $\tau$**
 
 Covariate importance (decreasing): ngbPropBurn30m (via $\nu$ and $\tau$); ngbPropBurn1920m; Height (via $\mu$ and $\tau$); ngbPropBurn960m; isForest; Lari (via $\mu$ and $\tau$); Broadleaf (via $\mu$, $\sigma$ and $\tau$); Understorey (via $\sigma$ and $\tau$); CTI (via $\mu$ and $\tau$); Broadleaf:Height (via $\mu$ and $\tau$); SMRwet (via $\mu$, $\sigma$, $\nu$ and $\tau$); Broadleaf:Understorey (via $\sigma$ and $\tau$); FlamConif; Lari:Height; SRR (via $\nu$ and $\tau$); Lari:Understorey.
+
+{{< pagebreak >}}
 
 Table 4. Confusion matrix for the final ZOIB regression model. True positives (diagonal) are underlined and the observed percent occurrence of each class is shown in parentheses.
 
@@ -478,37 +499,63 @@ Observed severity class (% occurrence) is shown across columns.
 <!-- Figures were not extracted from the source PDF; captions are preserved below as placeholders
 for the corresponding image files to be added later. -->
 
+{{< pagebreak >}}
+
 **Figure 1.** The 36 fire perimeters (in black) with severity, topography, pre-fire vegetation and fire weather data included in the zero-one-inflated beta regression models. Canadian Ecozones (top legend) and Natural Regions of Alberta (bottom legend and colour-outlined polygons) are also shown.
 
 *[FIGURE PLACEHOLDER: fig-1]*
+
+{{< pagebreak >}}
 
 **Figure 2.** Cross-validation results and model fit. The Cox and Snell R2 and global deviance were calculated for each fold of a k-fold cross-validation (k = 10) and their distributions are shown in the boxplots. The red dots show the R2 and global deviance of the model fitted with the full dataset.
 
 *[FIGURE PLACEHOLDER: fig-2]*
 
+{{< pagebreak >}}
+
 **Figure 3.** Covariate partial effects on mean severity in forested cells. The expected mean of a ZOIB regression is affected by parameters $\mu$, $\nu$ and $\tau$; hence, the figure shows the partial effects of covariates entering the $\mu$, $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
 *[FIGURE PLACEHOLDER: fig-3]*
+
+{{< pagebreak >}}
 
 **Figure 4.** Covariate partial effects on expected probabilities of observing maximum severity, p1 (i.e. 100% mortality) in forested cells. Given that p1 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
 *[FIGURE PLACEHOLDER: fig-4]*
 
+{{< pagebreak >}}
+
 **Figure 5.** Covariate partial effects on expected probabilities of observing no severity, p0 (i.e. a zero - 0% mortality) in forested cells. Given that p0 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
 *[FIGURE PLACEHOLDER: fig-5]*
+
+{{< pagebreak >}}
 
 **Figure 6.** Covariate partial effects on the expected variance of severity in forested cells. Given that the expected variance is affected by all parameters of the ZOIB regression, the figure shows the partial effects of all covariates included in the ZOIB regression model (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID). See Figure 7 for remaining covariates.
 
 *[FIGURE PLACEHOLDER: fig-6]*
 
+{{< pagebreak >}}
+
 **Figure 7.** Continued from Figure 6.
 
 *[FIGURE PLACEHOLDER: fig-7]*
 
+{{< pagebreak >}}
+
+```{=latex}
+\begin{landscape}
+```
+
 **Figure 8.** Maps of observed and predicted severity for the a) Buffalo Head and b) Livock fires, for which there was high agreement between predictions and observations. Predicted severity maps show expected mean severity (second column) and the probability of stand-replacement (i.e., maximum severity, p1; third column).
 
 *[FIGURE PLACEHOLDER: fig-8]*
+
+```{=latex}
+\end{landscape}
+```
+
+{{< pagebreak >}}
 
 # Appendix 1
 
@@ -538,6 +585,8 @@ $$
 
 Note that $V_2$ is the variance of the Beta process (same as Var($\mu$) in @eq-1 in the main text).
 
+{{< pagebreak >}}
+
 # Appendix 2
 
 ## Supplementary methods
@@ -546,9 +595,13 @@ Note that $V_2$ is the variance of the Beta process (same as Var($\mu$) in @eq-1
 
 The following Principal Components Analysis (PCAs) were calculated using vegetation and topography covariates used to characterise stands. On each PCA we overlaid severity and fire weather variables using the `env.fit` function of the `vegan` R package. `env.fit` tries to maximise the correlation value between a focus variable vector (SEVERITY) and the PCA axes, allowing to visualise correlations between the variables entering the PCA and the variable(s) added post-hoc.
 
+{{< pagebreak >}}
+
 *[FIGURE PLACEHOLDER: fig-s2-1]*
 
 **Figure S2.1.** PCA of stand characteristics, coloured by fire and with overlaid fire weather variables and severity. Right side plot is a zoom-in on the variable vectors. Covariates of stand characteristics (full arrows) include species groups' cover (*Abies* spp, 'Abie', *Larix laricina*, 'Lari', flammable conifers, 'FlamConif', and broadleaf species, 'Broadleaf'), stand height, crown closure, presence of understory, soil moisture regime, elevation, slope and aspect. Fire weather and severity (SEV_CONT) variables were added a posteriori using `env.fit` (dashed arrows). Only the mean and coefficient of variation (prefixed with 'cv') of each fire weather variable was added to the PCA. Please see Table 1 in main text for all variable names and description.
+
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s2-2]*
 
@@ -564,38 +617,65 @@ $$
 
 where $x_j$ is the observed probability of each class (calculated as the number of cells with a given severity class divided by the total sample size) and N is the total number of classes (6). The resulting quantile values were approximately $Q_{1,\ldots,6} = \{0.09, 0.16, 0.22, 0.29, 0.38, 1.00\}$ and the predicted class intervals in % mortality were: class 0 [0, 46%); class 1 [46%, 65%); class 2 [65%, 72%); class 3 [72%, 82%); class 4 [82%, 99%); and class 5 [99%, 100]. These class intervals were then used to convert the expected mean severity values to predicted severity classes. The confusion matrix in Table 4 (main text) is a cross-tabulation of the observed severity classes (see Fire severity data section in Materials and Methods) and predicted severity classes per cell, obtained with `confusionMatrix` function in the `caret` R package [CITE: Kuhn-2022].
 
+{{< pagebreak >}}
+
 # Appendix 3
 
 ## Supplementary tables and figures
+
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s3-1]*
 
 **Figure S3.1.** Residual inspection plots for the final ZOIB regression model following [CITE: Stasinopoulos-2017].
 
+{{< pagebreak >}}
+
 *[FIGURE PLACEHOLDER: fig-s3-2]*
 
 **Figure S3.2.** Expected mean severity vs. observed severity. The blue line shows the predicted linear regression fit and the dashed line represents a 1:1 line. The Pearson correlation value is annotated in the upper left corner.
+
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s3-3]*
 
 **Figure S3.3.** Covariate partial effects on expected mean severity in non-forested cells. Given that the expected mean value of a ZOIB regression is affected by parameters $\mu$, $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\mu$, $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
+{{< pagebreak >}}
+
 *[FIGURE PLACEHOLDER: fig-s3-4]*
 
 **Figure S3.4.** Covariate partial effects on expected probabilities of observing maximum severity, p1 (i.e. one - 100% mortality) in non-forested cells. Given that p1 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
+
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s3-5]*
 
 **Figure S3.5.** Covariate partial effects on expected probabilities of observing no severity, p0 (i.e. a zero - 0% mortality) in non-forested cells. Given that p0 in a ZOIB regression is affected by parameters $\nu$ and $\tau$, the figure shows the partial effects of all covariates in the $\nu$ and $\tau$ parameter models (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID).
 
+{{< pagebreak >}}
+
 *[FIGURE PLACEHOLDER: fig-s3-6]*
 
 **Figure S3.6.** Covariate partial effects on expected severity variance in non-forested cells. Given that the expected variance is affected by all parameters in the ZOIB regression, the figure shows the partial effects of all covariates included in the ZOIB regression model (see Tables 2 and 3), where covariate values were back-transformed to their original scale. The plots show marginal mean predictions (i.e. excluding the random effect of FireID). See Figure S3.7 for remaining covariates.
+
+{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s3-7]*
 
 **Figure S3.7.** Continued from Figure S3.6.
 
+{{< pagebreak >}}
+
+```{=latex}
+\begin{landscape}
+```
+
 *[FIGURE PLACEHOLDER: fig-s3-8]*
 
 **Figure S3.8.** Maps of observed and predicted severity for the a) Contest #2 and b) Woodman fires, for which there was the lowest agreement between observed and predicted values. Predicted severity maps show expected mean severity (second column) and the predicted probability of observing maximum severity (p1, third column).
+
+```{=latex}
+\end{landscape}
+```
+

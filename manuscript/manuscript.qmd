@@ -384,11 +384,11 @@ PDF's reference list.
 
 {{< pagebreak >}}
 
-# Tables
-
 ```{=latex}
 \begin{landscape}
 ```
+
+# Tables
 
 Table 1. Full set of covariates initially investigated as potential drivers of severity. Covariates in bold entered were selected for model fitting, but not all were kept in the final model. All vegetation covariates, except for 'isForest', 'SMR', 'SMRwet' and 'understorey' refer to the overstory layer.
 

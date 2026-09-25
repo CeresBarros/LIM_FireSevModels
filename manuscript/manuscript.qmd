@@ -473,17 +473,55 @@ Table 2. Final zero-and-one-inflated beta regression model. A different set of c
 
 Table 3. Importance of model covariate towards the variation of each component of severity. Covariates entering the models of any group of parameters affecting a given component of severity are shown in decreasing order of their absolute t-value (interpreted as covariate importance; see Table 2 for values). We noted in parentheses when a covariate affects a severity component via two or more parameters.
 
-**Expected mean, E(Y^r) -- ZOIB parameters: $\mu$, $\nu$, $\tau$**
+| Severity component | ZOIB parameters | Covariate importance (decreasing) |
+| --- | --- | --- |
+| Expected mean, E(Y^r) | $\mu$, $\nu$, $\tau$ | ngbPropBurn30m (via $\nu$ and $\tau$) |
+| | | Height (via $\mu$ and $\tau$) |
+| | | ngbPropBurn960m |
+| | | isForest |
+| | | Lari (via $\mu$ and $\tau$) |
+| | | Broadleaf (via $\mu$ and $\tau$) |
+| | | Understorey |
+| | | CTI (via $\mu$ and $\tau$) |
+| | | Broadleaf:Height (via $\mu$ and $\tau$) |
+| | | SMRwet (via $\mu$, $\nu$ and $\tau$) |
+| | | Broadleaf:Understorey |
+| | | FlamConif |
+| | | Lari:Height |
+| | | SRR (via $\nu$ and $\tau$) |
+| | | Lari:Understorey |
+| p0 and p1, P(Y=0) and P(Y=1) | $\nu$, $\tau$ | ngbPropBurn30m (via $\nu$ and $\tau$) |
+| | | Height |
+| | | isForest |
+| | | Understorey |
+| | | Broadleaf:Height |
+| | | CTI |
+| | | SMRwet (via $\nu$ and $\tau$) |
+| | | Broadleaf:Understorey |
+| | | FlamConif |
+| | | Lari:Height |
+| | | SRR (via $\nu$ and $\tau$) |
+| | | Lari:Understorey |
+| | | Broadleaf |
+| | | Lari |
+| Expected variance, Var(Y) | $\mu$, $\sigma$, $\nu$, $\tau$ | ngbPropBurn30m (via $\nu$ and $\tau$) |
+| | | ngbPropBurn1920m |
+| | | Height (via $\mu$ and $\tau$) |
+| | | ngbPropBurn960m |
+| | | isForest |
+| | | Lari (via $\mu$ and $\tau$) |
+| | | Broadleaf (via $\mu$, $\sigma$ and $\tau$) |
+| | | Understorey (via $\sigma$ and $\tau$) |
+| | | CTI (via $\mu$ and $\tau$) |
+| | | Broadleaf:Height (via $\mu$ and $\tau$) |
+| | | SMRwet (via $\mu$, $\sigma$, $\nu$ and $\tau$) |
+| | | Broadleaf:Understorey (via $\sigma$ and $\tau$) |
+| | | FlamConif |
+| | | Lari:Height |
+| | | SRR (via $\nu$ and $\tau$) |
+| | | Lari:Understorey |
 
-Covariate importance (decreasing): ngbPropBurn30m (via $\nu$ and $\tau$); Height (via $\mu$ and $\tau$); ngbPropBurn960m; isForest; Lari (via $\mu$ and $\tau$); Broadleaf (via $\mu$ and $\tau$); Understorey; CTI (via $\mu$ and $\tau$); Broadleaf:Height (via $\mu$ and $\tau$); SMRwet (via $\mu$, $\nu$ and $\tau$); Broadleaf:Understorey; FlamConif; Lari:Height; SRR (via $\nu$ and $\tau$); Lari:Understorey.
-
-**p0 and p1, P(Y=0) and P(Y=1) -- ZOIB parameters: $\nu$, $\tau$**
-
-Covariate importance (decreasing): ngbPropBurn30m (via $\nu$ and $\tau$); Height; isForest; Understorey; Broadleaf:Height; CTI; SMRwet (via $\nu$ and $\tau$); Broadleaf:Understorey; FlamConif; Lari:Height; SRR (via $\nu$ and $\tau$); Lari:Understorey; Broadleaf; Lari.
-
-**Expected variance, Var(Y) -- ZOIB parameters: $\mu$, $\sigma$, $\nu$, $\tau$**
-
-Covariate importance (decreasing): ngbPropBurn30m (via $\nu$ and $\tau$); ngbPropBurn1920m; Height (via $\mu$ and $\tau$); ngbPropBurn960m; isForest; Lari (via $\mu$ and $\tau$); Broadleaf (via $\mu$, $\sigma$ and $\tau$); Understorey (via $\sigma$ and $\tau$); CTI (via $\mu$ and $\tau$); Broadleaf:Height (via $\mu$ and $\tau$); SMRwet (via $\mu$, $\sigma$, $\nu$ and $\tau$); Broadleaf:Understorey (via $\sigma$ and $\tau$); FlamConif; Lari:Height; SRR (via $\nu$ and $\tau$); Lari:Understorey.
+: {#tbl-3}
 
 {{< pagebreak >}}
 

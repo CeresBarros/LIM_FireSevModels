@@ -243,6 +243,14 @@ had relatively good performance in predicting both continuous and class-based va
 - In all cases, including our own, intermediate severity levels were the hardest to predict with severity often being overestimated (Table 4 and Fig. S3.2; [CITE: Fang-2018], Fig. 4; [CITE: Ferster-2016], tbl. 6).
 - different spatial scales act on different components. potential artifact of very large buffer size and being close to the fire perimeter
 
+# Acknowledgements {-}
+
+# Author contributions {-}
+
+# Conflict of interest {-}
+
+The authors delare no conflict of interest.
+
 # References {-}
 
 <!--

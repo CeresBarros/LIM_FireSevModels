@@ -540,12 +540,14 @@ Observed severity class (% occurrence) is shown across columns.
 
 : {#tbl-4}
 
+{{< pagebreak >}}
+
 # Figures
 
 <!-- Figures were not extracted from the source PDF; captions are preserved below as placeholders
 for the corresponding image files to be added later. -->
 
-{{< pagebreak >}}
+*[FIGURE PLACEHOLDER: fig-1]*
 
 **Figure 1.** The 36 fire perimeters (in black) with severity, topography, pre-fire vegetation and fire weather data included in the zero-one-inflated beta regression models. Canadian Ecozones (top legend) and Natural Regions of Alberta (bottom legend and colour-outlined polygons) are also shown.
 

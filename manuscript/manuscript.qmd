@@ -378,9 +378,9 @@ Likewise "Bolker et al., 2009" and "McCullagh & Nelder, 1989" are cited in Metho
 PDF's reference list.
 -->
 
-# Tables
-
 {{< pagebreak >}}
+
+# Tables
 
 ```{=latex}
 \begin{landscape}
@@ -603,13 +603,9 @@ Note that $V_2$ is the variance of the Beta process (same as Var($\mu$) in @eq-1
 
 The following Principal Components Analysis (PCAs) were calculated using vegetation and topography covariates used to characterise stands. On each PCA we overlaid severity and fire weather variables using the `env.fit` function of the `vegan` R package. `env.fit` tries to maximise the correlation value between a focus variable vector (SEVERITY) and the PCA axes, allowing to visualise correlations between the variables entering the PCA and the variable(s) added post-hoc.
 
-{{< pagebreak >}}
-
 *[FIGURE PLACEHOLDER: fig-s2-1]*
 
 **Figure S2.1.** PCA of stand characteristics, coloured by fire and with overlaid fire weather variables and severity. Right side plot is a zoom-in on the variable vectors. Covariates of stand characteristics (full arrows) include species groups' cover (*Abies* spp, 'Abie', *Larix laricina*, 'Lari', flammable conifers, 'FlamConif', and broadleaf species, 'Broadleaf'), stand height, crown closure, presence of understory, soil moisture regime, elevation, slope and aspect. Fire weather and severity (SEV_CONT) variables were added a posteriori using `env.fit` (dashed arrows). Only the mean and coefficient of variation (prefixed with 'cv') of each fire weather variable was added to the PCA. Please see Table 1 in main text for all variable names and description.
-
-{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s2-2]*
 
@@ -630,8 +626,6 @@ where $x_j$ is the observed probability of each class (calculated as the number 
 # Appendix 3
 
 ## Supplementary tables and figures
-
-{{< pagebreak >}}
 
 *[FIGURE PLACEHOLDER: fig-s3-1]*
 

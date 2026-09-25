@@ -551,13 +551,13 @@ Table 4. Confusion matrix for the final ZOIB regression model. True positives (d
 for the corresponding image files to be added later. -->
 ```
 
-![](../analyses/Figs/firesEcozonesNatRAB.png){width="720"}
+![](../analyses/Figs/firesEcozonesNatRAB.png)
 
 **Figure 1.** The 36 fire perimeters (in black) with severity, topography, pre-fire vegetation and fire weather data included in the zero-one-inflated beta regression models. Canadian Ecozones (top legend) and Natural Regions of Alberta (bottom legend and colour-outlined polygons) are also shown.
 
 {{< pagebreak >}}
 
-![](../analyses/Figs/crossValidPlot_DAfires_sevModels.png){width="659"}
+![](../analyses/Figs/crossValidPlot_DAfires_sevModels.png)
 
 **Figure 2.** Cross-validation results and model fit. The Cox and Snell R2 and global deviance were calculated for each fold of a k-fold cross-validation (k = 10) and their distributions are shown in the boxplots. The red dots show the R2 and global deviance of the model fitted with the full dataset.
 

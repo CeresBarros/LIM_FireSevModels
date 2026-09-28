@@ -24,3 +24,7 @@ analyses.zip
 
 ## Positron/assistant diagnostics exports
 diagnostics-*.zip
+
+manuscript/*.pdf
+manuscript/*.tex
+manuscript/*.spl

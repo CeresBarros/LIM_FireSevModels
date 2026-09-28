@@ -1,0 +1,51 @@
+---
+title: "Appendix 2"
+date: last-modified
+bibliography: references.bib
+format:
+  elsevier-pdf:
+    keep-tex: true
+    # Use numbered affiliation superscripts instead of the elsarticle
+    # class default (lettered superscripts)
+    classoption: numafflabel
+    # Elsevier house style commonly numbers sections, but this is a
+    # Quarto/extension default (extension.yml), not enforced by
+    # elsarticle.cls itself -- disable it here.
+    number-sections: false
+    # pdflscape provides the `landscape` environment used below to rotate
+    # Table 1, Figure 8, and Figure S3.8 onto landscape-oriented pages.
+    include-in-header:
+      text: |
+        \usepackage{pdflscape}
+    journal:
+      name: Journal of Pyrogeography
+      formatting: preprint
+      # model: 3p # Don't set a model with preprint
+      cite-style: authoryear
+---
+
+# Supplementary methods
+
+## Exploratory Principal Components Analyses and Spearman Rank correlations
+
+The following Principal Components Analysis (PCAs) were calculated using vegetation and topography covariates used to characterise stands. On each PCA we overlaid severity and fire weather variables using the `env.fit` function of the `vegan` R package. `env.fit` tries to maximise the correlation value between a focus variable vector (SEVERITY) and the PCA axes, allowing to visualise correlations between the variables entering the PCA and the variable(s) added post-hoc.
+
+*\[FIGURE PLACEHOLDER: fig-s2-1\]*
+
+**Figure S2.1.** PCA of stand characteristics, coloured by fire and with overlaid fire weather variables and severity. Right side plot is a zoom-in on the variable vectors. Covariates of stand characteristics (full arrows) include species groups' cover (*Abies* spp, 'Abie', *Larix laricina*, 'Lari', flammable conifers, 'FlamConif', and broadleaf species, 'Broadleaf'), stand height, crown closure, presence of understory, soil moisture regime, elevation, slope and aspect. Fire weather and severity (SEV_CONT) variables were added a posteriori using `env.fit` (dashed arrows). Only the mean and coefficient of variation (prefixed with 'cv') of each fire weather variable was added to the PCA. See Table 1 in main text for all variable names and description.
+
+*\[FIGURE PLACEHOLDER: fig-s2-2\]*
+
+**Figure S2.2.** PCA of stand characteristics, coloured by soil moisture regime (SMR) and with overlaid fire weather variables and severity. Right side plot is a zoom-in on the variable vectors. See the legend of Figure S2.1 for further details and Table 1 in main text for all variable names and description.
+
+## Conversion of expected mean severity to severity classes
+
+A confusion matrix was calculated to more directly compare our results to Ferster et al.'s \[REF\] (Table 6). This required comparing the predictions of the final ZOIB regression model (fitted to the full dataset using scaled covariates) with observed severity classes. For this, we converted the expected mean severity values (calculated following @eq-6 in the main text) to ordinal classes, whose intervals were defined using the quantile values ($Q_i$) of the cumulative probabilities, $P_i$, of each severity class j, calculated as:
+
+$$
+P_i = \sum_{j=1}^{i} x_j, \quad \text{for } i \in \{1, 2, \ldots, N\}
+$$
+
+where $x_j$ is the observed probability of each class (calculated as the number of cells with a given severity class divided by the total sample size) and N is the total number of classes (6). The resulting quantile values were approximately $Q_{1,\ldots,6} = \{0.09, 0.16, 0.22, 0.29, 0.38, 1.00\}$ and the predicted class intervals in % mortality were: class 0 \[0, 46%); class 1 \[46%, 65%); class 2 \[65%, 72%); class 3 \[72%, 82%); class 4 \[82%, 99%); and class 5 \[99%, 100\]. These class intervals were then used to convert the expected mean severity values to predicted severity classes. The confusion matrix in Table 4 (main text) is a cross-tabulation of the observed severity classes (see Fire severity data section in Materials and Methods) and predicted severity classes per cell, obtained with `confusionMatrix` function in the `caret` R package [@kuhn2022].
+
+# References

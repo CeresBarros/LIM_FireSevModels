@@ -1,0 +1,55 @@
+---
+title: "Appendix 1"
+date: last-modified
+bibliography: references.bib
+format:
+  elsevier-pdf:
+    keep-tex: true
+    # Use numbered affiliation superscripts instead of the elsarticle
+    # class default (lettered superscripts)
+    classoption: numafflabel
+    # Elsevier house style commonly numbers sections, but this is a
+    # Quarto/extension default (extension.yml), not enforced by
+    # elsarticle.cls itself -- disable it here.
+    number-sections: false
+    # pdflscape provides the `landscape` environment used below to rotate
+    # Table 1, Figure 8, and Figure S3.8 onto landscape-oriented pages.
+    include-in-header:
+      text: |
+        \usepackage{pdflscape}
+    journal:
+      name: Journal of Pyrogeography
+      formatting: preprint
+      # model: 3p # Don't set a model with preprint
+      cite-style: authoryear
+---
+
+# ZOIB variance calculation
+
+The variance of a ZOIB can be calculated by expanding \[\@ospina2010\]'s formulation using the ZOIB(alpha, gamma, $\mu$, $\sigma$) to the ZOIB($\mu$, $\sigma$, $\nu$, $\tau$) parameterisation implemented in `gamlss` \[\@stasinopoulos2007\]; see also @rigby2019), as follows:
+
+$$
+\text{Var}(Y) = \alpha V_1 + (1 - \alpha) V_2 + \alpha (1 - \alpha)(\gamma - \mu)^2
+$$
+
+where,
+
+$$
+\gamma = \frac{\tau (1 + \nu + \tau)}{\nu + \tau} \cdot (1 + \nu + \tau)
+$$
+
+$$
+\alpha = \frac{\nu + \tau}{1 + \nu + \tau}
+$$
+
+$$
+V_1 = \gamma (1 - \gamma)
+$$
+
+$$
+V_2 = \frac{\mu (1 - \mu)}{1 + \sigma}
+$$
+
+Note that $V_2$ is the variance of the Beta process (same as Var($\mu$) in @eq-1 in the main text).
+
+# References

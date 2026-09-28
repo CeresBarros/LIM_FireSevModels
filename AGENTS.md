@@ -93,7 +93,7 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 
 `manuscript/manuscript.qmd` is a Quarto document using the Elsevier journal
 format (`quarto-journals/elsevier` extension, vendored and committed under
-`manuscript/_extensions/quarto-journals/elsevier/`). It now holds the **full
+`manuscript/_extensions/quarto-journals/elsevier/`). It holds the **full
 text of `manuscript/old/FireSeverity_MS.pdf`** ("Predictive models of fire
 severity: from complex distribution modelling to machine learning"),
 transcribed section-by-section (Introduction through Discussion, References,
@@ -107,28 +107,50 @@ starter placeholder content.
 - Bibliography: `manuscript/references.bib`, cited with `@key` and
   natbib/`elsarticle-harv.bst` (author-year style, set via
   `format.elsevier-pdf.journal.cite-style: authoryear` in the YAML).
-  **`references.bib` is not yet populated with the manuscript's real
-  sources** — the body currently uses `[CITE: Author-YYYY]` placeholder
-  markers (plain bracketed text, not pandoc `@key` citations) in place of
-  every resolvable in-text citation, plus `[REF]` markers preserved as-is
-  from the source PDF's own unresolved citations. The full original
-  reference list (needed to build `references.bib`) is recorded in an HTML
-  comment near the end of `manuscript.qmd`, just before the References
-  section.
-- **Outstanding citation TODOs**: four in-text citations are cited in the
-  PDF body but do **not** appear in the PDF's own reference list, so their
-  full bibliographic details still need to be tracked down before they can
-  be resolved: **Belote et al. (2015)** and **Lydersen et al. (2016)** (cited
-  in the Discussion, re: pre-fire vegetation/tree-density effects on
-  post-fire mortality in Montana/Sierra Nevada), and **Bolker et al. (2009)**
-  and **McCullagh & Nelder (1989)** (cited in Methods, re: GLM framing of
-  beta regression). Each occurrence in `manuscript.qmd` is marked inline
-  with `-- TODO: full citation not found in source PDF's reference list`
-  next to the `[CITE: ...]` placeholder, so they're easy to grep for
-  (`grep -n "TODO: full citation" manuscript/manuscript.qmd`).
-- Figures (Fig. 1–8, S2.1–S2.2, S3.1–S3.8) were not extracted from the
-  source PDF — captions are preserved with `*[FIGURE PLACEHOLDER: fig-id]*`
-  markers for images to be added later.
+  Most in-text citations have been converted from the original
+  `[CITE: Author-YYYY]`/`[REF]` transcription placeholders to real pandoc
+  `@key`/`[@key]` citations, and `references.bib` now has matching bib
+  entries for most of them (including `andison2012` and
+  `forestrycanadafiredangergroup1992`, added 2026-09-28). The reference
+  list **does render** — BibTeX/natbib populate it at the `\bibliography{}`
+  command's location in the generated `.tex` (near the very end, after
+  Appendix 3's supplementary figures — e.g. page 46 of 50 in the last
+  render), independent of any `# References` markdown heading, which is
+  just inert text.
+  - **Still outstanding**: a few in-text citations remain as stray
+    backslash-escaped text (`\@key`, `\[\@key\]`) rather than real pandoc
+    citations, so pandoc treats them as literal punctuation and they don't
+    resolve — e.g. `\@ferster2016`, `\[\@ferster2016\]`, `\@ferster2026`
+    (also a typo — no such key exists, only `ferster2016`), `\[\@ospina2010\]`,
+    `\[\@stasinopoulos2007\]`, `\[\@stasinopoulos2017\]`. Grep for `\\@` to
+    find remaining instances.
+  - Minor BibTeX field-quality warnings persist on render (don't block
+    output, but produce slightly malformed entries): trailing comma after
+    the sole author name in `batunacun2021` and
+    `forestrycanadafiredangergroup1992`; empty `journal`/`booktitle` in
+    `amiro2001`/`chen2016`/`smithson2013`; missing `institution` in
+    `cosco2011`/`kuhn2022`; `goldstein2005` sets both `author` and `editor`
+    (BibTeX only uses one) and has empty `chapter`/`pages`.
+  - Four citations (Belote et al. 2015, Lydersen et al. 2016 — Discussion,
+    pre-fire vegetation/tree-density effects on post-fire mortality; Bolker
+    et al. 2009, McCullagh & Nelder 1989 — Methods, GLM framing of beta
+    regression) were cited in the original PDF's body but absent from its
+    own reference list; their bib entries have since been added
+    (`belote2015`, `lydersen2016`) or may still need tracking down — check
+    current `references.bib` and `manuscript.qmd` for `TODO` markers before
+    assuming these are resolved.
+- **Known design issue, not yet fixed**: the document currently produces a
+  single combined reference list covering both the main text and the
+  Appendices. The user wants **separate reference lists for the main text
+  and for the Appendices** and is manually splitting `manuscript.qmd` into
+  separate Quarto documents (one for main text, one for appendices) to
+  achieve this — **the user is doing this split themselves; do not
+  attempt it.**
+- Figures (Fig. 1–8, S2.1–S2.2, S3.1–S3.8): Figures 1–8 now reference real
+  image files under `../analyses/Figs/` (e.g.
+  `analyses/Figs/firesEcozonesNatRAB.png`); the supplementary figures
+  (S2.1–S2.2, S3.1–S3.8) still use `*[FIGURE PLACEHOLDER: fig-id]*` markers
+  pending images.
 - The upstream template's example content included R chunks
   (`knitr::kable()`, `plot()`) to generate a demo figure/table; those were
   removed (replaced with static markdown figure/table placeholders, then
@@ -155,8 +177,13 @@ starter placeholder content.
   wrapped in a raw-LaTeX `` ```{=latex} \begin{landscape} ... \end{landscape} ```
   block so those pages render rotated; this requires `\usepackage{pdflscape}`,
   added via `include-in-header` in the YAML (`elsarticle.cls` doesn't ship
-  landscape support itself). Verified by rendering to PDF (47 pages) and
-  confirming 8 pages carry `/Rotate 90` via `qpdf --qdf`.
+  landscape support itself). Verified by rendering to PDF and confirming
+  rotated pages carry `/Rotate 90` via `qpdf --qdf`.
+- **Table 3 fixed (2026-09-28)**: was originally left as prose text instead
+  of a Markdown table; converted to a proper table (grouped by severity
+  component — Expected mean, p0/p1, Expected variance — each with ZOIB
+  parameters and a covariate-importance list as rows), matching the source
+  PDF's Table 3 layout. No other part of the file was touched in that pass.
 - Plan for this setup is archived at
   `.posit/assistant/plans/archive/2026-09-15-1533-quarto-elsevier-manuscript.md`.
 

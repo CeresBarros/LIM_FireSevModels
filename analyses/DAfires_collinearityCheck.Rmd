@@ -1,0 +1,433 @@
+---
+title: "Dave Andison's fire data Severity models"
+subtitle: "Collinearity among candidate predictors"
+author:
+  - "Ceres Barros"
+  - "Posit Assistant (AI assistant; drafted the collinearity checks and variable selection, Oct 2026)"
+date: "02/04/2019"
+date-modified: last-modified
+output:
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- Collinearity sections (from "Approach" onward) drafted by Posit Assistant, 2026-10-30, at the request of Ceres Barros. -->
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = normalizePath(getwd()))
+knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
+```
+
+```{r setup2, include=FALSE}
+if (!exists("pkgDir")) {
+  pkgDir <- file.path(
+    if (Sys.info()[["user"]] == "rstudio") "packages_docker" else "packages",
+    version$platform,
+    paste0(version$major, ".", strsplit(version$minor, "[.]")[[1]][1])
+  )
+  
+  if (!dir.exists(pkgDir)) {
+    dir.create(pkgDir, recursive = TRUE)
+  }
+  .libPaths(pkgDir)
+}
+
+install.packages("Require")
+
+## no need to load these.
+Require::Install(c(
+  "carrier", ## for in_parallel with purrr::*
+  "future",
+  "future.apply",
+  "mirai"   ## for in_parallel with purrr::*
+))
+
+Require::Require(
+  c(
+    "crayon",
+    "data.table",
+    "reshape2",
+    "sf",
+    "dplyr",
+    "xlsx",
+    "foreign",
+    "fasterize",
+    "prioritizr",
+    "gamlss.inf",
+    "gamlss.spatial", ## "CeresBarros/gamlss.spatial (==3.0-3.9000)"
+    "gamlss",
+    "ggplot2",
+    "ggpubr",
+    "ggrepel",
+    "LandR.CS",
+    "caret",
+    "purrr",
+    "reproducible",   ## "PredictiveEcology/reproducible@AI (==2.1.2.9001)",
+    "raster",
+    "terra",
+    "tidyterra",
+    "ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
+  ), install = FALSE
+)
+
+doCache = TRUE
+
+figDir <- "analyses/Figs"
+dir.create(figDir, showWarnings = FALSE)
+
+options("reproducible.useNewDigestAlgorithm" = TRUE,
+        # "reproducible.cachePath" = "analyses/cache",
+        "reproducible.cachePath" = "analyses/cacheNEW",  ## the cache above got screwed up changing reproducible versions.
+        "reproducible.useMemoise" = FALSE,
+        "future.globals.maxSize" = +Inf)
+
+source("R/R_tools/prepCorrTable.R")
+source("R/R_tools/Useful_functions.R") ## may replace some functions in ToolsCB, this is ok
+source("R/R_tools/Neighbourhood_functions.R") 
+source("R/R_tools/CASFRIrelated_functions.R")
+source("R/R_tools/prepFireWeather.R")
+source("R/R_tools/joinSevVegTopoWeatherData.R")
+source("analyses/R_tools/summarizeABSK_AllData.R")
+source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
+
+doCache = TRUE
+
+figDir <- "analyses/Figs"
+```
+
+```{r dataprep, include = FALSE, cache = FALSE}
+resolution = 30
+
+summaryABSK_AllData <- reproducible::Cache(
+  dataPrepWrapper,
+  resolution = resolution, 
+  fireDataPath = "data/fires_Dave/fireSev",
+  vegDataPath = "data/fires_Dave/prefireVeg",
+  topoDataPath = "data/fires_Dave/DEM/Grid30Intersect",
+  weatherDataPath = "data/fires_Dave/fireWeather",
+  doCache = doCache,
+  userTags = "summaryABSK_AllData",
+  cacheId = "185c1b8db3c9788d",
+  omitArgs = c("useCache", "doCache", "userTags"))
+
+## /!\ the following variables have many NA's and should perhaps be excluded
+## wetlands are indicated within `LandCover`, the wetland vars are too much for this analysis.
+## "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD"
+## "Duration"
+## "cvRain
+## SMR_ord/wet -- probably nothing that can be done here and there are few NAs on this one.
+```
+
+## Approach
+
+Collinearity is checked within three groups of candidate predictors:
+topography, fire weather, and vegetation. For each group we report:
+
+- pairwise Spearman correlations (rank-based, robust to the skewed and
+  bounded distributions of many predictors);
+- variance inflation factors (VIF), which capture multicollinearity among
+  more than two variables at once. VIF > 5 is flagged, VIF > 10 is
+  severe.
+
+Pixel-level checks use one random sample of pixels, which keeps the
+computations fast with little loss of precision. Fire weather is constant
+within each fire, so it is checked at the fire level instead (one row per
+fire); pixel-level correlations would weight fires by their size.
+
+```{r helpers, include = FALSE, cache = FALSE}
+#' Variance inflation factors for a set of numeric columns
+#'
+#' Regresses each column on all others and returns `1 / (1 - R^2)`.
+#' Aliased columns (perfectly collinear) return `Inf`.
+#'
+#' @param DT `data.table` or `data.frame` of numeric predictors.
+#'
+#' @return named numeric vector of VIFs, sorted decreasingly.
+#' @keywords internal
+calcVIF <- function(DT) {
+  DT <- as.data.frame(DT)
+  vifs <- vapply(names(DT), function(v) {
+    fit <- lm(reformulate(paste0("`", setdiff(names(DT), v), "`"), paste0("`", v, "`")),
+              data = DT)
+    r2 <- summary(fit)$r.squared
+    if (r2 >= 1 - 1e-10) Inf else 1 / (1 - r2)
+  }, numeric(1))
+  sort(round(vifs, 2), decreasing = TRUE)
+}
+
+#' Spearman correlation heatmap
+#'
+#' @param DT `data.table` or `data.frame` of numeric predictors.
+#' @param title character. Plot title.
+#'
+#' @return a `ggplot` object (lower triangle, with coefficients printed).
+#' @keywords internal
+plotCorr <- function(DT, title = NULL) {
+  rho <- cor(DT, method = "spearman", use = "pairwise.complete.obs")
+  rho[upper.tri(rho)] <- NA
+  rhoDT <- as.data.table(as.table(rho))[!is.na(N)]
+  setnames(rhoDT, c("var1", "var2", "rho"))
+  rhoDT[, `:=`(var1 = factor(var1, levels = colnames(rho)),
+               var2 = factor(var2, levels = rev(colnames(rho))))]
+  ggplot(rhoDT, aes(var1, var2, fill = rho)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", rho)), size = 2.8) +
+    scale_fill_gradient2(limits = c(-1, 1)) +
+    labs(x = NULL, y = NULL, fill = "Spearman\nrho", title = title) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+#' Pairs with |rho| above a threshold
+#'
+#' @param DT `data.table` or `data.frame` of numeric predictors.
+#' @param thresh numeric. Absolute Spearman correlation threshold.
+#'
+#' @return `data.table` of variable pairs and their correlation, sorted by
+#'   decreasing |rho|.
+#' @keywords internal
+highCorrPairs <- function(DT, thresh = 0.7) {
+  rho <- cor(DT, method = "spearman", use = "pairwise.complete.obs")
+  rho[upper.tri(rho, diag = TRUE)] <- NA
+  out <- as.data.table(as.table(rho))[!is.na(N) & abs(N) >= thresh]
+  setnames(out, c("var1", "var2", "rho"))
+  out[, rho := round(rho, 3)]
+  ## `[]` so the result prints (`:=` returns invisibly)
+  out[order(-abs(rho))][]
+}
+```
+
+```{r sample, cache = FALSE}
+set.seed(5813)
+sampDT <- summaryABSK_AllData[sample(.N, min(.N, 2e5))]
+```
+
+## Topographic variables
+
+`Aspect` uses the code `-117` for flat pixels (`r round(100 * summaryABSK_AllData[, mean(Aspect == -117)], 1)`% of pixels),
+so it is set to `NA` here. Its circular scale makes linear correlations
+meaningless anyway; `SCOS`/`SSIN` (slope × cos/sin of aspect) are the
+linear alternatives.
+
+```{r topoVars, cache = FALSE}
+topoVars <- c("Elevation", "PctSlope", "DegSlope", "SurfAspectRatio",
+              "SCOS", "SSIN", "TRASP", "Aspect",
+              "CTI", "Curv", "SlopePosition", "SurfReliefRatio")
+topoDT <- sampDT[, ..topoVars]
+topoDT[Aspect == -117, Aspect := NA]
+```
+
+```{r topoCorr, fig.width = 8, fig.height = 7}
+plotCorr(topoDT, "Topographic variables (all)")
+highCorrPairs(topoDT)
+```
+
+`SurfAspectRatio` is an exact function of slope (constant multiple of
+sec(slope)); `DegSlope` is a monotonic transform of `PctSlope`:
+
+```{r topoSAR}
+topoDT[, .(SurfAspectRatio_over_secSlope = range(SurfAspectRatio / (1 / cos(DegSlope * pi / 180))))]
+```
+
+VIFs for the full set and for the candidate set (dropping redundant or
+circular variables):
+
+```{r topoVIF}
+calcVIF(topoDT[, !c("Aspect", "DegSlope", "SurfAspectRatio")])
+
+topoCand <- c("Elevation", "PctSlope", "SCOS", "SSIN", "CTI", "SurfReliefRatio")
+calcVIF(topoDT[, ..topoCand])
+```
+
+## Fire-weather variables
+
+Weather summaries (first three days of each fire) take a single value per
+fire, so correlations are computed across fires.
+
+```{r weatherVars, cache = FALSE}
+weatherVars <- grep("^(mean|min|max|cv|range)(Temp|RH|WS|Rain|FFMC|DMC|DC|ISI|BUI|FWI)$|^startJulDay$",
+                    names(summaryABSK_AllData), value = TRUE)
+
+## confirm weather is constant within fires
+stopifnot(summaryABSK_AllData[, lapply(.SD, uniqueN), by = FIRE_NAME,
+                              .SDcols = weatherVars][, all(unlist(.SD) == 1), .SDcols = weatherVars])
+
+weatherDT <- unique(summaryABSK_AllData[, c("FIRE_NAME", weatherVars), with = FALSE])
+nrow(weatherDT)
+
+## drop near-constant variables
+weatherDT[, lapply(.SD, uniqueN), .SDcols = weatherVars]
+```
+
+With `r nrow(weatherDT)` fires and `r length(weatherVars)` weather
+variables, VIFs for the full set cannot be computed (more variables than
+fires); correlations are the main diagnostic here.
+
+```{r weatherCorr, fig.width = 14, fig.height = 13}
+weatherNum <- weatherDT[, ..weatherVars]
+## minRain is almost always 0; cvRain has NAs where mean rain is 0
+weatherNum <- weatherNum[, !c("minRain", "cvRain")]
+plotCorr(weatherNum, "Fire-weather variables (one row per fire)")
+highCorrPairs(weatherNum, thresh = 0.8)
+```
+
+Within each weather variable, `mean`, `min`, `max` and `range` are expected to
+be strongly related; across variables, the FWI-system indices are built from
+one another (e.g. BUI from DMC and DC; FWI from ISI and BUI).
+
+```{r weatherMeanVIF}
+## VIF among the mean values only
+meanVars <- grep("^mean", names(weatherNum), value = TRUE)
+calcVIF(weatherNum[, ..meanVars])
+```
+
+## Vegetation variables
+
+The species-group percentages (`FlamConif`, `Abie`, `Lari`, `Decid`) are a
+composition: they sum to 100 on forested pixels and to 0 on non-forested
+pixels (where forest attributes are filled with 0):
+
+```{r vegComposition}
+sampDT[, .(n = .N,
+           pctSum100 = mean(FlamConif + Abie + Lari + Decid == 100),
+           pctSum0 = mean(FlamConif + Abie + Lari + Decid == 0)),
+       by = isForest]
+```
+
+This closure makes the four groups, plus `isForest`, linearly dependent: any
+one can be computed from the others. Including all of them inflates VIFs
+regardless of the ecological relationships between them.
+
+```{r vegVars, cache = FALSE}
+vegVars <- c("FlamConif", "Abie", "Lari", "Decid",
+             "HEIGHT_LOWER", "HEIGHT_UPPER", "CROWN_CLOSURE_LOWER", "STAND_AGE",
+             "UNDERSTOREY", "isForest", "SMR_ord", "SMR_wet")
+vegDT <- sampDT[, ..vegVars][, lapply(.SD, as.numeric)]
+```
+
+```{r vegCorr, fig.width = 8, fig.height = 7}
+plotCorr(vegDT, "Vegetation variables (all pixels)")
+highCorrPairs(vegDT)
+```
+
+Forest attributes are 0 on non-forested pixels, so correlations over all
+pixels partly reflect the forest/non-forest split. Restricting to forested
+pixels shows the relationships within forests:
+
+```{r vegCorrForest, fig.width = 8, fig.height = 7}
+vegForestDT <- vegDT[isForest == 1, !"isForest"]
+plotCorr(vegForestDT, "Vegetation variables (forested pixels only)")
+highCorrPairs(vegForestDT)
+```
+
+VIFs for the candidate set used in model selection, and with one
+composition group dropped (here `FlamConif`, the reference group, which is
+present on almost all forested pixels):
+
+```{r vegVIF}
+vegCand <- c("FlamConif", "Abie", "Lari", "Decid", "HEIGHT_LOWER",
+             "UNDERSTOREY", "isForest", "SMR_wet")
+calcVIF(na.omit(vegDT[, ..vegCand]))
+
+calcVIF(na.omit(vegDT[, setdiff(vegCand, "FlamConif"), with = FALSE]))
+```
+
+## Non-collinear variable lists
+
+Selection rule, applied within each group:
+
+1. Remove structural redundancies by hand (exact transforms, duplicates,
+   circular variables, compositional closure), as shown above.
+2. Among the remaining pool, drop variables with pairwise
+   |Spearman ρ| ≥ 0.7, using `caret::findCorrelation()` (exact = TRUE),
+   which, for each correlated pair, removes the variable with the larger
+   mean absolute correlation with all others.
+3. Iteratively drop the variable with the highest VIF until all VIFs are < 5.
+
+Pools are the candidate predictors used for model selection in
+`DAfires_sevModelsGAMLSS_ngbAvg.Rmd`. Categorical candidates (`LandCover`,
+`DIST1`) are not covered by these numeric checks; they are listed
+separately. Note that `isForest` is a collapse of `LandCover`
+(`PF` vs the rest), so the two should not enter the same model.
+
+```{r selectVars, cache = FALSE}
+#' Select a non-collinear subset of numeric predictors
+#'
+#' Drops variables with pairwise |Spearman rho| >= `cutoff`
+#' (`caret::findCorrelation`, exact = TRUE), then iteratively drops the
+#' variable with the highest VIF until all VIFs are < `maxVIF`.
+#'
+#' @param DT `data.table` of numeric predictors (no NAs for the VIF step).
+#' @param cutoff numeric. Absolute Spearman correlation threshold.
+#' @param maxVIF numeric. Maximum VIF allowed in the retained set.
+#'
+#' @return character vector of retained column names.
+#' @keywords internal
+selectNonCollinear <- function(DT, cutoff = 0.7, maxVIF = 5) {
+  drop <- caret::findCorrelation(cor(DT, method = "spearman", use = "pairwise.complete.obs"),
+                                 cutoff = cutoff, names = TRUE, exact = TRUE)
+  keep <- setdiff(names(DT), drop)
+  vifs <- calcVIF(DT[, ..keep])
+  while (length(keep) > 2 && max(vifs) >= maxVIF) {
+    message("Dropping ", names(vifs)[1], " (VIF = ", vifs[1], ")")
+    keep <- setdiff(keep, names(vifs)[1])
+    vifs <- calcVIF(DT[, ..keep])
+  }
+  keep
+}
+
+## topography: DegSlope, SurfAspectRatio (≡ slope), Aspect (circular, flat code),
+## TRASP (aspect transform), Curv/SlopePosition (not candidates) excluded by hand
+topoPool <- c("Elevation", "PctSlope", "SCOS", "SSIN", "CTI", "SurfReliefRatio")
+topoKeep <- selectNonCollinear(topoDT[, ..topoPool])
+
+## vegetation: FlamConif dropped as the reference composition group (closure);
+## HEIGHT_UPPER (≡ HEIGHT_LOWER) excluded by hand
+vegPool <- c("Abie", "Lari", "Decid", "HEIGHT_LOWER", "UNDERSTOREY",
+             "isForest", "SMR_ord", "SMR_wet")
+vegKeep <- selectNonCollinear(na.omit(vegDT[, ..vegPool]))
+
+## climate (fire weather): FWI-system indices summarised over the first 3 days,
+## at fire level. range* excluded (range = max - min).
+climPool <- grep("^(mean|min|max|cv)(FFMC|DMC|DC|ISI|BUI|FWI)$", names(weatherDT), value = TRUE)
+climKeep <- selectNonCollinear(weatherDT[, ..climPool])
+
+list(topographic = topoKeep, vegetation = vegKeep, climate = climKeep)
+```
+
+VIFs of the retained sets:
+
+```{r selectVIF}
+calcVIF(topoDT[, ..topoKeep])
+calcVIF(na.omit(vegDT[, ..vegKeep]))
+calcVIF(weatherDT[, ..climKeep])
+```
+
+```{r exportVars, cache = FALSE}
+nonCollinearVars <- list(
+  topographic = topoKeep,
+  vegetation = vegKeep,
+  climate = climKeep,
+  categorical = c("LandCover", "DIST1"),
+  meta = list(
+    created = Sys.time(),
+    source = "analyses/DAfires_collinearityCheck.Rmd",
+    dataCacheId = "185c1b8db3c9788d",
+    rule = "hand-removed structural redundancies; then |Spearman rho| >= 0.7 via caret::findCorrelation(exact = TRUE); then iterative removal of the highest VIF until all VIF < 5",
+    sample = "topography/vegetation: 2e5 random pixels (seed 5813); climate: one row per fire",
+    nFires = nrow(weatherDT)
+  )
+)
+outDir <- "analyses/outputs"
+dir.create(outDir, showWarnings = FALSE, recursive = TRUE)
+saveRDS(nonCollinearVars, file.path(outDir, "nonCollinearVars.rds"))
+```
+
+The lists are saved to `analyses/outputs/nonCollinearVars.rds`.
+
+## Session info
+
+```{r sessionInfo}
+sessionInfo()
+```

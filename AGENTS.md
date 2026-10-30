@@ -15,7 +15,7 @@ Current vs. legacy Rmds in `analyses/`:
 | File | Status | Purpose |
 |---|---|---|
 | `DAfires_sevModelsGAMLSS_ngbAvg.Rmd` | **active** | Zero-one-inflated beta GAMLSS severity models with neighbourhood-averaged predictors |
-| `DAfires_sevModelsBoost.Rmd` | active | XGBoost and GPBoost severity models |
+| `DAfires_sevModelsBoost.Rmd` | active | XGBoost severity models (GPBoost sections abandoned Oct 2026; leave untouched) |
 | `DAfires_expAnalyses.Rmd` | active | Exploratory analyses of fire severity data |
 | `Fires_CNFD.Rmd` / `Fires_CNFD.R` | active | CNFD fire-database prep |
 | `FiresDA_FMAs.R` | active | Fires × Forest Management Areas |
@@ -32,7 +32,7 @@ Typical run order from raw data:
 
 ## Environment
 
-- R 4.5 is the current development target.
+- R 4.6 (4.6.1 on this machine) is the current development target — upgraded from R 4.5 (Oct 2026). `.Rprofile` now resolves libraries to `packages/<platform>/4.6/`; the old `4.5/` library is still on disk.
 - `.Rprofile` sets `.libPaths()` to `packages/<platform>/<Rmajor.minor>/` (or `packages_docker/…` on R 4.1 Linux) and configures repos:
   - `CRAN = http://cran.rstudio.com`
   - `PE   = http://predictiveecology.r-universe.dev/`
@@ -84,7 +84,7 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 ## Gotchas
 
 - README file-layout list historically referenced `DAfires_sevModelsGAMLSS2026.Rmd`; the actual current file is `DAfires_sevModelsGAMLSS_ngbAvg.Rmd` (README has been corrected).
-- `0_dataPrep_projections.R` uses the old `raster` / `sp` / `shapefile()` API and was written for R 3.4; expect to modernize before rerunning under R 4.5.
+- `0_dataPrep_projections.R` uses the old `raster` / `sp` / `shapefile()` API and was written for R 3.4; expect to modernize before rerunning under R 4.6.
 - Two `*_FIXED.R` helpers patch upstream `gamlss`/`gamlss.inf` bugs — keep them sourced whenever the active GAMLSS Rmd is run.
 - `simLinks.sh` is present but not currently used; ignore its paths.
 - `R/R_tools/inputMaps.R` was **removed** (Aug 2026) as dead code: its four `sp`/`raster`/`rgeos`-based study-region helpers (`loadShpAndMakeValid`, `loadStudyRegions`, `shpStudyRegionCreate`, `createPrjFile`) had no callers here, and a cross-repo check of the upstream `LandscapesInMotion` confirmed they were unused on the `development`, `master`, and `xgboost` branches too. Recover from git history if study-region loading is ever needed (expect to modernize to `sf`/`terra`/`geodata`). `moduleSticker.R` was deleted earlier by the user.
@@ -203,7 +203,7 @@ starter placeholder content.
 - **Internal helpers always get `@keywords internal` (and only that — never `@noRd` alongside it, since `@noRd` suppresses the `.Rd` entirely and would override `@keywords internal`).** This applies to every non-user-facing (internal) function — not just `.`-prefixed helpers but also the internal recoders and any function only called internally by a wrapper (e.g. the CASFRI internal recoders, `calcCrossValidMetrics`, `joinPerFire`). Exported/user-facing wrappers, the `_FIXED.R` shims, and plotting/analysis entry points do **not** get this tag. When documenting a new function, decide its tier first (exported/user-facing vs. internal) and tag accordingly.
 - **Other roxygen conventions**: preserve `@author` attributions; inherit upstream parameter docs with `@inheritParams pkg::fn` rather than duplicating; for the `_FIXED.R` shims add an `@note` describing the upstream bug and target version and `@seealso` the patched original (`gamlss::Rsq`, `gamlss.inf::summary.gamlssinf0to1`). Document best-guess argument shapes with a `# TODO: confirm` marker; fix wrong `@param` names/descriptions but **never reorder arguments in code**. CASFRI docs are tiered (see Stage 3 below): full roxygen for the 5 wrappers, short title + `@param` for the 17 internal recoders.
 - **Git safety: never stage, commit, or push without explicit permission.** Before any `git add`/`git commit`/`git push`, stop and ask. Draft the proposed commit message and present it for review/approval. After the user approves, re-confirm approval immediately before running the commit or push. (Enforced in `.posit/assistant/settings.json`: `git add`/`commit`/`push` are set to `"ask"`.)
-- **Flag known code issues rather than touching them**: leftover `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~468, `runGPBOOST` ~785/~832); `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`.
+- **Flag known code issues rather than touching them**: `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~517, `runGPBOOST` ~785/~832) are **intentional markers of code still in development** — never remove them unilaterally; the user finishes that logic; `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`.
 
 ## Documentation pass status
 
@@ -222,6 +222,86 @@ The roxygen documentation pass across `R/R_tools/` and `analyses/R_tools/` is **
 **Typo fix** (`2026-09-15`): Fixed comment typo in `Rsq_FIXED.R` line 24 (`"this is design for gamlss objects only"` → `"this is designed for gamlss objects only"`). The two typos previously flagged in `summary.gamlssinf0to1_FIXED.R` (`covariante`→`covariance`, `calcualted`→`calculated`) do not appear in the current file.
 
 All commits through the latest typo fix are pushed to `origin/main`.
+
+## Re-validation of severity models (Oct 2026, in progress)
+
+Plan and task tracker: `.posit/assistant/plans/2026-10-29-1508-plan.md` (single source of truth; tick boxes and record decisions/caveats there).
+
+- **Done already**: data rebuilt with the new concentric-ring neighbourhood-averaged predictors and the land-cover bugfix (restored SK non-forest pixels verified).
+- **Terminology**: *Old-ngb* = `ngbPropBurns_*`/buffer variables; *Ring-ngb* = concentric-ring averaged predictors. They are mutually exclusive (redundant) and never combined. *Calibration fires* = all non-holdout fires; *holdout fires* = 1–2 fires used once for the final evaluation; *outer/inner folds* = nested-CV terms; all folds are grouped by `FIRE_NAME`.
+- **Design (decision 4)**: GAMLSS uses select-once: a new base model (no neighbourhood terms) re-selected on the calibration fires without subsampling, then one `stepGAICAll.A()` per set from it, all with `k = log(n)` on one shared `na.omit()` row set, followed by a residual spatial-autocorrelation check and grouped CV of the fixed formulas. If GAIC and CV disagree, fall back to nested CV. XGBoost uses nested grouped CV.
+- **Code issues found**: GAMLSS CV currently stratifies *by* fire (fires are split across train/test); XGBoost uses random pixel folds, trains on all rows (`list(seq(NROW(dat)), tr)`), and tunes and SHAP-prunes on all rows; the GAMLSS neighbourhood scope regex `_[[:digit:]]{2,4}m$` (Rmd ~359-374) matches **both** sets.
+- **Caveats C1–C9** (in the plan; carry into the manuscript methods/discussion). C9 (pending): Old-ngb `ngbPropBurns_*` is derived from the response's burned/unburned status, so it is only valid if that status is known at prediction time. C1–C8: mixed sets in previous runs; `log(n)` assumes residual independence; the fire random effect doesn't handle within-fire autocorrelation, and unseen fires get population-level predictions; select-once optimism; stepwise path dependence; different validation designs for GAMLSS vs XGBoost; few fires; the final model isn't cross-validated itself.
+- **Working mode (updated 2026-10-30)**: the **user writes the implementation code** and owns the methodological decisions and the `browser()`-marked logic. Do not write implementation code into the repo unless the user explicitly asks for that piece. The assistant is responsible for:
+  - **Bookkeeping**: keep the plan's checkboxes, decisions and caveats (C1–C8, plus new ones) current, and keep AGENTS.md in sync.
+  - **Proactive warnings**: flag potential bugs, statistical or leakage problems, reproducibility risks, and better ways to do things, including file/folder structure. Flag these unprompted, but don't act on them without approval.
+  - **Running and tracking fits on request**: when asked, run model fitting/validation code and log each run (date, model type, predictor set, rows/fires, folds, seed, key settings, metrics, output/cache paths, notes) in the run log `.posit/assistant/plans/2026-10-29-1508-runlog.md`.
+  - Also on request: review diffs, explain existing code, sketch approaches or pseudocode, and write test/check snippets.
+- **Pinned figure for the manuscript**: validation-design schematic (methods figure) at `analyses/Figs/validationDesign.png`, drawn with ggplot2 on 2026-10-30. `analyses/Figs/validationDesign.mmd` holds the Mermaid text version but is **not** the PNG's source. The PNG is gitignored (`*.png`); regenerate it by running `analyses/plot_validationDesign.R` from the repo root (tracked; ggplot2 + ragg).
+
+## Legacy inventory (snapshot 2026-10-30)
+
+Tracks legacy code and outputs so nothing is deleted, overwritten or silently reused during the re-validation. **Do not delete or move anything listed here without the user's approval.** Status key: *legacy* = superseded, kept for reference; *in use* = still read by an active script; *abandoned* = GPBoost; *superseded-pending* = will be replaced by re-validation outputs. Sizes are approximate. When new outputs replace an item, update its row.
+
+### Code
+| Path | Status | Notes |
+|---|---|---|
+| `analyses/DAfires_sevModels.Rmd` | legacy | Original GAMLSS workflow; produced most figures currently cited in the manuscript (see Figures below) |
+| `analyses/DAfires_sevModelsGAMLSS.Rmd` | legacy | Predecessor of `_ngbAvg`; same data `cacheId` `185c…` |
+| `analyses/DAfires_expAnalyses_BAD.Rmd` | legacy | Superseded EDA |
+| `analyses/DAfires_expAnalysesGood.html` | legacy (tracked) | Rendered EDA output |
+| `analyses/DAfires_sevModelsBoost.Rmd`, GPBoost sections | abandoned | Leave untouched |
+| `R/R_tools/Useful_functions.R` `runGPBOOST`, `gpboostConfMat` | abandoned | Leave untouched |
+| `analyses/plot_4DaveFeb19.R` | legacy | Reads Windows paths from the `LandscapesInMotion` SpaDES outputs (`E:/GitHub/...`); not runnable here |
+| `analyses/plot_ESAexperiment.R` | legacy | ESA-poster figures from SpaDES outputs; writes `analyses/ESA_mapsFig.png` |
+| `0_dataPrep_projections.R` | legacy (R 3.4 API) | See Gotchas |
+| `simLinks.sh` | unused | See Gotchas |
+
+### Model objects and text outputs (`analyses/`, all gitignored)
+| File(s) | Date | Size | Status | Read by |
+|---|---|---|---|---|
+| `model8_4.rds` | 2022-12 | 0.6 GB | legacy | `DAfires_sevModels.Rmd:1374`, `DAfires_sevModelsGAMLSS.Rmd:1235` |
+| `model8_4FULL.rds` | 2026-03 | 1.5 GB | **in use**, superseded-pending (W2) | `_ngbAvg.Rmd:354`: read for its formulas (base for neighbourhood scopes, l.356–374), and the fitted object is also the start model passed to `stepGAICAll.A()` (l.377). Fitted on pre-fix data. This read is in the part of the Rmd not yet redone (after the `## here!!` marker, l.321); the user plans to replace it with the base model from the re-run `nonspatialpreds` selection |
+| `modelNgbSev4FULL3.rds` + `_RESIDS.tif`, `_SUMMARY.txt`, `_crossValidOutputs.txt` | 2020–2026 | 1.0 GB | legacy | — |
+| `modelNgbSev4FULL4.rds` + `_RESIDS.tif`, `_SUMMARY.txt`, `_crossValidOutputs.txt` | 2021–2022 | 1.7 GB | legacy | legacy Rmds |
+| `modelNgbSev4FULL4Scaled.rds` + `_RESIDS.tif`, `_SUMMARY.txt`, `_CONFMATRX.txt`, `_obsVSpred.tif`, `_crossValidOutputs.txt` | 2023–2026 | 1.6 GB | **in use**, superseded-pending | `DAfires_sevModelsBoost.Rmd:557, 1012, 1040` (GAMLSS-vs-XGBoost comparison); legacy Rmds |
+| `modelsGAMLSS_0-3Days_20m_goodSample_Nov1.RData` | 2020-01 | 37 GB | legacy | only commented-out `load()` lines |
+| `modelsGAMLSS_allWeatherDays_20m_badSample_Oct10.RData` | 2019-12 | 14 GB | legacy | — |
+| `modelNgbAvg4FULL4*.rds/.txt/.tif` | — | — | **not on disk**: written/read by `_ngbAvg.Rmd` (l.447–800, 2997) but never produced | — |
+| `analyses/GPBoost/` (`modelGPB_de7d….rds`, `gp_model_de7d….json`) | 2025 | 36 MB | abandoned | — |
+
+### Caches
+| Path | Size | Status | Notes |
+|---|---|---|---|
+| `analyses/cache/` | 36 GB | **in use**, flagged corrupted | Still read: `ngbNoBurns` via `loadFromCache(…, "c7536dcb493ad453")` (`_ngbAvg.Rmd:147`); Boost Rmd data `0a70f8b25dc39895` (W1). Do not delete. |
+| `analyses/cacheNEW/` | 3.7 GB | **in use** (current) | Data `185c1b8db3c9788d`, ring averages `e66855d04c369d12` |
+| `analyses/DAfires_expAnalyses_cache/`, `_files/` | 32 MB | legacy | knitr chunk cache / figure output from 2023 |
+| `analyses/DAfires_sevModels_cache/` | empty | legacy | |
+| pinned `cacheId = "85b6d427b43ff53d"` (CV results) | — | legacy | Commented-out `loadFromCache` in `_ngbAvg.Rmd:590, 691` and legacy Rmds |
+
+### Data-prep intermediates (`analyses/`)
+| Path | Size | Status | Notes |
+|---|---|---|---|
+| `fireDataJoins/` | 49 GB | in use (data prep) | Per-fire joined tables (`joinSevVegTopoWeatherData.R`, `DAfires_expAnalyses_dataPrep.R`) |
+| `fireDataSummary/`, `FireEvents/` | 30 MB | legacy | 2018–2019 |
+| `firesInFMAs/`, `CASFRI/` | empty | legacy | |
+
+### Figures (`analyses/Figs/`, gitignored)
+| Files | Status | Notes |
+|---|---|---|
+| `crossValidPlot_DAfires_sevModels.png`, `firesEcozonesNatRAB.png`, `meanSevPEFPlots_…`, `p0PEFPlots_…`, `p1PEFPlots_…`, `severityMaps_highAgreement.png`, `varSevPEFPlots_DAfires_sevModels2.png`, `varSevPEFPlotsNotForest_DAfires_sevModels1.png` | **cited in manuscript**, superseded-pending | Produced by the legacy GAMLSS Rmds from `modelNgbSev4FULL4*`; must be regenerated from the re-validated models. The filenames are reused by `_ngbAvg.Rmd`, so a re-run **overwrites** them. |
+| other `*_DAfires_sevModels*.png`, `PCAforest*.png`, `firesEcozones.png`, `severityMaps_lowAgreement.png`, `tuning_learningRate.png` | legacy | 2021–2025 |
+| `XGBoost/` (~150 files: SHAP partial-dependence, tuning, residuals, severity maps) | legacy, superseded-pending | Oct–Nov 2025 runs with random pixel folds |
+| `GPBoost/` (~55 files) | abandoned | |
+| `validationDesign.png` / `.mmd` | current | Pinned methods figure |
+
+### Repo root
+| Path | Size | Status | Notes |
+|---|---|---|---|
+| `analyses.zip` | 31 GB | legacy archive | Contents unverified |
+| `diagnostics-2026-08-26T…zip` | 0.4 MB | legacy | Positron diagnostics export (gitignored) |
+
+**Overwrite risk:** `_ngbAvg.Rmd` writes manuscript-cited figure names into `analyses/Figs/` and model files into `analyses/`. Until outputs are redirected (outputs/config sub-plan), running its chunks overwrites legacy files listed above.
 
 ## Open items
 

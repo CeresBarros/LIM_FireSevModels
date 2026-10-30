@@ -91,6 +91,7 @@ figDir <- "analyses/Figs"
 dir.create(figDir, showWarnings = FALSE)
 ```
 
+## here: check cahce id, new caches exist with bug-fixed data.
 ```{r dataprep, include = FALSE, cache = FALSE}
 resolution = 30
 summaryABSK_AllData <- Cache(

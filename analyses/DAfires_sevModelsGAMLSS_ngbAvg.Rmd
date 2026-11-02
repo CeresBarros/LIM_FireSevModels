@@ -103,7 +103,7 @@ summaryABSK_AllData <- reproducible::Cache(
   weatherDataPath = "data/fires_Dave/fireWeather",
   doCache = doCache,
   userTags = "summaryABSK_AllData",
-  cacheId = "185c1b8db3c9788d",
+  cacheId = "9e3d2fb3ccf4eb60",
   omitArgs = c("useCache", "doCache", "userTags"))
 
 ## /!\ the following variables have many NA's and should perhaps be excluded

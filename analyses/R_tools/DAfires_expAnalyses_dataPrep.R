@@ -962,7 +962,7 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
   summaryABSK_AllData[, LandCover := collapseCols(c(.SD)), .SDcols = cols, by = pixID]
   summaryABSK_AllData[, (cols) := NULL]
-
+  
   summaryABSK_AllData[, isForest := 0]
   summaryABSK_AllData[LandCover == "NA", isForest := 1]
   summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
@@ -1051,7 +1051,9 @@ dataPrepWrapper <- function(resolution = 30,
 
   ## Wetlands - if (non-NA) wetlands have NA LandCover, LandCover gets "wetland"
   ## is.na(wetland) wetland columns get "notWetland"
-  nonForestDT[!is.na(WETLAND_CLASS) & is.na(LandCover), LandCover := "wetland"]
+  ## non-NA LandCover that are wetlands, are assigned the wetland suffix as "*_wet_<wetland code>"
+  nonForestDT[!is.na(WETLAND_CLASS) & !is.na(LandCover), LandCover := paste(LandCover, "wet", WETLAND_CLASS, sep = "_")]
+  nonForestDT[!is.na(WETLAND_CLASS) & is.na(LandCover), LandCover := paste("wet", WETLAND_CLASS, sep = "_")]
   forAtts <- c("WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD")
   for (col in forAtts) {
     if (is.null(nonForestDT[[col]])) next

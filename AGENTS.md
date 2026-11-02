@@ -17,6 +17,8 @@ Current vs. legacy Rmds in `analyses/`:
 | `DAfires_sevModelsGAMLSS_ngbAvg.Rmd` | **active** | Zero-one-inflated beta GAMLSS severity models with neighbourhood-averaged predictors |
 | `DAfires_sevModelsBoost.Rmd` | active | XGBoost severity models (GPBoost sections abandoned Oct 2026; leave untouched) |
 | `DAfires_expAnalyses.Rmd` | active | Exploratory analyses of fire severity data |
+| `DAfires_collinearityCheck.Rmd` | active (new, Oct 2026) | Collinearity among topographic, weather and vegetation candidates; exports `analyses/outputs/nonCollinearVars.rds` (gitignored) used to build the model candidate list. Co-authored by the assistant. |
+| `plot_validationDesign.R` | active (new, Oct 2026) | Regenerates the pinned methods figure `analyses/Figs/validationDesign.png` |
 | `Fires_CNFD.Rmd` / `Fires_CNFD.R` | active | CNFD fire-database prep |
 | `FiresDA_FMAs.R` | active | Fires × Forest Management Areas |
 | `FI2CASFRI_checkerrors.R` | active | CASFRI cross-check |
@@ -32,6 +34,7 @@ Typical run order from raw data:
 
 ## Environment
 
+- **Caveat (2026-10-30): the `packages/<platform>/4.6/` library is empty**, and `/usr/bin/R` is still R 4.5.3 (R 4.6.1 is at `/opt/R/4.6.1`). In practice all work so far runs on R 4.5.3 with the `4.5/` library; the 4.6 library needs populating before switching.
 - R 4.6 (4.6.1 on this machine) is the current development target — upgraded from R 4.5 (Oct 2026). `.Rprofile` now resolves libraries to `packages/<platform>/4.6/`; the old `4.5/` library is still on disk.
 - `.Rprofile` sets `.libPaths()` to `packages/<platform>/<Rmajor.minor>/` (or `packages_docker/…` on R 4.1 Linux) and configures repos:
   - `CRAN = http://cran.rstudio.com`
@@ -202,6 +205,7 @@ starter placeholder content.
 - **Preserve original code style when documenting** — do not reformat: keep original function signatures, single-line `if`/`else` (do not add braces), original operator spacing, and original blank-line layout. Only comment/`#'` lines should change (this includes removing superseded pre-function `##` doc headers, per above; in-function `##` comments stay).
 - **Internal helpers always get `@keywords internal` (and only that — never `@noRd` alongside it, since `@noRd` suppresses the `.Rd` entirely and would override `@keywords internal`).** This applies to every non-user-facing (internal) function — not just `.`-prefixed helpers but also the internal recoders and any function only called internally by a wrapper (e.g. the CASFRI internal recoders, `calcCrossValidMetrics`, `joinPerFire`). Exported/user-facing wrappers, the `_FIXED.R` shims, and plotting/analysis entry points do **not** get this tag. When documenting a new function, decide its tier first (exported/user-facing vs. internal) and tag accordingly.
 - **Other roxygen conventions**: preserve `@author` attributions; inherit upstream parameter docs with `@inheritParams pkg::fn` rather than duplicating; for the `_FIXED.R` shims add an `@note` describing the upstream bug and target version and `@seealso` the patched original (`gamlss::Rsq`, `gamlss.inf::summary.gamlssinf0to1`). Document best-guess argument shapes with a `# TODO: confirm` marker; fix wrong `@param` names/descriptions but **never reorder arguments in code**. CASFRI docs are tiered (see Stage 3 below): full roxygen for the 5 wrappers, short title + `@param` for the 17 internal recoders.
+- **Never run R in the shared console (`executeCode`)** — it targets whichever console is in the foreground, which may be the user's session, so parallel work collides (agreed 2026-10-30). Instead run R outside the IDE: a persistent background `tmux` session (`pa-R`, started in the repo root) fed by a small send-and-capture helper script kept in the assistant's scratch directory, or one-off `Rscript` calls (e.g. for knitting). Never write objects to the user's session.
 - **Git safety: never stage, commit, or push without explicit permission.** Before any `git add`/`git commit`/`git push`, stop and ask. Draft the proposed commit message and present it for review/approval. After the user approves, re-confirm approval immediately before running the commit or push. (Enforced in `.posit/assistant/settings.json`: `git add`/`commit`/`push` are set to `"ask"`.)
 - **Flag known code issues rather than touching them**: `browser()` calls in `crossValidFunction.R` (`calcCrossValidMetrics`, ~line 161) and `Useful_functions.R` (`runXGBOOST` ~517, `runGPBOOST` ~785/~832) are **intentional markers of code still in development** — never remove them unilaterally; the user finishes that logic; `xgboostConfMat` returns only its last expression (`confMatrix`) with no explicit `return()`, inconsistent with `gpboostConfMat` which returns `list(validMetrics, confMatrix)`; hard-coded `set.seed(123)` in `crossValidFunction`.
 
@@ -300,6 +304,12 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 |---|---|---|---|
 | `analyses.zip` | 31 GB | legacy archive | Contents unverified |
 | `diagnostics-2026-08-26T…zip` | 0.4 MB | legacy | Positron diagnostics export (gitignored) |
+
+### New outputs (re-validation, Oct 2026)
+| Path | Status | Notes |
+|---|---|---|
+| `analyses/outputs/nonCollinearVars.rds` | current | From `DAfires_collinearityCheck.Rmd`; topographic/vegetation/climate/categorical lists + `meta`. The `climate` element is FWI-only until decision 11 |
+| `analyses/DAfires_collinearityCheck.html`, `_files/`, `_cache/` | current | Knitted output; `_files`/`_cache` gitignored, the `.html` is not |
 
 **Overwrite risk:** `_ngbAvg.Rmd` writes manuscript-cited figure names into `analyses/Figs/` and model files into `analyses/`. Until outputs are redirected (outputs/config sub-plan), running its chunks overwrites legacy files listed above.
 

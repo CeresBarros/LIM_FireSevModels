@@ -28,4 +28,5 @@ diagnostics-*.zip
 manuscript/*.pdf
 manuscript/*.tex
 manuscript/*.spl
+.vscode
 .vscode/*

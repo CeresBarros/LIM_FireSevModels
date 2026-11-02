@@ -161,15 +161,33 @@ rm(SEV_PROPpoints); gc(reset = TRUE)
 ## get projection
 crsProj <- crs(vect("data/fires_Dave/fireSev/albertafires1_postfire.shp"), proj = TRUE)
 
-## list of variables retained in model without spatial covariates (model8.4FULL in DAfires_sevModelsGAMLSS.Rmd)
-vars <- c("Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
-          "UNDERSTOREY", "FlamConif", "PctSlope", "SurfAspectRatio",
-          "isForest")
+## list of non-collinear variables retained as model candidates. Ignore weather variables here.
+vars <- readRDS("analyses/outputs/nonCollinearVars.rds")
+vars <- c(vars$topographic, vars$vegetation)
+
+## add a few others that are model candidates and which neighbourhood averages need to be calculated
+## e.g. flammable conifers has to be in despite correlations with isForest.
+## weather variables are candidates but do not vary spatially.
+vars <- c(vars, "STAND_STRUCTURE", "UNDERSTOREY", "LandCover", "isForest", 
+"WETLAND_CLASS", "DIST1", "DIST2", "SMR_ord", "SMR_wet",
+          "FlamConif")
+
+## subset columns of interest, keeping pix/fireID coordinates 
+dataPoints <- summaryABSK_AllData[, .SD, .SDcols = c("pixID", "FIRE_NAME", "Lat", "Long", vars)]
 
 ## convert logical to binary. averages will be the proportion of 1s
-dataPoints <- summaryABSK_AllData[, .SD, .SDcols = c("pixID", "FIRE_NAME", "Lat", "Long", vars)]
-cols <- which(unlist(as.vector(dataPoints[, lapply(.SD, is.logical)])))
+cols <- names(which(unlist(as.vector(dataPoints[, lapply(.SD, is.logical)]))))
+cols <- setdiff(cols, c("pixID", "FIRE_NAME", "Lat", "Long"))
 dataPoints <- dataPoints[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
+
+## convert categorical to binary. averages will be the proportion of 1s
+## exclude SMR_ord.
+cols <- names(which(unlist(as.vector(dataPoints[, lapply(.SD, function(col) inherits(col, c("character", "factor")))]))))
+cols <- setdiff(cols, c("pixID", "FIRE_NAME", "Lat", "Long", "SMR_ord"))
+
+dataPointsSub <- dataPoints[, .SD, .SDcols = c(cols, c("pixID"))] 
+reshape(dataPointsSub[1:10], idvar = "pixID", v.names = cols, direction = "wide")
+
 dataPoints <- st_as_sf(dataPoints, coords = c("Long", "Lat"),
                        agr = "constant", crs = st_crs(crsProj))
 
@@ -318,10 +336,10 @@ modelNgbAvg <- stepGAICAll.A(m0,
 
 
 ## subsample data for faster fitting/variable selection
-## here!! remove subsampling but extract cols of prevous model
+## here!! remove subsampling but extract cols of previous model -- ALSO CHECK HOW TO PROCEEED WITH MODEL FITTING.
 ```{r datasubsample2, cache = FALSE, eval=FALSE}
 
-## list of variables retained in previous model without spatial covariates (model8.4FULL in DAfires_sevModelsGAMLSS.Rmd)
+## list of variables retained in previous model without spatial covariates (equivalent to model8.4FULL in DAfires_sevModelsGAMLSS.Rmd)
 cols <- grep(paste("SEV_PROP",
                    "Decid", "HEIGHT_LOWER", "CTI", "Lari", "SMR_wet",
                    "UNDERSTOREY", "FlamConif", "PctSlope", "SurfAspectRatio",

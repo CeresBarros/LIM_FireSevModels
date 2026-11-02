@@ -19,7 +19,7 @@ knitr::opts_knit$set(root.dir = normalizePath(getwd()))
 knitr::opts_chunk$set(echo = FALSE, cache = 2, warning = FALSE)
 ```
 
-```{r setup2, include=FALSE}
+```{r setup2, include=FALSE, cache=FALSE}
 if (!exists("pkgDir")) {
   pkgDir <- file.path(
     if (Sys.info()[["user"]] == "rstudio") "packages_docker" else "packages",
@@ -164,12 +164,13 @@ calcVIF <- function(DT) {
 #' @return a `ggplot` object (lower triangle, with coefficients printed).
 #' @keywords internal
 plotCorr <- function(DT, title = NULL) {
-  rho <- cor(DT, method = "spearman", use = "pairwise.complete.obs")
-  rho[upper.tri(rho)] <- NA
-  rhoDT <- as.data.table(as.table(rho))[!is.na(N)]
+  ## matrix must not be called `rho`: inside DT[...] that name refers to the column
+  rhoMat <- cor(DT, method = "spearman", use = "pairwise.complete.obs")
+  rhoMat[upper.tri(rhoMat)] <- NA
+  rhoDT <- as.data.table(as.table(rhoMat))[!is.na(N)]
   setnames(rhoDT, c("var1", "var2", "rho"))
-  rhoDT[, `:=`(var1 = factor(var1, levels = colnames(rho)),
-               var2 = factor(var2, levels = rev(colnames(rho))))]
+  rhoDT[, `:=`(var1 = factor(var1, levels = colnames(rhoMat)),
+               var2 = factor(var2, levels = rev(colnames(rhoMat))))]
   ggplot(rhoDT, aes(var1, var2, fill = rho)) +
     geom_tile() +
     geom_text(aes(label = sprintf("%.2f", rho)), size = 2.8) +

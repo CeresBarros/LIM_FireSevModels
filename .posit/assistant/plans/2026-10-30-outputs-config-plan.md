@@ -1,6 +1,6 @@
 # Plan: output folder + shared config for the re-validation runs
 
-Sub-plan of `2026-10-29-1508-plan.md`. Status: **proposal, awaiting approval**. Nothing has been created, moved or edited yet.
+Sub-plan of `2026-10-29-1508-plan.md`. Status: **proposal, awaiting approval**. The folder layout below is not created yet. One exception: `analyses/outputs/` exists since 2026-10-30, holding `nonCollinearVars.rds` from the collinearity Rmd (gitignored via `*.rds`).
 
 Revision 2026-10-30 (user feedback): no `data/` output folder; paths set at the top of each Rmd, not in the config; data `cacheId`s stay where they are, not in the config.
 
@@ -30,7 +30,8 @@ analyses/
 | `holdoutFires` | `FIRE_NAME`s | `NA` placeholder until open decision 1 |
 | `nFolds` / fold type | grouped by `FIRE_NAME` | placeholder until open decision 2 |
 | `predSets$oldNgb` | explicit `ngbPropBurns_<d>m` column names | set now (from `bufferDists`) |
-| `ringVars` + `predSets$ringNgb` | the non-climatic variable list averaged in rings (decision 9), and the resulting `<var>_<d>m` column names (dummy columns for `LandCover`/`DIST1`) | once the dummy and `Aspect` sub-choices are made |
+| `ringVars` + `predSets$ringNgb` | the candidate list (main plan step 3; built from `analyses/outputs/nonCollinearVars.rds` + the user's additions) and the resulting `<var>_<d>m` column names (dummy columns for the categoricals) | once the dummy-class choices are made |
+| `weatherVars` | least-collinear weather candidates (main plan step 3, decision 11) | set now, or read from the .rds after decision 11 |
 | `bufferDists` | 30 × 2^(0:6) | set now (currently duplicated in 3 chunks/2 Rmds) |
 
 Explicitly **not** in the config:
@@ -64,7 +65,7 @@ None of the active Rmd's outputs (`modelNgbAvg4FULL4*`) exist on disk yet, so th
 | 76 | `reproducible.cachePath = "analyses/cacheNEW"`: unchanged | — |
 | 106, 147, 191 | pinned data `cacheId`s: unchanged | — |
 | 125–128, 177–180 | `bufferDists` loops → `revalCfg$bufferDists` | me |
-| 164–193 | ring averages: `vars` → all non-climatic candidates (`revalCfg$ringVars`), dummy-code categoricals, handle `Aspect`, change/remove the pinned `cacheId` (l.191) | **you** |
+| ring-average chunk (was l.164–193; the user has since edited this Rmd, re-check lines) | ring averages: `vars` → the candidate list (the user's snippet reading `nonCollinearVars.rds`), dummy-code categoricals, recode `WETLAND_CLASS` NAs, change/remove the pinned `cacheId` | **you** |
 | 224–231, 332–339 | subsampling chunks (and their `set.seed(123)`) are removed (main plan step 4). Replace with holdout exclusion (`revalCfg$holdoutFires`) + one shared `na.omit()` over all candidate columns | **you** |
 | 222, 359–374 | regex column selection → `revalCfg$predSets` | **you** (methodological, step 3) |
 | 300–317 | base-model selection: add `k = log(n)` (default k = 2 now), run on the shared row set | **you** |

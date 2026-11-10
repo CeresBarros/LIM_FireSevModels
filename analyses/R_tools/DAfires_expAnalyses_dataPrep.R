@@ -857,6 +857,72 @@ cleanAndBindFireData <- function(files, fireDataPath) {
 
 #' Data preparation wrapper function -- for caching data prep steps
 #'
+#' Builds the per-pixel analysis table for the Alberta and Saskatchewan
+#' fires by merging fire severity, pre-fire vegetation (inventory/CASFRI),
+#' topography and fire-weather data, then cleaning and recoding it so that
+#' forested and non-forested pixels can be modelled together. The merge
+#' ([ABSKfires_DataPrep()]) and weather summaries ([summarizeABSK_AllData()])
+#' are cached with `reproducible::Cache()`.
+#'
+#' @details
+#' **Rows and columns removed.** Event-perimeter patches
+#' (`PatchType == "eventPerim"`) are excluded. These are the outer fire-event
+#' polygons created when [ABSKfires_DataPrep()] calls [defineFireEvents()]
+#' (see also [.calculateFireEvents()] and Andison 2012), so only disturbed
+#' patches and island/matrix remnants are kept. Columns that are entirely
+#' `NA` or entirely 0 are also removed, and the land-cover source columns
+#' are merged into `LandCover` (see below).
+#'
+#' **Weather.** Daily fire-weather variables are summarised over the first
+#' three days of burning.
+#'
+#' **Vegetation.** Species cover is aggregated into flammable conifers
+#' (`FlamConif`: white, black and Engelmann spruce; lodgepole and jack pine),
+#' firs (`Abie`) and deciduous species (`Decid`: trembling aspen, balsam
+#' poplar, paper birch); `Lari lari` is renamed `Lari`. `STAND_AGE` is the
+#' fire year minus `ORIGIN_UPPER`, so it can be negative.
+#'
+#' **Land cover, forest status and wetlands.** The three CASFRI non-forest
+#' columns, `NATURALLY_NON_VEG` (naturally non-vegetated),
+#' `NON_FORESTED_VEG` (non-forested vegetation) and `NON_FORESTED_ANTHRO`
+#' (anthropogenic non-forest), are merged into a single `LandCover` column
+#' and then dropped. Each pixel takes the code from whichever column is set,
+#' and the function warns if more than one is set. Codes follow the CASFRI
+#' standard: see [ABToCASFRI()] and [SKToCASFRI()] for how the AB and SK
+#' inventories were converted, and the CASFRI manual for code definitions.
+#' Pixels without a non-forest code get `LandCover = "PF"` (productive
+#' forest). `isForest` is `TRUE` for these pixels, except wetlands whose
+#' vegetation modifier is not forested or treed (including missing), which
+#' are non-forest. Wetlands are identified in `LandCover` by a
+#' `"_wet_<WETLAND_CLASS>"` suffix (e.g. `"PF_wet_B"`), or as
+#' `"wet_<WETLAND_CLASS>"` when a non-forested wetland has no other code.
+#' The `WETLAND_*` columns are kept: `"notWetland"` for non-wetland pixels,
+#' and `"unknown"` for missing modifiers of wetland pixels. The original
+#' `PRODUCTIVE_FOREST` flag is checked against `isForest`/`LandCover` and
+#' then dropped (see **Consistency checks**).
+#'
+#' **Soil moisture.** `SMR` is also given as an ordinal (`SMR_ord`, dry = 1
+#' to aquatic = 5) and a binary (`SMR_wet`, wet or aquatic). Missing `SMR`
+#' is inferred only from land-cover codes that imply it (water/ice/rock-type
+#' codes `WA`, `RI`, `OC`, `LA`, `SI`, `TF`, `LG` as aquatic; flooded `FL`
+#' as wet); all other missing values become `"unknown"`.
+#'
+#' **Missing values.** So that non-forest pixels are not dropped from
+#' models, missing stand and species attributes (age, height, origin, crown
+#' closure, species cover, understorey) are set to 0, `LAYER`/`LAYER_RANK`
+#' to 1, `SITE_CLASS` to `"unknown"`, and disturbances to `"notDisturbed"`
+#' with year/extent 0. Missing `STAND_STRUCTURE` is set to multi-layered
+#' (`"M"`) for forest polygons with more than one layer and single-layered
+#' (`"S"`) otherwise.
+#'
+#' **Response.** Severity is rescaled to a proportion (`SEV_PROP`, 0--1),
+#' with the top class (97.5%) set to 1.
+#'
+#' **Consistency checks.** The function stops if a wetland modifier is set
+#' without a wetland class, or if the original `PRODUCTIVE_FOREST` flag
+#' disagrees with the derived `isForest`/`LandCover`. These guard against
+#' changes in the input inventories (AB, SK and CASFRI conventions).
+#'
 #' @param resolution numeric. in meters. Defaults to 30m.
 #' @param doCache logical. Activates/deactivates caching. Passed to Cache
 #' @param fireDataPath character. Folder path to fire severity data.
@@ -864,7 +930,9 @@ cleanAndBindFireData <- function(files, fireDataPath) {
 #' @param topoDataPath character. Folder path to topography data.
 #' @param weatherDataPath character. Folder path to fire weather data.
 #'
-#' @returns a `data.table` of the cleaned, summarized per-pixel analysis data.
+#' @returns a `data.table` with one row per pixel, containing the cleaned
+#'   predictors, `isForest`, `LandCover` and the response `SEV_PROP`.
+#'   Character columns are factors, and `SMR_ord` is ordered.
 #'
 dataPrepWrapper <- function(resolution = 30,
                             fireDataPath = "data/fires_Dave/fireSev",
@@ -940,23 +1008,23 @@ dataPrepWrapper <- function(resolution = 30,
 
   ## change Lari lari to simpler name
   setnames(summaryABSK_AllData, "Lari lari", "Lari")
-
+  
   ## collapse non-forested variables
   message(cyan("Aggregating non-forested classes..."))
   if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
       dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1] |
       dim(summaryABSK_AllData[!is.na(NON_FORESTED_VEG) & !is.na(NON_FORESTED_ANTHRO)])[1])
     warning("> 1 non-forest class type present")
-
+    
   collapseCols <- function(x) {
     x <- unlist(x)
     names(x) <- NULL
     if (all(is.na(x)))
       NA_character_
-    else
-      x[!is.na(x)]
+      else
+        x[!is.na(x)]
   }
-
+  
   ## collapse non forest veg types into a single column
   cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
   summaryABSK_AllData[, (cols) := lapply(.SD, as.character), .SDcols = cols]
@@ -1049,7 +1117,7 @@ dataPrepWrapper <- function(resolution = 30,
   
   LCcodes <- c("FL")
   nonForestDT[is.na(SMR) & sub("_wet_.*", "", LandCover) %in% LCcodes,
-              `:=`(SMR = "W", SMR_ord = 4L)]
+    `:=`(SMR = "W", SMR_ord = 4L)]
 
   ## remaining NAs become unknown
   nonForestDT[is.na(SMR), SMR := "unknown"]

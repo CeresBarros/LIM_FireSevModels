@@ -938,6 +938,9 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, Decid := sum(`Popu trem`, `Popu balb`, `Betu papy`, na.rm = TRUE),
                       by = pixID]
 
+  ## change Lari lari to simpler name
+  setnames(summaryABSK_AllData, "Lari lari", "Lari")
+
   ## collapse non-forested variables
   message(cyan("Aggregating non-forested classes..."))
   if (dim(summaryABSK_AllData[!is.na(NATURALLY_NON_VEG) & !is.na(NON_FORESTED_VEG)])[1] |
@@ -949,13 +952,10 @@ dataPrepWrapper <- function(resolution = 30,
     x <- unlist(x)
     names(x) <- NULL
     if (all(is.na(x)))
-      "NA"
+      NA_character_
     else
       x[!is.na(x)]
   }
-
-  ## change Lari lari to simpler name
-  setnames(summaryABSK_AllData, "Lari lari", "Lari")
 
   ## collapse non forest veg types into a single column
   cols <- c("NATURALLY_NON_VEG", "NON_FORESTED_VEG", "NON_FORESTED_ANTHRO")
@@ -964,26 +964,13 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, (cols) := NULL]
   
   summaryABSK_AllData[, isForest := 0]
-  summaryABSK_AllData[LandCover == "NA", isForest := 1]
-  summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   ## some wetlands are not forests
+  summaryABSK_AllData[is.na(LandCover), isForest := 1]
+  ## the line above isn't always true as some wetlands (w/ LandCover == NA) are not forests
+  summaryABSK_AllData[!is.na(WETLAND_CLASS) & !WETLAND_VEG_MOD %in% c("F", "T"), isForest := 0]   
 
+  ## If LandCover is NA and is either not a wetland or a treed wetland, then it's a 'productive forest'
+  summaryABSK_AllData[is.na(LandCover) & isForest == 1, LandCover := "PF"]  ## for "productive forest"
 
-  ## remove PRODUCTIVE_FOREST column, as it should be coded as forest or not forest in other columns
-  if (summaryABSK_AllData[PRODUCTIVE_FOREST != "PF", all(!isForest)]) {
-    if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF", all(isForest)]) {
-      ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
-      summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
-    } else {
-      if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF" & isForest == 0, all(!is.na(LandCover))]) {
-        ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
-        summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
-      } else {
-        stop("There is a mismatch between land-cover/forest type columns")
-      }
-    }
-  }
-
-  summaryABSK_AllData[LandCover == "NA", LandCover := "PF"]  ## for "productive forest"
 
   ## Replace NA's with sensible values to avoid excluding non-forested points from analyses
   ## NAs -> 0:
@@ -1046,27 +1033,22 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, SMR_ord := as.integer(SMR_ord)]  ## remove levels first
 
   ## for the next ones deal with forest and non-forest veg differently.
-  nonForestDT <- summaryABSK_AllData[LandCover != "PF"]
-  forestDT <- summaryABSK_AllData[LandCover == "PF"]
+  nonForestDT <- summaryABSK_AllData[isForest == 0]
+  forestDT <- summaryABSK_AllData[isForest == 1]
 
-  ## Wetlands - if (non-NA) wetlands have NA LandCover, LandCover gets "wetland"
-  ## is.na(wetland) wetland columns get "notWetland"
-  ## non-NA LandCover that are wetlands, are assigned the wetland suffix as "*_wet_<wetland code>"
+  ## Wetlands - if not-NA, wetlands get LandCover with a "wet" suffix and the wetland code
+  forestDT[!is.na(WETLAND_CLASS), LandCover := paste(LandCover, "wet", WETLAND_CLASS, sep = "_")]
   nonForestDT[!is.na(WETLAND_CLASS) & !is.na(LandCover), LandCover := paste(LandCover, "wet", WETLAND_CLASS, sep = "_")]
   nonForestDT[!is.na(WETLAND_CLASS) & is.na(LandCover), LandCover := paste("wet", WETLAND_CLASS, sep = "_")]
-  forAtts <- c("WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD")
-  for (col in forAtts) {
-    if (is.null(nonForestDT[[col]])) next
-    if (any(is.na(nonForestDT[["WETLAND_CLASS"]]) & !is.na(nonForestDT[[col]]))) {
-      stop("WETLAND_CLASS is NA, but associated modifiers are not.")
-    }
-    nonForestDT[is.na(nonForestDT[[col]]), (col) := "notWetland"]
-  }
 
   ## Soil moisture regime - round 2
-  nonForestDT[is.na(SMR) & LandCover %in% c("WA", "RI", "OC", "LA", "SI", "TF", "LG"),
+  ## no need to do this for forestDT as LandCover won't match the codes
+  LCcodes <- c("WA", "RI", "OC", "LA", "SI", "TF", "LG")
+  nonForestDT[is.na(SMR) & sub("_wet_.*", "", LandCover) %in% LCcodes,
               `:=`(SMR = "A", SMR_ord = 5L)]
-  nonForestDT[is.na(SMR) & LandCover %in% c("FL"),
+  
+  LCcodes <- c("FL")
+  nonForestDT[is.na(SMR) & sub("_wet_.*", "", LandCover) %in% LCcodes,
               `:=`(SMR = "W", SMR_ord = 4L)]
 
   ## remaining NAs become unknown
@@ -1080,6 +1062,42 @@ dataPrepWrapper <- function(resolution = 30,
   nonForestDT[is.na(STAND_STRUCTURE), STAND_STRUCTURE := "S"]
 
   summaryABSK_AllData <- rbind(forestDT, nonForestDT)
+
+  ## check Wetland NA matches now that the full dataset is back
+  ## is.na(wetland columns) get "notWetland" if NA's match, or unknown if main wetland class is not NA.
+  ## note that WETLAND_CLASS needs to come last for the checks to work.
+  forAtts <- c("WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD", "WETLAND_CLASS") 
+  for (col in forAtts) {
+    if (is.null(summaryABSK_AllData[[col]])) next
+    if (any(is.na(summaryABSK_AllData[["WETLAND_CLASS"]]) & !is.na(summaryABSK_AllData[[col]]))) {
+      stop("WETLAND_CLASS is NA, but associated modifiers are not.")
+    }
+    if (col != "WETLAND_CLASS") { 
+      summaryABSK_AllData[!is.na(summaryABSK_AllData[["WETLAND_CLASS"]]) & is.na(summaryABSK_AllData[[col]]), (col) := "unknown"]
+      summaryABSK_AllData[is.na(summaryABSK_AllData[["WETLAND_CLASS"]]) & is.na(summaryABSK_AllData[[col]]), (col) := "notWetland"]
+    } else {
+      summaryABSK_AllData[is.na(summaryABSK_AllData[[col]]), (col) := "notWetland"]
+    }
+
+  }
+
+  ## remove PRODUCTIVE_FOREST column, as it should be coded as forest or not forest in other columns
+  if (summaryABSK_AllData[PRODUCTIVE_FOREST != "PF", all(!isForest)]) {
+    if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF", all(isForest)]) {
+      ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
+      summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
+    } else {
+      if (summaryABSK_AllData[PRODUCTIVE_FOREST == "PF" & !isForest, all(!is.na(LandCover))]) {
+        ## PRODUCTIVE_FOREST column can be removed, as it is coded into a non-forest type in `LandCover`
+        summaryABSK_AllData[, PRODUCTIVE_FOREST := NULL]
+      } else {
+        stop("There is a mismatch between land-cover/forest type columns")
+      }
+    }
+  } else {
+    stop("There is a mismatch between land-cover/forest type columns")
+  }
+
 
   ## rescale severity from 0-1
   message(cyan("Rescaling severity to [0,1], and converting 97.5% severity to 100%..."))

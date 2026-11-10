@@ -104,7 +104,7 @@ summaryABSK_AllData <- Cache(
   doCache = doCache,
   useCache = doCache,
   userTags = "summaryABSK_AllData",
-  cacheId = "9e3d2fb3ccf4eb60",   
+  cacheId = "cc55d7d2a817284e", 
   omitArgs = c("useCache", "doCache", "userTags"))
 ```
 

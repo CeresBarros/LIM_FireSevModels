@@ -176,9 +176,8 @@ vars <- c(vars$topographic, vars$vegetation)
 ## add a few others that are model candidates and which neighbourhood averages need to be calculated
 ## e.g. flammable conifers has to be in despite correlations with isForest.
 ## weather variables are candidates but do not vary spatially.
-vars <- c(vars, "STAND_STRUCTURE", "UNDERSTOREY", "LandCover", "isForest", 
-"WETLAND_CLASS", "DIST1", "DIST2", "SMR_ord", "SMR_wet",
-          "FlamConif")
+vars <- unique(c(vars, "STAND_STRUCTURE", "UNDERSTOREY", "LandCover", "isForest", "DIST1", "DIST2", "SMR_ord", "SMR_wet",
+          "FlamConif"))
 
 ## subset columns of interest, keeping pix/fireID coordinates 
 dataPoints <- summaryABSK_AllData[, .SD, .SDcols = c("pixID", "FIRE_NAME", "Lat", "Long", vars)]

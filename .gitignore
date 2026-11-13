@@ -11,6 +11,9 @@
 figs/*
 packages/*
 
+rjavaenv
+rjavaenv/*
+
 *.rds
 *.dat
 *.Rout

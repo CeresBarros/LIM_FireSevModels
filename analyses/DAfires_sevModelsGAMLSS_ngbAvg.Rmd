@@ -35,8 +35,16 @@ Require::Install(c(
   "carrier", ## for in_parallel with purrr::*
   "future",
   "future.apply",
-  "mirai"   ## for in_parallel with purrr::*
+  "mirai",   ## for in_parallel with purrr::*
+"rJavaEnv"  ## needed for rJava and xlsx
 ))
+
+rJavaEnv::java_quick_install(version = 21) ## needed for rJava and xlsx
+jvm <- list.files(tools::R_user_dir("rJavaEnv", "cache"), "^libjvm\\.so$",
+                  recursive = TRUE, full.names = TRUE)
+jvm               # should print a path ending in lib/server/libjvm.so
+dyn.load(jvm[1])
+rm(jvm)
 
 Require::Require(
   c(

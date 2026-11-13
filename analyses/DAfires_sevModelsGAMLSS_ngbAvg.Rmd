@@ -184,17 +184,42 @@ vars <- c(vars, "STAND_STRUCTURE", "UNDERSTOREY", "LandCover", "isForest",
 dataPoints <- summaryABSK_AllData[, .SD, .SDcols = c("pixID", "FIRE_NAME", "Lat", "Long", vars)]
 
 ## convert logical to binary. averages will be the proportion of 1s
+## SMR_ord will be converted to integer.
 cols <- names(which(unlist(as.vector(dataPoints[, lapply(.SD, is.logical)]))))
 cols <- setdiff(cols, c("pixID", "FIRE_NAME", "Lat", "Long"))
-dataPoints <- dataPoints[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
+dataPoints[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
 
-## convert categorical to binary. averages will be the proportion of 1s
-## exclude SMR_ord.
+dataPoints[, SMR_ord := as.integer(as.character(SMR_ord))]
+
+## expand categorical to binary variables per factor level. averages will be the proportion of 1s
+## exclude SMR_ord -- converted to integer above.
 cols <- names(which(unlist(as.vector(dataPoints[, lapply(.SD, function(col) inherits(col, c("character", "factor")))]))))
 cols <- setdiff(cols, c("pixID", "FIRE_NAME", "Lat", "Long", "SMR_ord"))
 
-dataPointsSub <- dataPoints[, .SD, .SDcols = c(cols, c("pixID"))] 
-reshape(dataPointsSub[1:10], idvar = "pixID", v.names = cols, direction = "wide")
+## "collapse" all categorical variables into a single column -- one row per pixel x categorical variable
+long <- melt.data.table(dataPoints[, .SD, .SDcols = c(cols, c("pixID"))],
+             id.vars = "pixID", measure.vars = cols,
+             variable.name = "var", value.name = "class", variable.factor = FALSE)
+long <- long[!is.na(class)]
+long[, value := 1L]
+
+## one 0/1 column per var_class
+dummies <- dcast.data.table(long, pixID ~ var + class, value.var = "value", fill = 0L, sep = "_")
+
+## dcast fills absent combinations with 0, so pixels that were NA for a
+## variable would look like "0 for every class" -- restore NA instead
+for (v in cols) {
+  dcols <- grep(paste0("^", v, "_"), names(dummies), value = TRUE)
+  naPix <- dataPoints[is.na(get(v)), pixID]
+  dummies[pixID %in% naPix, (dcols) := NA_integer_]
+}
+
+origPix <- dataPoints$pixID
+dataPoints <- dummies[dataPoints[, !..cols], on = "pixID"]
+
+if (length(setdiff(origPix, dataPoints$pixID))) {
+  stop("Bad join; pixels lost")
+} else rm(origPix)
 
 dataPoints <- st_as_sf(dataPoints, coords = c("Long", "Lat"),
                        agr = "constant", crs = st_crs(crsProj))

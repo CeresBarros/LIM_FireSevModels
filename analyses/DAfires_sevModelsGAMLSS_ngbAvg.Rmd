@@ -71,7 +71,7 @@ Require::Require(
     "terra",
     "tidyterra",
     "ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
-  ), install = FALSE
+  ), install = FALSE  ## set this to TRUE the first time packages are being installed.
 )
 
 doCache = TRUE

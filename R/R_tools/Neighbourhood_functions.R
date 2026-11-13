@@ -245,7 +245,7 @@ calculateNgbBurnsWrapper <- function(dists, sevPoints, sevColID, fireColID,
 #' @importFrom purrr pmap
 #' @author Ceres Barros
 calculateNgbAvgsWrapper <- function(dists, dataPoints, fireColID,
-                                    pointIDColID = "pixID", parallel = TRUE, cores = NULL, ...) {
+                                    pointIDColID = "pixID", parallel = FALSE, cores = NULL, ...) {
   ## checks
   if(!inherits(dataPoints, "sf")) {
     stop("'dataPoints' must be an sf POINTS object")

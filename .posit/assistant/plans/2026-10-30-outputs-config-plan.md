@@ -98,7 +98,7 @@ None of the active Rmd's outputs (`modelNgbAvg4FULL4*`) exist on disk yet, so th
 | 855 | `set.seed(12345)` in `runGPBOOST`: **leave** (GPBoost abandoned) | — |
 
 ### Not changed
-`analyses/R_tools/DAfires_expAnalyses_dataPrep.R` (already takes a `seed` argument, l.919–921), legacy Rmds, `R/R_tools/Neighbourhood_functions.R`.
+`analyses/R_tools/DAfires_dataPrep.R` (already takes a `seed` argument, l.919–921), legacy Rmds, `R/R_tools/Neighbourhood_functions.R`.
 
 ### Bookkeeping (me)
 `analyses/.gitignore` (+`outputs/`), main plan (link to this sub-plan, tick off), run log (path conventions), AGENTS.md (config + folder layout).

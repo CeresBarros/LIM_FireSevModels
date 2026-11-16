@@ -50,7 +50,7 @@ Conventions that emerged during the pass and now live in `AGENTS.md`:
 
 ## Stage 4 — DONE (`a113253`)
 
-- [x] `analyses/R_tools/DAfires_expAnalyses_dataPrep.R` — full roxygen for `ABSKfires_DataPrep` (user-facing orchestrator; legacy `##` header migrated), `@keywords internal` for `cleanAndBindFireData`; `dataPrepWrapper` kept its block with the empty `@returns` filled and its `@export` + orphaned `@importFrom` tags removed.
+- [x] `analyses/R_tools/DAfires_dataPrep.R` — full roxygen for `ABSKfires_DataPrep` (user-facing orchestrator; legacy `##` header migrated), `@keywords internal` for `cleanAndBindFireData`; `dataPrepWrapper` kept its block with the empty `@returns` filled and its `@export` + orphaned `@importFrom` tags removed.
 - [x] `analyses/R_tools/summarizeABSK_AllData.R` — full roxygen for `summarizeABSK_AllData`, `@keywords internal` + `@inheritParams` for `summarizeClimateVars`; both legacy `##` headers migrated.
 
 ## Mitigation in force
@@ -128,7 +128,7 @@ Add roxygen2-style documentation headers to helper functions used across the fir
 ### Stage 3 / 4 — CASFRI + analyses helpers
 
 - [x] `R/R_tools/CASFRIrelated_functions.R` — tiered (full for the five wrappers, title + `@param` for the 17 internal recoders).
-- [x] `analyses/R_tools/DAfires_expAnalyses_dataPrep.R` — `ABSKfires_DataPrep`, `cleanAndBindFireData`, `dataPrepWrapper`.
+- [x] `analyses/R_tools/DAfires_dataPrep.R` — `ABSKfires_DataPrep`, `cleanAndBindFireData`, `dataPrepWrapper`.
 - [x] `analyses/R_tools/summarizeABSK_AllData.R` — `summarizeABSK_AllData`, `summarizeClimateVars`.
 
 ## Process per file (as used)

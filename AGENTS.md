@@ -18,6 +18,7 @@ Current vs. legacy Rmds in `analyses/`:
 | `DAfires_sevModelsBoost.Rmd` | active | XGBoost severity models (GPBoost sections abandoned Oct 2026; leave untouched) |
 | `DAfires_expAnalyses.Rmd` | active | Exploratory analyses of fire severity data |
 | `DAfires_collinearityCheck.Rmd` | active (new, Oct 2026) | Collinearity among topographic, weather and vegetation candidates; exports `analyses/outputs/nonCollinearVars.rds` (gitignored) used to build the model candidate list. Co-authored by the assistant. |
+| `DAfires_dataDictionary.Rmd` | active (new, Nov 2026) | Data dictionary of `summaryABSK_AllData` (cache `cc55d7d2a817284e`): descriptions, derivations with code line refs, and `[UNKNOWN]`/`[CHECK]` flags. Drafted by the assistant from code and docs only. |
 | `plot_validationDesign.R` | active (new, Oct 2026) | Regenerates the pinned methods figure `analyses/Figs/validationDesign.png` |
 | `Fires_CNFD.Rmd` / `Fires_CNFD.R` | active | CNFD fire-database prep |
 | `FiresDA_FMAs.R` | active | Fires × Forest Management Areas |
@@ -82,7 +83,7 @@ Root-level reference files: `LCC2010_LCC2005_correspondence.xlsx`, LCC2010 metad
 | `summary.gamlssinf0to1_FIXED.R` | Patch for `gamlss.inf:::summary.gamlssinf0to1` (vcov with random terms) |
 | `moduleSticker.R` | Sticker generation |
 
-`analyses/R_tools/` also contains `DAfires_expAnalyses_dataPrep.R` and `summarizeABSK_AllData.R`.
+`analyses/R_tools/` also contains `DAfires_dataPrep.R` and `summarizeABSK_AllData.R`.
 
 ## Gotchas
 
@@ -219,7 +220,7 @@ Staged roxygen documentation of `R/R_tools/` and `analyses/R_tools/` (plan under
   - **Part 1 done** (`0ae2fe2`, "doc clean-up. Stage 3 (part 1): CASFRI wrappers"): full `#'` roxygen for the 5 wrappers (`invent2CASFRI`, `ABToCASFRI`, `SKToCASFRI`, `meltPreFireABInv`, `meltPreFireSKInv`); fixed a `CASFIR`→`CASFRI` header typo.
   - **Part 1b done** (`917cfd2`, "doc clean-up. Stage 3 (part 1b): DRY the CASFRI wrapper roxygen with @inheritParams"): `SKToCASFRI`/`meltPreFireABInv` inherit shared params from `ABToCASFRI`; `meltPreFireSKInv` inherits from `meltPreFireABInv`; `ABToCASFRI`'s `@param inv` made province-neutral so SK wrappers inherit `inv` without a local override.
   - **Part 2 done** (`29afc37` "CASFRI internal funs docs #1", `c3c2d14` "doc: drop legacy ## doc headers…", `38a8a11` "consistent references to perl functions and CASFRI"): short title + `@param` roxygen for the 17 internal recoders (`spLatinName`, `TypeForest`, `spPercent`, `spPercentAdjust`, `originUpper`, `originLower`, `nonVegNatSK`, `nonVegAnthSK`, `nonForestVegSK`, `wetlandCodesSK`, `wetlandCodesSK2`, `wetlandCodesAB`, `soilMoistureRegime`, `NFLAdjustAB`, `SMRAdjustAB`, `addWaterInfo`, `correctCSGPFTTYPE`), all tagged `@keywords internal` and DRYed with `@inheritParams` (`spPercent` anchors the shared `province`/`MISSCODE`/`ERRCODE`). Stripped all `@noRd` lines repo-wide (`674ab74`), keeping `@keywords internal` only. Removed the legacy pre-function `##` doc headers that duplicated the new roxygen, and normalized `.pm`/CASFRI-manual wording (`38a8a11`). Comment-only diffs; all files parse.
-  - **Stage 4 — done** (`a113253`, "doc clean-up. Stage 4: analyses/R_tools/ data-prep roxygen"): `analyses/R_tools/`. `DAfires_expAnalyses_dataPrep.R` — full roxygen for `ABSKfires_DataPrep` (user-facing orchestrator; legacy `##` header migrated) and `@keywords internal` for `cleanAndBindFireData` (internal helper); `dataPrepWrapper` kept its existing roxygen with the empty `@returns` filled in. `summarizeABSK_AllData.R` — full roxygen for `summarizeABSK_AllData` (user-facing) and `@keywords internal` for `summarizeClimateVars` (internal helper, `@inheritParams summarizeABSK_AllData`); both legacy `##` headers migrated. Comment/blank-only diffs; both files parse.
+  - **Stage 4 — done** (`a113253`, "doc clean-up. Stage 4: analyses/R_tools/ data-prep roxygen"): `analyses/R_tools/`. `DAfires_dataPrep.R` — full roxygen for `ABSKfires_DataPrep` (user-facing orchestrator; legacy `##` header migrated) and `@keywords internal` for `cleanAndBindFireData` (internal helper); `dataPrepWrapper` kept its existing roxygen with the empty `@returns` filled in. `summarizeABSK_AllData.R` — full roxygen for `summarizeABSK_AllData` (user-facing) and `@keywords internal` for `summarizeClimateVars` (internal helper, `@inheritParams summarizeABSK_AllData`); both legacy `##` headers migrated. Comment/blank-only diffs; both files parse.
 
 The roxygen documentation pass across `R/R_tools/` and `analyses/R_tools/` is **complete** (Stage 4 committed as `a113253`; AGENTS.md status `6cb10a7`). Verified 2026-09-15: 129 roxygen titles, 31 internal helpers tagged `@keywords internal`, zero `@noRd`/`@export` remaining. The plan is archived at `.posit/assistant/plans/archive/2026-07-31-1206-onboard-to-lim-firesevmodels-repo.md`.
 
@@ -286,7 +287,7 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 ### Data-prep intermediates (`analyses/`)
 | Path | Size | Status | Notes |
 |---|---|---|---|
-| `fireDataJoins/` | 49 GB | in use (data prep) | Per-fire joined tables (`joinSevVegTopoWeatherData.R`, `DAfires_expAnalyses_dataPrep.R`) |
+| `fireDataJoins/` | 49 GB | in use (data prep) | Per-fire joined tables (`joinSevVegTopoWeatherData.R`, `DAfires_dataPrep.R`) |
 | `fireDataSummary/`, `FireEvents/` | 30 MB | legacy | 2018–2019 |
 | `firesInFMAs/`, `CASFRI/` | empty | legacy | |
 

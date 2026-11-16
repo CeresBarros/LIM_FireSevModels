@@ -18,7 +18,7 @@ Current vs. legacy Rmds in `analyses/`:
 | `DAfires_sevModelsBoost.Rmd` | active | XGBoost severity models (GPBoost sections abandoned Oct 2026; leave untouched) |
 | `DAfires_expAnalyses.Rmd` | active | Exploratory analyses of fire severity data |
 | `DAfires_collinearityCheck.Rmd` | active (new, Oct 2026) | Collinearity among topographic, weather and vegetation candidates; exports `analyses/outputs/nonCollinearVars.rds` (gitignored) used to build the model candidate list. Co-authored by the assistant. |
-| `DAfires_dataDictionary.Rmd` | active (new, Nov 2026) | Data dictionary of `summaryABSK_AllData` (cache `cc55d7d2a817284e`): descriptions, derivations with code line refs, and `[UNKNOWN]`/`[CHECK]` flags. Drafted by the assistant from code and docs only. |
+| `DAfires_dataDictionary.Rmd` | active (new, Nov 2026; under user review, untracked) | Data dictionary of `summaryABSK_AllData` (cache `cc55d7d2a817284e`). Variable tables with captions numbered by a `tabNum()` helper (no `bookdown`); function/script/file sources as superscript keys in captions; known issues as **Note:** entries in rows; links to the CASFRI manual PDF; Table 19 = full column list grouped by section. Known typo to fix: "Ferster et al. (2026)" should be 2016. |
 | `plot_validationDesign.R` | active (new, Oct 2026) | Regenerates the pinned methods figure `analyses/Figs/validationDesign.png` |
 | `Fires_CNFD.Rmd` / `Fires_CNFD.R` | active | CNFD fire-database prep |
 | `FiresDA_FMAs.R` | active | Fires × Forest Management Areas |
@@ -35,7 +35,8 @@ Typical run order from raw data:
 
 ## Environment
 
-- **Caveat (2026-10-30): the `packages/<platform>/4.6/` library is empty**, and `/usr/bin/R` is still R 4.5.3 (R 4.6.1 is at `/opt/R/4.6.1`). In practice all work so far runs on R 4.5.3 with the `4.5/` library; the 4.6 library needs populating before switching.
+- **R versions (updated 2026-11-16):** R 4.6.1 (`/opt/R/4.6.1`; `/usr/local/bin/R` and `Rscript` point to it) now has a populated `packages/<platform>/4.6/` library and is used for current work and knitting. `/usr/bin/R` is still R 4.5.3 with the `4.5/` library (legacy).
+- **Knitting:** Rmds in `analyses/` use paths relative to the repo root, so the Knit button (which runs from `analyses/`) fails on cache loads. Knit from the repo root: `rmarkdown::render("analyses/<file>.Rmd", knit_root_dir = getwd())`.
 - R 4.6 (4.6.1 on this machine) is the current development target — upgraded from R 4.5 (Oct 2026). `.Rprofile` now resolves libraries to `packages/<platform>/4.6/`; the old `4.5/` library is still on disk.
 - `.Rprofile` sets `.libPaths()` to `packages/<platform>/<Rmajor.minor>/` (or `packages_docker/…` on R 4.1 Linux) and configures repos:
   - `CRAN = http://cran.rstudio.com`
@@ -279,7 +280,7 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 | Path | Size | Status | Notes |
 |---|---|---|---|
 | `analyses/cache/` | 36 GB | **in use**, flagged corrupted | Still read: `ngbNoBurns` via `loadFromCache(…, "c7536dcb493ad453")` (`_ngbAvg.Rmd:147`); Boost Rmd data `0a70f8b25dc39895` (W1). Do not delete. |
-| `analyses/cacheNEW/` | 3.7 GB | **in use** (current) | Data `185c1b8db3c9788d`, ring averages `e66855d04c369d12` |
+| `analyses/cacheNEW/` | 3.8 GB | **in use** (current) | Data `cc55d7d2a817284e` (rebuilt 2026-11-13 under R 4.6 with the same ID; includes `rangeTemp`). Ring-average `cacheId`: as currently set in `_ngbAvg.Rmd` (was `e66855d04c369d12`) |
 | `analyses/DAfires_expAnalyses_cache/`, `_files/` | 32 MB | legacy | knitr chunk cache / figure output from 2023 |
 | `analyses/DAfires_sevModels_cache/` | empty | legacy | |
 | pinned `cacheId = "85b6d427b43ff53d"` (CV results) | — | legacy | Commented-out `loadFromCache` in `_ngbAvg.Rmd:590, 691` and legacy Rmds |
@@ -317,3 +318,11 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 ## Open items
 
 - `.posit/assistant/settings.json` is rewritten live by the permission system. Current state: `permission.edit` allows `*.md`, `*.json`, and `*.R` (the last is intentionally kept by the user — the heredoc-only rule for R files is a behavioural convention, not permission-enforced); the `bash` allowlist includes both `"python *"` and `"python3 *"`; `git add`/`commit`/`push` are set to `"ask"`. The stale Windows-path `git -C c:/Users/cbarros/...` allowlist entries still don't match this Linux checkout (optional cleanup).
+
+## Data-prep fixes and open code issues (Nov 2026)
+
+- `DAfires_expAnalyses_dataPrep.R` renamed to `analyses/R_tools/DAfires_dataPrep.R` (`1005523`).
+- Fixed: missing `rangeTemp` in `summarizeClimateVars()` (`d9f0784`, data rebuilt); `spPercentAdjust()` AB branch used `==` instead of `<-`; AB disturbance-year range check used `&` instead of `|`. The last two had no effect on this data, so the cache was not rebuilt (user decision).
+- **Open:** in `ABToCASFRI()`, the `MOD2_YR` range check assigns the error code to `DIST1_YEAR` instead of `DIST2_YEAR` (no effect on this data).
+- `manuscript/manuscript.qmd` has a TODO comment after the YAML header: Table 1's non-forest types omit bryoid (`BR`) and lake (`LA`).
+

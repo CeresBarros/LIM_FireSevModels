@@ -251,24 +251,24 @@ spPercentAdjust <- function(sppPer, province = NULL) {
     totalPer <- sum(sppPer)
     if (totalPer == 80 &
         sppPer[1] == 50 & sppPer[2] == 20 & sppPer[3] == 10) {
-      sppPer[1] == 60
-      sppPer[2] == 30
+      sppPer[1] <- 60
+      sppPer[2] <- 30
     } else {
       if (totalPer == 90 &
           sppPer[1] == 90) {
-        sppPer[1] == 100
+        sppPer[1] <- 100
       } else {
         if (totalPer == 90 &
             sppPer[1] == 80 & sppPer[2] == 10) {
-          sppPer[1] == 90
+          sppPer[1] <- 90
         } else {
           if (totalPer == 110 &
               sppPer[1] == 60 & sppPer[2] == 30 & sppPer[3] == 20) {
-            sppPer[1] == 50
+            sppPer[1] <- 50
           } else {
             if (totalPer == 40 &
                 sppPer[1] == 0 & sppPer[2] == 20 & sppPer[3] == 20) {
-              sppPer[1] == 60
+              sppPer[1] <- 60
             }
           }
         }
@@ -1330,13 +1330,13 @@ ABToCASFRI <- function(inv, tablesDir, folder, dim) {
   casfriDT[, DIST2_YEAR := MOD2_YR]
   casfriDT[MOD1_YR %in% 0, DIST1_YEAR :=  MISSCODE]
   casfriDT[MOD2_YR %in% 0, DIST2_YEAR :=  MISSCODE]
-  casfriDT[MOD1_YR < 1880 & MOD1_YR > 2020, DIST1_YEAR :=  ERRCODE]
-  casfriDT[MOD2_YR < 1880 & MOD2_YR > 2020, DIST1_YEAR :=  ERRCODE]
+  casfriDT[MOD1_YR < 1880 | MOD1_YR > 2020, DIST1_YEAR :=  ERRCODE]
+  casfriDT[MOD2_YR < 1880 | MOD2_YR > 2020, DIST2_YEAR :=  ERRCODE]
 
   if ("MOD3_YR" %in% names(casfriDT)) {
     casfriDT[, DIST3_YEAR := MOD3_YR]
     casfriDT[MOD3_YR %in% 0, DIST3_YEAR :=  MISSCODE]
-    casfriDT[MOD3_YR < 1880 & MOD3_YR > 2020, DIST3_YEAR :=  ERRCODE]
+    casfriDT[MOD3_YR < 1880 | MOD3_YR > 2020, DIST3_YEAR :=  ERRCODE]
   } else {
     casfriDT[LAYER_RANK == 1, DIST3_YEAR := as.character(MISSCODE)]
     casfriDT[LAYER_RANK == 2, DIST3_YEAR := as.character(UNDEF)]

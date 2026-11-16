@@ -1,6 +1,6 @@
 # Plan: output folders, shared config and data-assembly script for the re-validation
 
-Sub-plan of `2026-10-29-1508-plan.md`. Status: **proposal, 2 decisions open** (see end). Nothing has been created yet except `analyses/outputs/` (holds `nonCollinearVars.rds`, from 2026-10-30).
+Sub-plan of `2026-10-29-1508-plan.md`. Status: **approved 2026-11-16; "me" items done** (config, `buildModelData.R`, Rmd setup + data chunk, `.gitignore`, `outputs/gamlss/{figs,cache}`, `outputs/holdout/`). Remaining rows are yours.
 
 Scope: the **GAMLSS Rmd (`DAfires_sevModelsGAMLSS_ngbAvg.Rmd`) only**. It is the reference for `cacheId`s and column names. The Boost Rmd stays as is until it is re-activated (section 6).
 
@@ -104,7 +104,7 @@ Resolved 2026-11-16:
 - **W5:** `buffer_` names exist only in the Boost Rmd; deferred to section 6.
 - **W6:** the GAMLSS `ngbNoBurns` ID is the reference.
 
-## Open decisions
+## Decisions (2026-11-16)
 
-1. OK for me to write `revalidationConfig.R` and `buildModelData.R` and do the "me" rows in section 4?
-2. Separate fit cache per framework under `outputs/<model>/cache` (recommended), or keep everything in `cacheNEW`?
+1. Approved: assistant writes the config and `buildModelData.R` and does the "me" rows.
+2. Approved: separate fit cache per framework under `outputs/<model>/cache`.

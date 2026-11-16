@@ -315,6 +315,12 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 
 **Overwrite risk:** `_ngbAvg.Rmd` writes manuscript-cited figure names into `analyses/Figs/` and model files into `analyses/`. Until outputs are redirected (outputs/config sub-plan), running its chunks overwrites legacy files listed above.
 
+## Re-validation config and data assembly (2026-11-16)
+
+- `analyses/R_tools/revalidationConfig.R` defines `revalCfg` (seed, holdoutFires, nFolds, bufferDists, predSets, weatherVars); `TODO`s mark undecided values.
+- `analyses/R_tools/buildModelData.R` holds the GAMLSS Rmd's former `dataprep`/`addNgbNoBurns`/`addNgbAvgProperties` code verbatim (bufferDists from config) plus `holdout`/`foldID` columns. The GAMLSS Rmd is the reference for cacheIds and names; the Boost Rmd is untouched until re-activated.
+- Outputs: `analyses/outputs/{gamlss,xgboost,holdout}/` (gitignored); per-framework fit cache in `outputs/<model>/cache`; data cache stays `analyses/cacheNEW`.
+
 ## Open items
 
 - `.posit/assistant/settings.json` is rewritten live by the permission system. Current state: `permission.edit` allows `*.md`, `*.json`, and `*.R` (the last is intentionally kept by the user — the heredoc-only rule for R files is a behavioural convention, not permission-enforced); the `bash` allowlist includes both `"python *"` and `"python3 *"`; `git add`/`commit`/`push` are set to `"ask"`. The stale Windows-path `git -C c:/Users/cbarros/...` allowlist entries still don't match this Linux checkout (optional cleanup).

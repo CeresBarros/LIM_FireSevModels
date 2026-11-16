@@ -36,7 +36,7 @@ Require::Install(c(
   "future",
   "future.apply",
   "mirai",   ## for in_parallel with purrr::*
-"rJavaEnv"  ## needed for rJava and xlsx
+  "rJavaEnv"  ## needed for rJava and xlsx
 ))
 
 rJavaEnv::java_quick_install(version = 21) ## needed for rJava and xlsx
@@ -70,8 +70,8 @@ Require::Require(
     "raster",
     "terra",
     "tidyterra",
-    "ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
-  ), install = FALSE  ## set this to TRUE the first time packages are being installed.
+    "CeresBarros/ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
+  ), install = TRUE  ## set this to TRUE the first time packages are being installed.
 )
 
 doCache = TRUE
@@ -92,7 +92,7 @@ source("R/R_tools/CASFRIrelated_functions.R")
 source("R/R_tools/prepFireWeather.R")
 source("R/R_tools/joinSevVegTopoWeatherData.R")
 source("analyses/R_tools/summarizeABSK_AllData.R")
-source("analyses/R_tools/DAfires_expAnalyses_dataPrep.R")
+source("analyses/R_tools/DAfires_dataPrep.R")
 
 doCache = TRUE
 
@@ -118,8 +118,9 @@ summaryABSK_AllData <- reproducible::Cache(
 ## wetlands are indicated within `LandCover`, the wetland vars are too much for this analysis.
 ## "WETLAND_CLASS", "WETLAND_VEG_MOD", "WETLAND_LAND_MOD", "WETLAND_LOCAL_MOD"
 ## "Duration"
-## "cvRain
+## "cvRain" is mostly NA -- with meanRain == 0.
 ## SMR_ord/wet -- probably nothing that can be done here and there are few NAs on this one.
+## Aspect: 12% of pixels have -117, which is an undocumented value that perhaps it behaves as a flat-surface code; these pixels have near-zero SCOS/SSIN, but circa 40% of them have PctSlope > 0. Perhaps best not to use Aspect
 ```
 
 ```{r addNgbNoBurns, cache = FALSE, include = FALSE}
@@ -135,24 +136,18 @@ for (i in 2:7) {
   bufferDists[i] <- bufferDists[i - 1] * 2
 }
 
-# opts <- options("reproducible.useDBI" = TRUE)
-# ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
-#                     dists = bufferDists,
-#                     sevPoints = SEV_PROPpoints, 
-#                     sevColID = "SEV_PROP",
-#                     fireColID = "FIRE_NAME",
-#                     resolution = resolution,
-#                     parallel = TRUE,
-#                     cores = 3,
-#                     useCache = doCache,
-#                     cacheId = "c7536dcb493ad453",
-#                     cachePath = "analyses/cache/",   ## this cache is in an older cache folder
-#                     userTags = "ngbBurns",
-#                     omitArgs = c("useCache", "userTags", "cores")) 
-# options(opts)
-
-## above is failing with Waiting for 3.6 seconds to retry; the attempt is failing - possibly due to DBI backend being used
-ngbNoBurns <- loadFromCache(cachePath = "analyses/cache", cacheId = "c7536dcb493ad453")
+ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
+                    dists = bufferDists,
+                    sevPoints = SEV_PROPpoints,
+                    sevColID = "SEV_PROP",
+                    fireColID = "FIRE_NAME",
+                    resolution = resolution,
+                    parallel = TRUE,
+                    cores = 3,
+                    useCache = doCache,
+                    cacheId = "c7536dcb493ad453",
+                    userTags = "ngbBurns",
+                    omitArgs = c("useCache", "userTags", "cores"))
 
 ngbNoBurns <- dcast.data.table(ngbNoBurns, ... ~ bufferSize, value.var = "ngbPropBurns")
 
@@ -235,10 +230,10 @@ ngbAvgs <- Cache(calculateNgbAvgsWrapper,
                  pointIDColID = "pixID",
                  fireColID = "FIRE_NAME",
                  resolution = resolution,
-                 parallel = TRUE,
+                 # parallel = TRUE,
                  cores = 5,
                  useCache = doCache,
-                 cacheId = "e66855d04c369d12",
+                #  cacheId = "",
                  userTags = "ngbAvg",
                  omitArgs = c("useCache", "userTags", "cores", "parallel"))
 
@@ -252,7 +247,6 @@ summaryABSK_AllData[, FIRE_NAME := as.factor(FIRE_NAME)]
 summaryABSK_AllData <- ngbAvgs[summaryABSK_AllData, on = .(pixID, FIRE_NAME)]
 
 rm(dataPoints, ngbAvgs, ngbNoBurns); for (i in 1:3) gc(reset = TRUE)
-
 ```
 
 ## subsample data for faster fitting/variable selection:

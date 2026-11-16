@@ -52,7 +52,7 @@ Require::Require(
     "reproducible",
     "terra",
     "tidyterra",
-    "ToolsCB"
+    "CeresBarros/ToolsCB"
   )
 )
 

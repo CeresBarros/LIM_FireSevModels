@@ -67,7 +67,7 @@ Require::Require(
     "raster",
     "terra",
     "tidyterra",
-    "ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
+    "CeresBarros/ToolsCB"         ## "CeresBarros/ToolsCB (>=0.0.9001)"
   ), install = FALSE
 )
 

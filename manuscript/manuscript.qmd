@@ -82,6 +82,11 @@ format:
       cite-style: authoryear
 ---
 
+<!-- TODO (2026-11-16): Table 1 lists the non-forest types as 'Infrastructure',
+     'grassland', 'industry', 'river', 'low shrub', 'tall shrub', but the data
+     also contain bryoid (`BR`) and lake (`LA`) land cover. Update Table 1 (see
+     analyses/DAfires_dataDictionary.Rmd, Land cover and wetlands). -->
+
 ```{=html}
 <!--
 The PDF's cover-page journal candidates were: PLOS One; Journal of Pyrogeography.

@@ -1146,8 +1146,11 @@ dataPrepWrapper <- function(resolution = 30,
     } else {
       summaryABSK_AllData[is.na(summaryABSK_AllData[[col]]), (col) := "notWetland"]
     }
-
   }
+
+  ## create a binary wetland class
+  summaryABSK_AllData[, isWetland := 1]
+  summaryABSK_AllData[isTRUE(WETLAND_CLASS == "notWetland"), isWetland := 0]
 
   ## remove PRODUCTIVE_FOREST column, as it should be coded as forest or not forest in other columns
   if (summaryABSK_AllData[PRODUCTIVE_FOREST != "PF", all(!isForest)]) {
@@ -1200,7 +1203,7 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, SMR_ord := as.ordered(SMR_ord)]
 
   ## make some columns boolean
-  cols <- c("UNDERSTOREY", "isForest", "SMR_wet")
+  cols <- c("UNDERSTOREY", "isForest", "SMR_wet", "isWetland")
   summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.logical), .SDcols = cols]
 
   return(summaryABSK_AllData)

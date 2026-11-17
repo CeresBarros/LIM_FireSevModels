@@ -18,20 +18,14 @@ rm(list = ls()); gc(reset = TRUE)
 # devtools::install_github("PredictiveEcology/SpaDES.tools@development")
 
 ## requires
-library(SpaDES); library(sf); library(ggplot2); library(data.table); library(dplyr)
+library(sf); library(ggplot2); library(data.table); library(dplyr); library(reproducible)
 source("R/R_tools/Useful_functions.R")
 
-## define paths
-setPaths(cachePath = file.path("R/SpaDES/cache"),
-         modulePath = file.path("R/SpaDES/m"),
-         inputPath = file.path("R/SpaDES/inputs"),
-         outputPath = file.path("R/SpaDES/outputs"))
-
-
+options(reproducible.cachePath = "analyses/cache/")
 ## LOAD DATA ---------------------------------------
 
 files = c("albertafires1_postfire", "albertafires2_postfire", "saskatchewanfires_postfire")
-folder = "~/../OneDrive/Documents/LandscapesInMotion/data/fires_Dave/Projected_renamed"
+folder = "data/fires_Dave/fireSev"
 
 # DA_fires <- prepInputs(targetFile = file.path(dataDIR, "albertafires1_postfire.shp"),
 #                        url = "https://drive.google.com/file/d/1wGCqI_X1t-PDM5eO6JWQW9hpNv_8zlum/view?usp=sharing",
@@ -89,24 +83,31 @@ ABSK_firePerims <- ABSK_firePerims %>% group_by(FIRE_NAME) %>%
 # dev(); plot(ABSK_firePerims)
 CA_admin <- Cache(prepInputs, url = "http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/gpr_000a11a_e.zip",
                   destinationPath = "data/CA_admin",
-                  cacheRepo = "analyses/cache")
+                  cachePath = "analyses/cache")
 CA_admin <- CA_admin[CA_admin$PRENAME %in% c("Alberta", "Saskatchewan"),]
-CA_admin <- sp::spTransform(CA_admin, CRSobj = crs(ABSK_firePerims))
+st_crs(CA_admin) <- st_crs(ABSK_firePerims)
+CA_admin <- st_transform(CA_admin, crs = st_crs(ABSK_firePerims))
 
 FMAs <- Cache(prepInputs, targetFile = "FMA_Boundary_Updated.shp",
-              url = "https://drive.google.com/file/d/1nTFOcrdMf1hIsxd_yNCSTr8RrYNHHwuc/view?usp=sharing",
-              destinationPath = "data/FMA", studyArea = CA_admin, writeCropped = FALSE,
-              cacheRepo = "analyses/cache")
+              url = "https://drive.google.com/file/d/1BNsUiMqENJa0I8gzhO68K307ySPHbdGk/view?usp=sharing",
+              destinationPath = "data/FMA",
+              to = CA_admin, writeCropped = FALSE,
+              cachePath = "analyses/cache")
 
+st_crs(FMAs) <- st_crs(ABSK_firePerims)
+FMAs <- st_transform(FMAs, crs = st_crs(ABSK_firePerims))
+              
 CA_admin <- st_as_sfc(CA_admin)   ## plots do not align well when CA_admin is an sf - doesnt need to be one.
 FMAs <- st_as_sf(FMAs)
 
-plot(CA_admin); plot(FMAs, add = TRUE); plot(ABSK_firePerims, add = TRUE)
+plot(CA_admin); plot(FMAs, "Name", add = TRUE); plot(ABSK_firePerims, add = TRUE)
+plot(st_geometry(ABSK_firePerims)); plot(st_geometry(FMAs), add = TRUE)
 
 
 ## fire data with FMAs
+st_crs(FMAs) <- st_crs(ABSK_firePerims)
 FMAs <- st_transform(FMAs, crs = st_crs(ABSK_firePerims))
-firesFMAs <- Cache(st_intersection, x = FMAs, y = ABSK_firePerims, cacheRepo = "analyses/cache")
+firesFMAs <- Cache(st_intersection, x = FMAs, y = ABSK_firePerims, cachePath = "analyses/cache")
 
 plot(CA_admin); plot(FMAs, add = TRUE); plot(firesFMAs, add = TRUE)
 

@@ -1196,7 +1196,7 @@ dataPrepWrapper <- function(resolution = 30,
   summaryABSK_AllData[, (cols) := lapply(.SD, as.integer), .SDcols = cols]
 
   ## make some columns factors
-  cols <- unique(c("FIRE_NAME", "Czone1", "NR1"), names(which(sapply(summaryABSK_AllData, is.character))))
+  cols <- unique(c("FIRE_NAME", "Czone1", "NR1", names(which(sapply(summaryABSK_AllData, is.character)))))
   summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.factor), .SDcols = cols]
 
   ## make SMR_ord ordered again

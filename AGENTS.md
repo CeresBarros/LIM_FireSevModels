@@ -229,7 +229,7 @@ The roxygen documentation pass across `R/R_tools/` and `analyses/R_tools/` is **
 
 All commits through the latest typo fix are pushed to `origin/main`.
 
-## Re-validation of severity models (Oct 2026, in progress)
+## Severity-model fitting and validation (Oct 2026, in progress)
 
 Plan and task tracker: `.posit/assistant/plans/2026-10-29-1508-plan.md` (single source of truth; tick boxes and record decisions/caveats there).
 
@@ -247,7 +247,7 @@ Plan and task tracker: `.posit/assistant/plans/2026-10-29-1508-plan.md` (single 
 
 ## Legacy inventory (snapshot 2026-10-30)
 
-Tracks legacy code and outputs so nothing is deleted, overwritten or silently reused during the re-validation. **Do not delete or move anything listed here without the user's approval.** Status key: *legacy* = superseded, kept for reference; *in use* = still read by an active script; *abandoned* = GPBoost; *superseded-pending* = will be replaced by re-validation outputs. Sizes are approximate. When new outputs replace an item, update its row.
+Tracks legacy code and outputs so nothing is deleted, overwritten or silently reused during the current model fitting and validation. **Do not delete or move anything listed here without the user's approval.** Status key: *legacy* = superseded, kept for reference; *in use* = still read by an active script; *abandoned* = GPBoost; *superseded-pending* = will be replaced by outputs of the current model fitting. Sizes are approximate. When new outputs replace an item, update its row.
 
 ### Code
 | Path | Status | Notes |
@@ -295,7 +295,7 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 ### Figures (`analyses/Figs/`, gitignored)
 | Files | Status | Notes |
 |---|---|---|
-| `crossValidPlot_DAfires_sevModels.png`, `firesEcozonesNatRAB.png`, `meanSevPEFPlots_…`, `p0PEFPlots_…`, `p1PEFPlots_…`, `severityMaps_highAgreement.png`, `varSevPEFPlots_DAfires_sevModels2.png`, `varSevPEFPlotsNotForest_DAfires_sevModels1.png` | **cited in manuscript**, superseded-pending | Produced by the legacy GAMLSS Rmds from `modelNgbSev4FULL4*`; must be regenerated from the re-validated models. The filenames are reused by `_ngbAvg.Rmd`, so a re-run **overwrites** them. |
+| `crossValidPlot_DAfires_sevModels.png`, `firesEcozonesNatRAB.png`, `meanSevPEFPlots_…`, `p0PEFPlots_…`, `p1PEFPlots_…`, `severityMaps_highAgreement.png`, `varSevPEFPlots_DAfires_sevModels2.png`, `varSevPEFPlotsNotForest_DAfires_sevModels1.png` | **cited in manuscript**, superseded-pending | Produced by the legacy GAMLSS Rmds from `modelNgbSev4FULL4*`; must be regenerated from the new models. The filenames are reused by `_ngbAvg.Rmd`, so a re-run **overwrites** them. |
 | other `*_DAfires_sevModels*.png`, `PCAforest*.png`, `firesEcozones.png`, `severityMaps_lowAgreement.png`, `tuning_learningRate.png` | legacy | 2021–2025 |
 | `XGBoost/` (~150 files: SHAP partial-dependence, tuning, residuals, severity maps) | legacy, superseded-pending | Oct–Nov 2025 runs with random pixel folds |
 | `GPBoost/` (~55 files) | abandoned | |
@@ -307,7 +307,7 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 | `analyses.zip` | 31 GB | legacy archive | Contents unverified |
 | `diagnostics-2026-08-26T…zip` | 0.4 MB | legacy | Positron diagnostics export (gitignored) |
 
-### New outputs (re-validation, Oct 2026)
+### New outputs (current model fitting, Oct 2026)
 | Path | Status | Notes |
 |---|---|---|
 | `analyses/outputs/nonCollinearVars.rds` | current | From `DAfires_collinearityCheck.Rmd`; topographic/vegetation/climate/categorical lists + `meta`. The `climate` element is FWI-only until decision 11 |
@@ -315,9 +315,11 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 
 **Overwrite risk:** `_ngbAvg.Rmd` writes manuscript-cited figure names into `analyses/Figs/` and model files into `analyses/`. Until outputs are redirected (outputs/config sub-plan), running its chunks overwrites legacy files listed above.
 
-## Re-validation config and data assembly (2026-11-16)
+## Model config and data assembly (2026-11-16)
 
-- `analyses/R_tools/revalidationConfig.R` defines `revalCfg` (seed, holdoutFires, nFolds, bufferDists, predSets, weatherVars); `TODO`s mark undecided values.
+- **Naming:** don't use "revalidation" (or other project-history terms) in code, file or object names; it only makes sense to someone who knows the history. Use neutral names (`modelConfig.R`, `modelCfg`, `outputs/<model>/`).
+
+- `analyses/R_tools/modelConfig.R` defines `modelCfg` (seed, holdoutFires, nFolds, bufferDists, predSets, weatherVars); `TODO`s mark undecided values.
 - `analyses/R_tools/buildModelData.R` holds the GAMLSS Rmd's former `dataprep`/`addNgbNoBurns`/`addNgbAvgProperties` code verbatim (bufferDists from config) plus `holdout`/`foldID` columns. The GAMLSS Rmd is the reference for cacheIds and names; the Boost Rmd is untouched until re-activated.
 - Outputs: `analyses/outputs/{gamlss,xgboost,holdout}/` (gitignored); per-framework fit cache in `outputs/<model>/cache`; data cache stays `analyses/cacheNEW`.
 
@@ -330,5 +332,6 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 - `DAfires_expAnalyses_dataPrep.R` renamed to `analyses/R_tools/DAfires_dataPrep.R` (`1005523`).
 - Fixed: missing `rangeTemp` in `summarizeClimateVars()` (`d9f0784`, data rebuilt); `spPercentAdjust()` AB branch used `==` instead of `<-`; AB disturbance-year range check used `&` instead of `|`. The last two had no effect on this data, so the cache was not rebuilt (user decision).
 - **Open:** in `ABToCASFRI()`, the `MOD2_YR` range check assigns the error code to `DIST1_YEAR` instead of `DIST2_YEAR` (no effect on this data).
+- **2026-11-16 data-prep changes in `dataPrepWrapper()` (uncommitted; cache not yet rebuilt):** fixed `unique()` misuse in factor conversion; added logical `isWetland` (`WETLAND_CLASS != "notWetland"`, modifiers ignored; replaces `WETLAND_CLASS` as candidate/ring variable); drops `LA`/`RI`/`FA`/`IN` pixels with `SEV_PROP > 0` (≈2,251 rows, likely errors). Unburned non-vegetated pixels are kept as neighbours but must be excluded as focal pixels in `buildModelData.R`. **Open bug:** `isTRUE(WETLAND_CLASS == "notWetland")` (~l.1153) selects no rows. **Open:** strip `LandCover` wet suffixes, base type for `wet_M`/`wet_S`, `BR` handling. Then rebuild (new `cacheId`) and rerun ring averages. `isForest` ≡ `PF`/`PF_wet_*` levels of `LandCover`.
 - `manuscript/manuscript.qmd` has a TODO comment after the YAML header: Table 1's non-forest types omit bryoid (`BR`) and lake (`LA`).
 

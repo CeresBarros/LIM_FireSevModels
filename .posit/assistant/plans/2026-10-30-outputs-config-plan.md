@@ -1,4 +1,4 @@
-# Plan: output folders, shared config and data-assembly script for the re-validation
+# Plan: output folders, shared config and data-assembly script for the severity models
 
 Sub-plan of `2026-10-29-1508-plan.md`. Status: **approved 2026-11-16; "me" items done** (config, `buildModelData.R`, Rmd setup + data chunk, `.gitignore`, `outputs/gamlss/{figs,cache}`, `outputs/holdout/`). Remaining rows are yours.
 
@@ -20,12 +20,12 @@ analyses/
 - Manuscript figures stay in `analyses/Figs/`. Run and diagnostic figures go to `<framework>/figs/`.
 - File names follow `<model>_<set>_<what>.<ext>` (e.g. `gamlss_ringNgb_stepGAIC.rds`), and each path is recorded in the run log.
 - No saved data or fold files. The data comes from the cache, holdout IDs live in the config, and folds are recomputed from the seed.
-- Flat layout (no `revalidation/` level); add sibling folders only if unrelated outputs appear.
+- Flat layout; add sibling folders only if unrelated outputs appear. Names avoid project-history terms such as "revalidation" (config renamed to `modelConfig.R`/`modelCfg`, 2026-11-16).
 - Legacy outputs stay where they are (decision 1 = A). Only new outputs go under `outputs/`.
 
-## 2. Shared config: `analyses/R_tools/revalidationConfig.R` (tracked)
+## 2. Shared config: `analyses/R_tools/modelConfig.R` (tracked)
 
-Holds only the settings that must match across frameworks. It defines one list, `revalCfg`, and contains no functions. It is written via heredoc.
+Holds only the settings that must match across frameworks. It defines one list, `modelCfg`, and contains no functions. It is written via heredoc.
 
 | Element | Value | Status |
 |---|---|---|
@@ -49,10 +49,10 @@ This replaces the `dataprep`, `addNgbNoBurns` and `addNgbAvgProperties` chunks o
 
 - **Your code moves in verbatim**, including the comments and the `rm()`/`gc()` calls. It stays a plain script rather than a function, so it creates the same objects as before.
 - Only edits:
-  - Both `bufferDists` loops → `revalCfg$bufferDists`.
-  - Append a holdout flag and fold IDs from `revalCfg`.
+  - Both `bufferDists` loops → `modelCfg$bufferDists`.
+  - Append a holdout flag and fold IDs from `modelCfg`.
 - `cacheId`s are kept as in the Rmd: data `cc55d7d2a817284e`, `ngbNoBurns` `c7536dcb493ad453`, ring averages unpinned.
-- It expects `doCache`, the sourced helpers and `revalCfg` to be in scope.
+- It expects `doCache`, the sourced helpers and `modelCfg` to be in scope.
 - After writing it, I'll diff it against the original chunk text.
 
 ## 4. Changes to the GAMLSS Rmd
@@ -61,10 +61,10 @@ This replaces the `dataprep`, `addNgbNoBurns` and `addNgbAvgProperties` chunks o
 
 | Where | Change | Owner |
 |---|---|---|
-| setup (after `source()` block, ~l.95) | source `revalidationConfig.R`; one `figDir` (`analyses/Figs`); add `outDir`, `runFigDir`, `fitCachePath` | me |
+| setup (after `source()` block, ~l.95) | source `modelConfig.R`; one `figDir` (`analyses/Figs`); add `outDir`, `runFigDir`, `fitCachePath` | me |
 | l.102–250 | replace with `source("analyses/R_tools/buildModelData.R")` (section 3) | me |
 | subsampling chunks + `set.seed(123)` | remove; holdout exclusion + one shared `na.omit()` over all candidates | you |
-| regex column selection (scope building) | → `revalCfg$predSets` | you |
+| regex column selection (scope building) | → `modelCfg$predSets` | you |
 | `nonspatialpreds` base selection | `k = log(n)`, on the shared row set | you |
 | `readRDS("analyses/model8_4FULL.rds")` | → new base model (W2) | you |
 | `saveRDS`/`readRDS`/`sink`/`tiff` after `## here!!` | use `outDir`/`runFigDir` as you rewrite; I check in review | you |
@@ -86,7 +86,7 @@ Other files:
 ## 6. Deferred: Boost Rmd re-activation (to-do, not current work)
 
 - Source the config and `buildModelData.R` in place of its `dataprep`/`addNgbNoBurns` chunks (l.95–144). This drops its own `ngbNoBurns` ID `9a366f60217632b1`.
-- Rename `buffer_*` → `ngbPropBurns_*` (l.524–532, 1003–1009). Use `revalCfg$predSets` instead of the `"buffer"` regex (l.320–340).
+- Rename `buffer_*` → `ngbPropBurns_*` (l.524–532, 1003–1009). Use `modelCfg$predSets` instead of the `"buffer"` regex (l.320–340).
 - Switch `reproducible.cachePath` from `analyses/cache` (corrupted) to `cacheNEW`. Add `outDir`/`runFigDir`/`fitCachePath`, and split `figDir`/`figDir2`.
 - `runXGBOOST` (`Useful_functions.R`):
   - Seed argument instead of `set.seed(12345)` (l.451).

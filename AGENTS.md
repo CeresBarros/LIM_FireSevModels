@@ -18,7 +18,7 @@ Current vs. legacy Rmds in `analyses/`:
 | `DAfires_sevModelsBoost.Rmd` | active | XGBoost severity models (GPBoost sections abandoned Oct 2026; leave untouched) |
 | `DAfires_expAnalyses.Rmd` | active | Exploratory analyses of fire severity data |
 | `DAfires_collinearityCheck.Rmd` | active (new, Oct 2026) | Collinearity among topographic, weather and vegetation candidates; exports `analyses/outputs/nonCollinearVars.rds` (gitignored) used to build the model candidate list. Co-authored by the assistant. |
-| `DAfires_dataDictionary.Rmd` | active (new, Nov 2026; under user review, untracked) | Data dictionary of `summaryABSK_AllData` (cache `cc55d7d2a817284e`). Variable tables with captions numbered by a `tabNum()` helper (no `bookdown`); function/script/file sources as superscript keys in captions; known issues as **Note:** entries in rows; links to the CASFRI manual PDF; Table 19 = full column list grouped by section. Known typo to fix: "Ferster et al. (2026)" should be 2016. |
+| `DAfires_dataDictionary.Rmd` | active (new, Nov 2026; under user review, untracked) | Data dictionary of `summaryABSK_AllData` (cache `cc55d7d2a817284e`). Variable tables with captions numbered by a `tabNum()` helper (no `bookdown`); function/script/file sources as superscript keys in captions; known issues as **Note:** entries in rows; links to the CASFRI manual PDF; Table 19 = full column list grouped by section. Known typo to fix: "Ferster et al. (2026)" should be 2016. Renders to HTML and .docx in one Knit via a `knit:` YAML hook calling `renderHTMLandDocx()` (`analyses/templates/renderHTMLandDocx.R`: renders all formats from the repo root, then sets `updateFields` in the .docx so Word refreshes TOC page numbers on open). Word styling from `analyses/templates/dataDictionary_reference.docx` (Calibri 11 body, Calibri 12 bold black headings, inline code at surrounding size); `analyses/templates/boldTableHeaders.lua` bolds table headers. Repo paths are written as code links relative to `analyses/` (e.g. ``[`data/...`](../data/...)``; wildcard paths link to the parent folder); use `[//]: # "..."` comments, not `<!-- -->`, which show up as text in the .docx. |
 | `plot_validationDesign.R` | active (new, Oct 2026) | Regenerates the pinned methods figure `analyses/Figs/validationDesign.png` |
 | `Fires_CNFD.Rmd` / `Fires_CNFD.R` | active | CNFD fire-database prep |
 | `FiresDA_FMAs.R` | active | Fires × Forest Management Areas |
@@ -282,7 +282,6 @@ Tracks legacy code and outputs so nothing is deleted, overwritten or silently re
 | `analyses/cache/` | 36 GB | **in use**, flagged corrupted | Still read: `ngbNoBurns` via `loadFromCache(…, "c7536dcb493ad453")` (`_ngbAvg.Rmd:147`); Boost Rmd data `0a70f8b25dc39895` (W1). Do not delete. |
 | `analyses/cacheNEW/` | 3.8 GB | **in use** (current) | Data `cc55d7d2a817284e` (rebuilt 2026-11-13 under R 4.6 with the same ID; includes `rangeTemp`). Ring-average `cacheId`: as currently set in `_ngbAvg.Rmd` (was `e66855d04c369d12`) |
 | `analyses/DAfires_expAnalyses_cache/`, `_files/` | 32 MB | legacy | knitr chunk cache / figure output from 2023 |
-| `analyses/DAfires_sevModels_cache/` | empty | legacy | |
 | pinned `cacheId = "85b6d427b43ff53d"` (CV results) | — | legacy | Commented-out `loadFromCache` in `_ngbAvg.Rmd:590, 691` and legacy Rmds |
 
 ### Data-prep intermediates (`analyses/`)

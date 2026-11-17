@@ -1,20 +1,22 @@
 ---
 title: "Dave Andison's fire data: data dictionary of `summaryABSK_AllData`"
 author:
-  - "Ceres Barros"
-  - "Posit Assistant (AI assistant; drafted this dictionary from the code and documentation, Nov 2026)"
-date: "2026-11-12"
-date-modified: last-modified
+  - "Ceres Barros & Claude Opus 5.5 (initial draft from code and documentation)"
+date: "Created 2026-11-12; last modified `r format(file.mtime(knitr::current_input(dir = TRUE)), '%Y-%m-%d')`"
 output:
+  word_document:
+    toc: true
+    reference_docx: templates/dataDictionary_reference.docx
+    pandoc_args: ["--lua-filter=templates/boldTableHeaders.lua"]
   html_document:
     toc: true
     toc_float: true
+knit: (function(input, ...) { source(file.path(dirname(input), "templates", "renderHTMLandDocx.R")); renderHTMLandDocx(input) })
 editor_options: 
   chunk_output_type: console
 ---
 
-<!-- Drafted by Posit Assistant, reviewed by Ceres Barros.
-     Every statement is sourced from code, comments, or documentation in this repo -->
+[//]: # "Drafted by Posit Assistant, reviewed by Ceres Barros. Every statement is sourced from code, comments, or documentation in this repo"
 
 ```{r setup, include = FALSE}
 ## same convention as the other Rmds in this folder: knit from the repo root
@@ -61,11 +63,11 @@ colSummary <- data.table(
 
 This is a data dictionary for `summaryABSK_AllData`, the pixel-level table
 returned by `dataPrepWrapper()`
-([analyses/R_tools/DAfires_dataPrep.R](R_tools/DAfires_dataPrep.R)).
+([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)).
 It describes each column, where it comes from, and how it was derived.
 
 The data object documented here is the cached build
-`` `r dataCacheId` `` in `analyses/cacheNEW`. It has
+`` `r dataCacheId` `` in [`analyses/cacheNEW`](../analyses/cacheNEW). It has
 `r format(nrow(summaryABSK_AllData), big.mark = ",")` rows (one per 30 m pixel),
 `r ncol(summaryABSK_AllData)` columns, and
 `r uniqueN(summaryABSK_AllData$FIRE_NAME)` fires
@@ -86,10 +88,10 @@ Sources of information about the original data are in the following files (in ad
 
 | Source | Location |
 |---|---|
-| Dave Andison's variable descriptions | `data/fires_Dave/Variable_description.xlsx`, `data/fires_Dave/*/*_varCorresp.txt` |
-| Topography variable names | `data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx`, `data/fires_Dave/DEM/README.txt` |
-| Fire weather metadata | `data/fires_Dave/fireWeather/README.txt`, `data/fires_Dave/fireWeather/20DayInterpolations/interp_varlisting.txt`, `data/fires_Dave/fireWeatherCode/*.csv` |
-| Vegetation inventory conversion | `data/VegInventories/CASFRIConvTables.xlsx`, [CAS_Document_Final_Mar_2010_ALL_APPENDICES.pdf][casman] (CASFRI manual; Appendix 2 data dictionary, Appendix 14 wetland codes), `data/VegInventories/*_varCorresp.txt` |
+| Dave Andison's variable descriptions | [`data/fires_Dave/Variable_description.xlsx`](../data/fires_Dave/Variable_description.xlsx), [`data/fires_Dave/*/*_varCorresp.txt`](../data/fires_Dave) |
+| Topography variable names | [`data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx`](../data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx), [`data/fires_Dave/DEM/README.txt`](../data/fires_Dave/DEM/README.txt) |
+| Fire weather metadata | [`data/fires_Dave/fireWeather/README.txt`](../data/fires_Dave/fireWeather/README.txt), [`data/fires_Dave/fireWeather/20DayInterpolations/interp_varlisting.txt`](../data/fires_Dave/fireWeather/20DayInterpolations/interp_varlisting.txt), [`data/fires_Dave/fireWeatherCode/*.csv`](../data/fires_Dave/fireWeatherCode) |
+| Vegetation inventory conversion | [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx), [CAS_Document_Final_Mar_2010_ALL_APPENDICES.pdf][casman] (CASFRI manual; Appendix 2 data dictionary, Appendix 14 wetland codes), [`data/VegInventories/*_varCorresp.txt`](../data/VegInventories) |
 
 Table: `r tabNum()`Documentation sources for the original data.
 
@@ -103,15 +105,15 @@ to "C. Barros" come from the data analyst's review (2026-11-13).
 
 The preparation runs in this order (functions in parentheses):
 
-1. **Severity polygons** (AB1, AB2 and SK shapefiles in `data/fires_Dave/fireSev`) are read and their severity classes harmonised (`cleanAndBindFireData()`).
+1. **Severity polygons** (AB1, AB2 and SK shapefiles in [`data/fires_Dave/fireSev`](../data/fires_Dave/fireSev)) are read and their severity classes harmonised (`cleanAndBindFireData()`).
 
 2. **Fire events** are defined with a 200 m buffer, giving disturbed patches and inner and outer residual patches (`defineFireEvents()`; see also Andison & McCleary, 2014).
 
-3. **Pre-fire vegetation polygons** (AVI and SFVI inventories in `data/fires_Dave/prefireVeg`) are converted to CASFRI attributes (`ABToCASFRI()`, `SKToCASFRI()`).
+3. **Pre-fire vegetation polygons** (AVI and SFVI inventories in [`data/fires_Dave/prefireVeg`](../data/fires_Dave/prefireVeg)) are converted to CASFRI attributes (`ABToCASFRI()`, `SKToCASFRI()`).
 
 4. **Fire weather** is read (`prepFireWeather()`) from the Large Fire Database 21-day interpolations from weather station data in `all129-overview.xls`. **Ecozones and natural regions** are also contained in this dataset.
 
-5. Everything is **joined at 30 m pixels**: all polygon data (vegetation inventories and fire severity) is rasterized using a one cell-centre point per pixel using a 30m resolution grid (`data/fires_Dave/DEM/Grid30Intersect`); topographic data layers are re-projected to the same resolutions. Severity, vegetation and topography data are joined spatially, and then joined by fire name to weather (`joinSevVegTopoWeatherData()`) -- note that fire waether data is a-spatial.
+5. Everything is **joined at 30 m pixels**: all polygon data (vegetation inventories and fire severity) is rasterized using a one cell-centre point per pixel using a 30m resolution grid ([`data/fires_Dave/DEM/Grid30Intersect`](../data/fires_Dave/DEM/Grid30Intersect)); topographic data layers are re-projected to the same resolutions. Severity, vegetation and topography data are joined spatially, and then joined by fire name to weather (`joinSevVegTopoWeatherData()`) -- note that fire waether data is a-spatial.
 
 6. Weather is **summarised over days 1-3**.
 
@@ -125,7 +127,7 @@ The preparation runs in this order (functions in parentheses):
 - **Resolution:** 30 m. `dataPrepWrapper(resolution = 30)` is passed
   to the join.
 - **Projection:** the CRS of the severity shapefiles
-  (`data/fires_Dave/fireSev/*.prj`), an Albers equal-area projection on NAD83
+  ([`data/fires_Dave/fireSev/*.prj`](../data/fires_Dave/fireSev)), an Albers equal-area projection on NAD83
   (standard parallels 50° and 70°, latitude of origin 40°, central meridian
   −96°, units metres). The code takes the CRS from the severity data;
   it doesn't set one. Vegetation and topography layers are reprojected to it.
@@ -152,7 +154,7 @@ The preparation runs in this order (functions in parentheses):
 | No fire weather for the fire | Unmatched fires^c^ |
 | Non-overstorey layers | `LAYER != 1`^d^ |
 
-Table: `r tabNum()`Rows removed during data preparation. ^a^ `cleanAndBindFireData()`, ^b^ `dataPrepWrapper()` (both in `analyses/R_tools/DAfires_dataPrep.R`); ^c^ `joinSevVegTopoWeatherData()` (`R/R_tools/joinSevVegTopoWeatherData.R`), joins that drop unmatched rows (`nomatch = 0`); ^d^ `summarizeABSK_AllData()` (`analyses/R_tools/summarizeABSK_AllData.R`).
+Table: `r tabNum()`Rows removed during data preparation. ^a^ `cleanAndBindFireData()`, ^b^ `dataPrepWrapper()` (both in [`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^c^ `joinSevVegTopoWeatherData()` ([`R/R_tools/joinSevVegTopoWeatherData.R`](../R/R_tools/joinSevVegTopoWeatherData.R)), joins that drop unmatched rows (`nomatch = 0`); ^d^ `summarizeABSK_AllData()` ([`analyses/R_tools/summarizeABSK_AllData.R`](../analyses/R_tools/summarizeABSK_AllData.R)).
 
 Columns that are all `NA` or all 0 are also dropped. This is why,
 for example, `DIST3_*`, `STAND_STRUCTURE_PER` and `NUMBER_OF_LAYERS` are not
@@ -170,7 +172,7 @@ in the table.
 | `gridID` | Identifier of the topography feature joined to the pixel | First column of the topography shapefiles, renamed.^b^ `r uniqueN(summaryABSK_AllData$gridID)` unique values for `r format(nrow(summaryABSK_AllData), big.mark = ",")` pixels, so some topography features cover several pixels. **Note:** this is the original topography (DEM) pixel ID (C. Barros). |
 | `P_ID` | Pre-fire vegetation polygon identifier | Renumbered sequentially after binding the AB and SK inventories.^b^ Not the inventory's original polygon number: the original polygon IDs can't be trusted because several polygons share an ID.^c^ |
 
-Table: `r tabNum()`Identifiers and location. ^a^ `joinSevVegTopoWeatherData()` (`R/R_tools/joinSevVegTopoWeatherData.R`); ^b^ `ABSKfires_DataPrep()` (`analyses/R_tools/DAfires_dataPrep.R`); ^c^ D. Andison's notes in `data/fires_Dave/Variable_description.xlsx`.
+Table: `r tabNum()`Identifiers and location. ^a^ `joinSevVegTopoWeatherData()` ([`R/R_tools/joinSevVegTopoWeatherData.R`](../R/R_tools/joinSevVegTopoWeatherData.R)); ^b^ `ABSKfires_DataPrep()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^c^ D. Andison's notes in [`data/fires_Dave/Variable_description.xlsx`](../data/fires_Dave/Variable_description.xlsx).
 
 ## Fire attributes
 
@@ -189,7 +191,7 @@ All of these take one value per fire.
 | `Pre.` | `Pre?` column of the fire duration table^g^ | Imported as is; `Pre?` becomes `Pre.` on import. All values are `Yes` in this data. **Note:** legacy variable, not used; probably indicates that pre-fire vegetation data are available for the fire (C. Barros). |
 | `startJulDay` | Day of year of the first day of the fire | First `julDay` of the summarised weather days (see Fire weather).^h^ **Note:** for 8 of 30 fires it differs from the start date in the fire overview file^i^ (1 to 4 days earlier for 7 fires, 30 days for DARIEU LAKE). `julDay` in Ferster's weather data is the first day of the fire and is the date used to compute the FWI System variables, so it is taken as authoritative. |
 
-Table: `r tabNum()`Fire attributes. ^a^ `cleanAndBindFireData()` (`analyses/R_tools/DAfires_dataPrep.R`); ^b^ `data/fires_Dave/fireSev/*Postfire_varCorresp.txt`; ^c^ `joinSevVegTopoWeatherData()` (`R/R_tools/joinSevVegTopoWeatherData.R`); ^d^ `data/fires_Dave/all129-overview.xls`, sheet `all`; ^e^ `prepFireWeather()` (`R/R_tools/prepFireWeather.R`), reading the `interp_*.tab` files in `data/fires_Dave/fireWeather/20DayInterpolations`; ^f^ `ABSKfires_DataPrep()` (`analyses/R_tools/DAfires_dataPrep.R`); ^g^ `data/fires_Dave/fireWeatherCode/fireDuration.csv`; ^h^ `summarizeABSK_AllData()` (`analyses/R_tools/summarizeABSK_AllData.R`); ^i^ `data/fires_Dave/fireWeatherCode/Overview.csv`.
+Table: `r tabNum()`Fire attributes. ^a^ `cleanAndBindFireData()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^b^ [`data/fires_Dave/fireSev/*Postfire_varCorresp.txt`](../data/fires_Dave/fireSev); ^c^ `joinSevVegTopoWeatherData()` ([`R/R_tools/joinSevVegTopoWeatherData.R`](../R/R_tools/joinSevVegTopoWeatherData.R)); ^d^ [`data/fires_Dave/all129-overview.xls`](../data/fires_Dave/all129-overview.xls), sheet `all`; ^e^ `prepFireWeather()` ([`R/R_tools/prepFireWeather.R`](../R/R_tools/prepFireWeather.R)), reading the `interp_*.tab` files in [`data/fires_Dave/fireWeather/20DayInterpolations`](../data/fires_Dave/fireWeather/20DayInterpolations); ^f^ `ABSKfires_DataPrep()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^g^ [`data/fires_Dave/fireWeatherCode/fireDuration.csv`](../data/fires_Dave/fireWeatherCode/fireDuration.csv); ^h^ `summarizeABSK_AllData()` ([`analyses/R_tools/summarizeABSK_AllData.R`](../analyses/R_tools/summarizeABSK_AllData.R)); ^i^ [`data/fires_Dave/fireWeatherCode/Overview.csv`](../data/fires_Dave/fireWeatherCode/Overview.csv).
 
 ## Fire severity (response)
 
@@ -205,7 +207,7 @@ the area scorched in grass or bryophyte cover.
 | `SEV_PROP` | Severity as a proportion (model response) | `SEV_CONT / 100`, with 0.975 set to **1**.^c^ |
 | `PatchType` | Patch type within the fire event | The fire event perimeter is the union of a fire's polygons, buffered out by 200 m and back in.^d^ `disturbedPatch`: the mapped fire polygons. `inResids`: unburned patches inside the event perimeter connected to holes created by the buffering (inner residuals). `outResids`: other unburned areas inside the event perimeter. The manuscript describes this as following Andison (2014) to include fire islands. |
 
-Table: `r tabNum()`Fire severity variables. ^a^ `cleanAndBindFireData()`, ^b^ `ABSKfires_DataPrep()`, ^c^ `dataPrepWrapper()` (all in `analyses/R_tools/DAfires_dataPrep.R`); ^d^ `defineFireEvents()` (`R/R_tools/Useful_functions.R`).
+Table: `r tabNum()`Fire severity variables. ^a^ `cleanAndBindFireData()`, ^b^ `ABSKfires_DataPrep()`, ^c^ `dataPrepWrapper()` (all in [`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^d^ `defineFireEvents()` ([`R/R_tools/Useful_functions.R`](../R/R_tools/Useful_functions.R)).
 
 ```{r sevTable}
 summaryABSK_AllData[, .N, by = .(SEV_CLASS, SEV_CONT, SEV_PROP)][order(SEV_CLASS)] |>
@@ -223,7 +225,7 @@ within the fire polygons).
 **Source:** daily fire weather interpolated for the 21 days of weather lines
 attached to each fire in the Canadian Large Fire Database (LFDB) files
 `interp_50s.tab` to `interp_90s.tab`
-(`data/fires_Dave/fireWeather/20DayInterpolations`). Each weather line holds
+([`data/fires_Dave/fireWeather/20DayInterpolations`](../data/fires_Dave/fireWeather/20DayInterpolations)). Each weather line holds
 `julDay, temp, rh, ws, rain, ffmc, dmc, dc, isi, bui, fwi`
 (`interp_varlisting.txt`). The manuscript describes them as daily weather
 averaged from station measurements during the first 21 days following
@@ -252,7 +254,7 @@ with `sd` computed from at most three values; `range = max - min`.
 | `BUI` | Buildup Index | unitless |
 | `FWI` | Fire Weather Index | unitless |
 
-Table: `r tabNum()`Fire-weather variable stems. Each stem is summarised as `mean`, `min`, `max`, `cv` and `range` over the first three days of each fire (e.g. `meanTemp`, `cvFWI`); units from the manuscript's Table 1. ^a^ `summarizeABSK_AllData()` (`analyses/R_tools/summarizeABSK_AllData.R`).
+Table: `r tabNum()`Fire-weather variable stems. Each stem is summarised as `mean`, `min`, `max`, `cv` and `range` over the first three days of each fire (e.g. `meanTemp`, `cvFWI`); units from the manuscript's Table 1. ^a^ `summarizeABSK_AllData()` ([`analyses/R_tools/summarizeABSK_AllData.R`](../analyses/R_tools/summarizeABSK_AllData.R)).
 
 The table contains `mean`, `min`, `max`, `cv` and `range` for each stem
 (e.g. `meanTemp`, `cvFWI`, `rangeDC`). Notes:
@@ -265,7 +267,7 @@ don't state units, so the manuscript is the only source for them.
 ## Topography
 
 **Source:** shapefiles `alta24.shp`, `alta77_revise.shp` and `sask29.shp` in
-`data/fires_Dave/DEM/Grid30Intersect`. The README says the variables were
+[`data/fires_Dave/DEM/Grid30Intersect`](../data/fires_Dave/DEM/Grid30Intersect). The README says the variables were
 computed with the ArcGIS Gradient Metrics Toolbox (Evans); Ferster et al.
 (2016) report using the Toolbox for Surface Gradient and Geomorphometric
 Modeling, version 2.0-0, for ArcGIS 10.3.1. The original
@@ -290,7 +292,7 @@ manuscript says the DEM had 30 m resolution.
 | `SurfAspectRatio` | Surface Aspect Ratio | The manuscript calls it terrain roughness, computed as area/cos(slope). In this data it equals 537.85 × sec(slope) exactly,^b^ so it carries no information beyond slope. |
 | `TRASP` | Topographic Radiation Aspect Index | |
 
-Table: `r tabNum()`Topographic variables. ^a^ `data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx`, unless noted; "(manuscript)" refers to the manuscript's Table 1; ^b^ `analyses/DAfires_collinearityCheck.Rmd`.
+Table: `r tabNum()`Topographic variables. ^a^ [`data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx`](../data/fires_Dave/DEM/DEMvars_cf_27Nov2018_CB.xlsx), unless noted; "(manuscript)" refers to the manuscript's Table 1; ^b^ [`analyses/DAfires_collinearityCheck.Rmd`](../analyses/DAfires_collinearityCheck.Rmd).
 
 The toolbox settings (e.g. moving-window sizes) are not reported, either in
 Ferster et al. (2016) or in this repo, so they are unknown for all topography
@@ -302,10 +304,10 @@ variables.
 taken within five years before the fire, following the Alberta Vegetation
 Inventory (AVI) or the Saskatchewan Forest Vegetation Inventory (SFVI)
 standards (manuscript). Inventory fields were renamed using
-`data/VegInventories/*_varCorresp.txt` and converted to the Common Attribute
+[`data/VegInventories/*_varCorresp.txt`](../data/VegInventories) and converted to the Common Attribute
 Schema for Forest Resource Inventories (CASFRI; Cosco 2011) with
 `ABToCASFRI()` and `SKToCASFRI()`. Code tables are in
-`data/VegInventories/CASFRIConvTables.xlsx`. Attribute definitions below come
+[`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx). Attribute definitions below come
 from the [CASFRI manual][casman] (Appendix 2), unless noted.
 
 In the conversion, CASFRI missing and error codes are set to `NA`, so missing and erroneous inventory values can't be told apart.
@@ -330,7 +332,7 @@ or with labels such as `"notDisturbed"`; see each variable.
 | `Popu balb` | *Populus balsamifera* (balsam poplar) | Pb | bP |
 | `Popu trem` | *Populus tremuloides* (trembling aspen) | Aw | tA |
 
-Table: `r tabNum()`Tree species columns, in percent of overstorey species composition. AVI and SFVI codes from the `SpeciesTable` sheet of `data/VegInventories/CASFRIConvTables.xlsx`.
+Table: `r tabNum()`Tree species columns, in percent of overstorey species composition. AVI and SFVI codes from the `SpeciesTable` sheet of [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx).
 
 Codes from the `SpeciesTable` sheet of `CASFRIConvTables.xlsx`. Species in
 that table but not in the data (e.g. *Pinus albicaulis*) are not columns
@@ -362,7 +364,7 @@ because they don't occur in the overstorey of these fires.
 | `Decid` | Broadleaf/deciduous species, % (`Broadleaf` in the manuscript) | `Popu trem + Popu balb + Betu papy` |
 | `Lari` | Tamarack, % | `Lari lari` (renamed; kept as its own group) |
 
-Table: `r tabNum()`Species groups, in percent of overstorey species composition, computed in `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`).
+Table: `r tabNum()`Species groups, in percent of overstorey species composition, computed in `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)).
 
 `FlamConif + Abie + Lari + Decid` = 100 on
 forested pixels and 0 elsewhere.
@@ -380,7 +382,7 @@ forested pixels and 0 elsewhere.
 | `UNDERSTOREY` | Presence of a tree understorey | `TRUE` if the pixel's layer-2 record has any species cover; `NA` → `FALSE`. Only AB layer 2 is considered.^e^ The understorey "can't really be trusted (Andison pers. comm. January 29th 2019)", because aerial photos can miss it.^e^ |
 | `LAYER`, `LAYER_RANK` | CASFRI layer number and rank | `LAYER_RANK` equals `LAYER`.^a^ Always 1 after the overstorey filter.^e^ |
 
-Table: `r tabNum()`Stand attributes. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `ABToCASFRI()` / `SKToCASFRI()` (`R/R_tools/CASFRIrelated_functions.R`); ^b^ manuscript; the AVI and SFVI descriptions in `data/fires_Dave/Variable_description.xlsx` say height is recorded to the nearest metre; ^c^ `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`); ^d^ conversion tables (`CrownClos*Table`, `StandStructTable`, `SiteClass` sheets) in `data/VegInventories/CASFRIConvTables.xlsx`; ^e^ `summarizeABSK_AllData()` (`analyses/R_tools/summarizeABSK_AllData.R`), code and comments.
+Table: `r tabNum()`Stand attributes. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `ABToCASFRI()` / `SKToCASFRI()` ([`R/R_tools/CASFRIrelated_functions.R`](../R/R_tools/CASFRIrelated_functions.R)); ^b^ manuscript; the AVI and SFVI descriptions in [`data/fires_Dave/Variable_description.xlsx`](../data/fires_Dave/Variable_description.xlsx) say height is recorded to the nearest metre; ^c^ `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^d^ conversion tables (`CrownClos*Table`, `StandStructTable`, `SiteClass` sheets) in [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx); ^e^ `summarizeABSK_AllData()` ([`analyses/R_tools/summarizeABSK_AllData.R`](../analyses/R_tools/summarizeABSK_AllData.R)), code and comments.
 
 ### Soil moisture
 
@@ -390,7 +392,7 @@ Table: `r tabNum()`Stand attributes. Descriptions from the [CASFRI manual][casma
 | `SMR_ord` | `SMR` as an ordered variable | D=1, F=2, M=3, W=4, A=5; `unknown` → `NA`.^c^ |
 | `SMR_wet` | Wet or aquatic soil | `TRUE` if `SMR_ord` is 4 or 5; `NA` if `SMR_ord` is `NA`.^c^ |
 
-Table: `r tabNum()`Soil moisture variables. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `soilMoistureRegime()` (`R/R_tools/CASFRIrelated_functions.R`); ^b^ `SMRTable` sheet of `data/VegInventories/CASFRIConvTables.xlsx`; ^c^ `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`).
+Table: `r tabNum()`Soil moisture variables. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `soilMoistureRegime()` ([`R/R_tools/CASFRIrelated_functions.R`](../R/R_tools/CASFRIrelated_functions.R)); ^b^ `SMRTable` sheet of [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx); ^c^ `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)).
 
 ### Disturbance history
 
@@ -400,7 +402,7 @@ Table: `r tabNum()`Soil moisture variables. Descriptions from the [CASFRI manual
 | `DIST1_EXTENT_LOWER`, `DIST1_EXTENT_UPPER`, `DIST2_EXTENT_LOWER`, `DIST2_EXTENT_UPPER` | Lower and upper bounds of disturbance extent class (%) | Lower bounds 1/26/51/76/96 and upper bounds 25/50/75/95/100 for extent classes 1-5.^a^ `NA` → 0.^c^ |
 | `DIST1_YEAR`, `DIST2_YEAR` | Year of disturbance | Always 0 in this data (no years recorded; `NA` → 0).^c^ These columns are not dropped by the all-0 rule because it runs before the `NA` filling. **Note:** the AB disturbance-year range check used `&` (`< 1880 & > 2020`), so it could never be true;^b^ fixed to `|` on 2026-11-16, with no effect on this data. |
 
-Table: `r tabNum()`Disturbance history variables. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `DisturbanceTable`, `DistExtLowerTable` and `DistExtUpperTable` sheets of `data/VegInventories/CASFRIConvTables.xlsx`; ^b^ `ABToCASFRI()` / `SKToCASFRI()` (`R/R_tools/CASFRIrelated_functions.R`); ^c^ `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`).
+Table: `r tabNum()`Disturbance history variables. Descriptions from the [CASFRI manual][casman] (Appendix 2). ^a^ `DisturbanceTable`, `DistExtLowerTable` and `DistExtUpperTable` sheets of [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx); ^b^ `ABToCASFRI()` / `SKToCASFRI()` ([`R/R_tools/CASFRIrelated_functions.R`](../R/R_tools/CASFRIrelated_functions.R)); ^c^ `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)).
 
 ### Land cover and wetlands
 
@@ -413,7 +415,7 @@ Table: `r tabNum()`Disturbance history variables. Descriptions from the [CASFRI 
 | `WETLAND_LAND_MOD` | Wetland landform modifier: N = no permafrost or patterning | As above. **Note:** `-` appears for SK `W` wetlands (from the SK conversion of stand type `TMS`); it comes from the CASFRI Perl conversion code for SK and is kept as is. |
 | `WETLAND_LOCAL_MOD` | Wetland local modifier: N = lawns not present, G = graminoids with shrub cover < 25%, S = shrub cover > 25% | As above. **Note:** `-` as for `WETLAND_LAND_MOD`. |
 
-Table: `r tabNum()`Land cover and wetland variables. Wetland codes from the [CASFRI manual][casman] (Appendix 14). ^a^ `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`); ^b^ `wetlandCodesAB()`, ^c^ `wetlandCodesSK2()` (both in `R/R_tools/CASFRIrelated_functions.R`).
+Table: `r tabNum()`Land cover and wetland variables. Wetland codes from the [CASFRI manual][casman] (Appendix 14). ^a^ `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^b^ `wetlandCodesAB()`, ^c^ `wetlandCodesSK2()` (both in [`R/R_tools/CASFRIrelated_functions.R`](../R/R_tools/CASFRIrelated_functions.R)).
 
 ```{r lcTable}
 summaryABSK_AllData[, .N, by = .(LandCover, isForest)][order(-N)] |>
@@ -433,7 +435,7 @@ summaryABSK_AllData[, .N, by = .(LandCover, isForest)][order(-N)] |>
 | `IN` | Industrial | `NON_FORESTED_ANTHRO` |
 | `wet_*` | Wetland without another land-cover code | — |
 
-Table: `r tabNum()`Land-cover codes, from the [CASFRI manual][casman] (Appendix 2) and the conversion tables in `data/VegInventories/CASFRIConvTables.xlsx`. ^a^ assigned in `dataPrepWrapper()` (`analyses/R_tools/DAfires_dataPrep.R`); ^b^ shrub height threshold applied in `ABToCASFRI()` (`R/R_tools/CASFRIrelated_functions.R`).
+Table: `r tabNum()`Land-cover codes, from the [CASFRI manual][casman] (Appendix 2) and the conversion tables in [`data/VegInventories/CASFRIConvTables.xlsx`](../data/VegInventories/CASFRIConvTables.xlsx). ^a^ assigned in `dataPrepWrapper()` ([`analyses/R_tools/DAfires_dataPrep.R`](../analyses/R_tools/DAfires_dataPrep.R)); ^b^ shrub height threshold applied in `ABToCASFRI()` ([`R/R_tools/CASFRIrelated_functions.R`](../R/R_tools/CASFRIrelated_functions.R)).
 
 ## Other columns
 

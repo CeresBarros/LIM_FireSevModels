@@ -1206,5 +1206,8 @@ dataPrepWrapper <- function(resolution = 30,
   cols <- c("UNDERSTOREY", "isForest", "SMR_wet", "isWetland")
   summaryABSK_AllData <- summaryABSK_AllData[, (cols) := lapply(.SD, as.logical), .SDcols = cols]
 
+  ## exclude non-vegetated pixels that have severity > 0-- these are likely errors
+  summaryABSK_AllData <- summaryABSK_AllData[!(grepl("^LA|^RI|^FA|^IN", LandCover) & SEV_PROP > 0),]
+
   return(summaryABSK_AllData)
 }

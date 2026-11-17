@@ -33,10 +33,8 @@ SEV_PROPpoints <- summaryABSK_AllData[, .(pixID, FIRE_NAME, SEV_PROP, Lat, Long)
 SEV_PROPpoints <- st_as_sf(SEV_PROPpoints, coords = c("Long", "Lat"),
                            agr = "constant", crs = st_crs(crsProj))
 
-bufferDists <- modelCfg$bufferDists
-
 ngbNoBurns <- Cache(calculateNgbBurnsWrapper,
-                    dists = bufferDists,
+                    dists = modelCfg$bufferDists,
                     sevPoints = SEV_PROPpoints,
                     sevColID = "SEV_PROP",
                     fireColID = "FIRE_NAME",
@@ -112,11 +110,9 @@ if (length(setdiff(origPix, dataPoints$pixID))) {
 dataPoints <- st_as_sf(dataPoints, coords = c("Long", "Lat"),
                        agr = "constant", crs = st_crs(crsProj))
 
-bufferDists <- modelCfg$bufferDists
-
 ## note that for binary variables mean = proportion of 1s
 ngbAvgs <- Cache(calculateNgbAvgsWrapper,
-                 dists = bufferDists,
+                 dists = modelCfg$bufferDists,
                  dataPoints = dataPoints,
                  pointIDColID = "pixID",
                  fireColID = "FIRE_NAME",
